@@ -1,7 +1,8 @@
-// AS PROVIDED — not yet wired into an application, and does not currently compile:
+// Not yet wired into an application, and does not currently compile:
 // `remember(...)` is referenced but never defined or imported.
 // Source of truth for the Offering lifecycle while the map is being worked.
-// See docs/machines/README.md for known gaps.
+// Amended as map tickets land — see docs/machines/README.md for what has been
+// decided and what is still open.
 
 import { setup } from "xstate";
 
@@ -50,6 +51,12 @@ export const machine = setup({
       // Add your guard condition here
       return true;
     },
+    hasLead: function ({ context, event }) {
+      // True when position 0 of the instructor roster is occupied. A Slated
+      // offering may have an empty roster, so `offer` has no one to address
+      // until a lead is placed. Unimplementable until context is designed.
+      return true;
+    },
   },
 }).createMachine({
   context: ({ input }) => input,
@@ -60,6 +67,9 @@ export const machine = setup({
       on: {
         offer: {
           target: "Offered",
+          guard: {
+            type: "hasLead",
+          },
         },
         kill: {
           target: "Dead",
@@ -154,6 +164,9 @@ export const machine = setup({
     },
     Declined: {
       on: {
+        retry: {
+          target: "Slated",
+        },
         kill: {
           target: "Dead",
         },

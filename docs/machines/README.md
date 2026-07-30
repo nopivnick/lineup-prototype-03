@@ -1,12 +1,36 @@
 # State machines
 
-The Course and Offering lifecycles, as supplied at the start of the wayfinder map.
-These files are **reference, not application code** — nothing imports them yet.
+The Course and Offering lifecycles. These files are **reference, not application
+code** — nothing imports them yet.
 
-Do not "fix" the observations below in place. Each one is a question for a map
-ticket to answer; silently resolving one loses the decision.
+They **track the wayfinder map**: when a map ticket decides something about a
+lifecycle, the machine is amended and the resolved item moves from *Open questions*
+below into *Decided*, linking the ticket that settled it. Never amend a machine
+without a closed ticket behind it — the decision lives in the ticket, and a change
+with no link is a decision nobody made.
 
-## Known gaps
+## Decided
+
+Settled by closed map tickets. The machines already reflect these.
+
+**`Declined` is recoverable.** [What is an Offering?](https://github.com/nopivnick/lineup-prototype-03/issues/2)
+gave `Declined` a `retry` → `Slated`, matching `Canceled`. The old dead-end was a bug:
+`decline` is reachable from `Published`, so an instructor withdrawing from a scheduled,
+published class would have forced `kill` → `Dead`, discarding the call number, SIS
+number, room and schedule. `Declined` keeps `kill` → `Dead`, and stays a distinct state
+from `Canceled` — "they said no" and "we pulled it" carry different follow-up. It
+remains the only non-final state without `revise`: you re-slate, then revise.
+
+**`offer` is guarded on `hasLead`.** Same ticket. An Offering owns an ordered instructor
+roster where position 0 is the lead, and `offer` / `accept` / `decline` / `defer` speak
+for the lead alone. A `Slated` Offering may have an empty roster, so `offer` has no one
+to address until position 0 is filled. `decline` vacates position 0 with no
+auto-promotion of position 1.
+
+The vacate-on-decline action is **not** in the machine: what it writes depends on the
+context design, which is still open below.
+
+## Open questions
 
 **`remember(...)` is undefined.** `offering.machine.ts` calls it on every `revise`
 transition but never defines or imports it. Whatever it writes is the same store the
@@ -30,9 +54,6 @@ state is persisted.
 These may all be deliberate. They're recorded because they're the kind of thing that
 is much cheaper to confirm now than to discover once the schema is built.
 
-- **`Declined` is a near-dead end.** Its only transition is `kill` → `Dead`. An
-  offering declined by one instructor cannot be re-offered to another; it must be
-  killed and a new offering slated.
 - **`Published`, `Listed` and `Running` cannot be revised.** Every other non-final
   state can. Once an offering is published, editing it means cancelling it.
 - **`Published` can still be `decline`d or `defer`red** — an instructor backing out
@@ -45,6 +66,7 @@ is much cheaper to confirm now than to discover once the schema is built.
 
 ## Provenance
 
-Both machines were authored in Stately and pasted in verbatim at map creation. The
+Both machines were authored in Stately and pasted in verbatim at map creation, then
+amended as tickets landed — see *Decided* above for every change since. The
 `context: ({ input }) => input` line and empty `context: {} as {}` type are Stately
 scaffolding, not a considered context design.
