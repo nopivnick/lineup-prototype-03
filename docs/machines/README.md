@@ -129,10 +129,11 @@ stays true.
 
 **Position 0 is editable only in `Slated` (fill) and `Staffed` (swap or vacate).** It is
 frozen everywhere else, `Revising` included — a vacate mid-revision would make
-`approve` → `Staffed` assert a lead that no longer exists. From `Offered` onward the
-only thing that empties it is `decline`, because a rewritable position 0 would leave the
-transition log saying the offer went to one person while the roster says the class
-belongs to another. Positions 1..n stay non-gating and freely editable in any state.
+`approve` → `Staffed` assert a lead that no longer exists. From `Offered` onward,
+both `decline` and `withdraw` empty it, because a rewritable position 0 would leave
+the transition log saying the offer went to
+one person while the roster says the class belongs to another. Positions 1..n stay
+non-gating and freely editable in any state.
 
 **Vacate-on-decline is a `DELETE` in the Server Action's transaction**, not an XState
 action — the roster is relational and the machine cannot write to it. Every `decline`
@@ -149,7 +150,8 @@ are slow and material, and a state asserting "they said yes" when the yes has go
 gets published to the catalog and never caught.
 
 **The transition log gains a nullable `subject_netid`**, populated by `staff`, `unstaff`
-and `decline`, null elsewhere. This **amends ticket 6's column list**. `actor_netid`
+and `decline` — and, since ticket 19, `withdraw` — null elsewhere. This **amends ticket
+6's column list**. `actor_netid`
 records who clicked, which for a decline is routinely an admin taking a refusal by
 email — so with the roster row deleted in the same transaction, who said no would
 survive nowhere, defeating ticket 2's requirement that it be recordable. The same hole
@@ -158,15 +160,65 @@ swapping within `Staffed` fires no transition, the original name would simply be
 Rejected alternative: soft-deleting roster rows, which ticket 2 already refused and
 which complicates the per-offering uniqueness constraint on `position`.
 
+**The department can withdraw an offer: `Offered --withdraw--> Slated`.**
+[Can the department withdraw an offer?](https://github.com/nopivnick/lineup-prototype-03/issues/19)
+closed the gap ticket 15 opened by freezing position 0 from `Offered` onward. Pulling an
+offer the lead has not refused had no honest move: `decline` writes a refusal that never
+happened, `cancel` means the class is not running and is unreachable this early, `revise`
+cannot touch position 0, and `kill` discards the offering ticket 2 preserved.
+
+It is a **distinct event, not `unstaff` reaching further**. `unstaff` is deliberately
+never user-facing — bookkeeping fired from inside the Server Action, justified by no human
+ever choosing it. `withdraw` is chosen by a human and has an external consequence, because
+the lead was told. One event for both would make the log read identically for "we tidied a
+staffing plan nobody had seen" and "we retracted an offer from someone waiting on an
+answer", and the second is the one that needs a paper trail.
+
+**`Offered` is the only source state**, because it is the only one where the act is
+provably honest — `accept`, `decline` and `defer` are its sole exits, so no answer has come
+back. `Deferred` was the arguable case and was **excluded on a factual correction**: it has
+four inbound edges, so it cannot certify that the lead hasn't already agreed, and `withdraw`
+there would let a renege wear the name reserved for retracting an unanswered question. That
+leaves a real hole — deferred, then the department wants someone else — deliberately left
+visible as ticket 21 rather than closed by a move that can mislabel. `Accepted` onward is a
+different act, breaking an agreement rather than retracting a question, and is out of scope
+until someone shows it happens.
+
+**It lands in `Slated` and vacates position 0** — the same `DELETE` in the same Server
+Action transaction as `decline`, not an XState action. `Staffed` was rejected because swaps
+inside it fire nothing: the log would show the offer pulled from Danny and then re-sent to
+nobody in particular, with the replacement never appearing. `Slated` forces `staff` then
+`offer` to fire again, putting every step on the record, and matches ticket 2 on routing
+through `Slated` to force the decision rather than skip it. The re-ask-the-same-person case
+now costs a redundant `staff`, which is a benefit — it logs an explicit re-assertion rather
+than inheriting the pick silently.
+
+**No `Withdrawn` state.** `Declined` exists because a refusal leaves the department stuck
+and `retry` forces the decision; a withdrawal is the department *acting*, so it would only
+ever pass through such a state on its way to `Slated`. The queryability argument fails too:
+"has this offering had an offer pulled?" is a fact about history, and `status` only holds
+the present. The transition log is its home. Consequently `LIVE_STATES` and
+`RevisableState` are both unchanged — `Slated` is already live, which is right, since a
+withdrawn offer means the department still intends to run the class.
+
+`withdraw` joins `subject_netid`, forced by ticket 15's rule: the transaction deletes the
+roster row, so without it the withdrawn instructor survives nowhere. `offer` and `accept`
+deliberately do **not** carry one — the roster row survives those, and position 0 is frozen
+from `Offered` onward, so the roster answers "who is the lead" directly.
+
+Two things were ruled **out of scope** rather than settled, both because they are properties
+of the system and not of this event: a free-text **reason** on the log row (`cancel` and
+`kill` want it as much; it belongs to the schema ticket) and **notifying the instructor** —
+`offer`, `withdraw` and `cancel` all imply an off-system act, the machines model decisions
+rather than communication, and the map now says so explicitly.
+
 ## Open questions
 
-**The department cannot withdraw an offer.** Freezing position 0 from `Offered` onward
-left a real departmental act unrepresentable: pulling an offer the instructor has not
-refused. `decline` puts a refusal in their history that never happened, `cancel` means
-the class is not running and is unavailable before `Published` anyway, `revise` cannot
-touch position 0, and `kill` throws away the offering ticket 2 went out of its way to
-preserve. Surfaced while resolving ticket 15:
-[Can the department withdraw an offer?](https://github.com/nopivnick/lineup-prototype-03/issues/19)
+**What does `Deferred` mean?** It has four inbound edges — `Offered`, `Accepted`,
+`Scheduled` and `Published` — so a deferred offering is sometimes "asked, hasn't
+answered" and sometimes "said yes, then put it on hold", and the machine cannot tell
+which. That ambiguity is what kept `withdraw` off it. Surfaced while resolving ticket 19:
+[What does Deferred mean, and can it tell you whether the lead agreed?](https://github.com/nopivnick/lineup-prototype-03/issues/21)
 
 **Which states can be revised, and does revision always need approval?** `revise` is
 available from `Evaluating` and `Canceled` — editing an offering whose class already
