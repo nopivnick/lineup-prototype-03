@@ -131,6 +131,25 @@ export const machine = setup({
       // the refusal by email — so without `subject_netid` the roster row is
       // deleted and who said no survives nowhere.
       | { type: "decline" }
+      // The department pulling an offer the lead has not answered — the act
+      // that had no honest move before
+      // https://github.com/nopivnick/lineup-prototype-03/issues/19.
+      // `decline` would have put a refusal in their history that never
+      // happened, `cancel` means the class is not running (and is unavailable
+      // this early), `revise` cannot touch position 0, and `kill` discards the
+      // offering.
+      //
+      // Distinct from `unstaff` rather than an extension of it. `unstaff` is
+      // never user-facing — it is bookkeeping that fires from inside the
+      // Server Action, and its whole justification is that no human chooses
+      // it. `withdraw` is chosen by a human and has an external consequence,
+      // because the lead was told. One event covering both would make the log
+      // read identically for "we tidied a staffing plan nobody had seen" and
+      // "we retracted an offer from someone waiting on an answer".
+      //
+      // Vacates position 0, the same `DELETE` in the same transaction as
+      // `decline`, and carries the withdrawn instructor as `subject_netid`.
+      | { type: "withdraw" }
       | { type: "publish" }
       | { type: "unstaff" }
       | { type: "schedule" }
@@ -219,7 +238,8 @@ export const machine = setup({
         },
         // Vacating position 0 before anyone has been asked. Cheap and silent:
         // nobody was ever told. From `Offered` onward this is unavailable, and
-        // `decline` is the only thing that empties position 0.
+        // only `decline` and `withdraw` empty position 0 — both of which
+        // record who it was emptied of.
         unstaff: {
           target: "Slated",
         },
@@ -240,6 +260,33 @@ export const machine = setup({
         // Vacates position 0 — see the `decline` event above.
         decline: {
           target: "Declined",
+        },
+        // The only state `withdraw` leaves from, and the only state where it
+        // is provably honest: `accept`, `decline` and `defer` are the sole
+        // exits, so an offering still in `Offered` has had no answer back.
+        //
+        // `Deferred` was the arguable case and is excluded — it has four
+        // inbound edges (`Offered`, `Accepted`, `Scheduled`, `Published`), so
+        // a deferred offering may be one whose lead already agreed, and the
+        // machine cannot tell which. Allowing `withdraw` there would let a
+        // renege wear the name reserved for taking back an unanswered
+        // question. `Accepted` onward is a different act entirely — breaking
+        // an agreement, not retracting a question — and is out of scope.
+        //
+        // Lands in `Slated`, not `Staffed`, and vacates position 0. `Staffed`
+        // would keep the withdrawn lead seated and let the department swap in
+        // a replacement, and swaps inside `Staffed` fire nothing — so the log
+        // would show the offer pulled from one person and then re-sent to
+        // nobody in particular. `Slated` forces `staff` and `offer` to fire
+        // again, putting the replacement on the record.
+        //
+        // No `Withdrawn` state: `Declined` exists because a refusal leaves the
+        // department stuck and `retry` forces the decision, whereas a
+        // withdrawal *is* the department acting — it would only ever pass
+        // through such a state on its way here.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/19
+        withdraw: {
+          target: "Slated",
         },
         defer: {
           target: "Deferred",
@@ -391,8 +438,12 @@ export const machine = setup({
         // untouched and routing to `Slated` would assert a vacancy that isn't
         // there. Unconditional, no guard: `Canceled` is reachable only from
         // `Published` and `Listed`, both downstream of `Offered`, and from
-        // `Offered` onward the only thing that empties position 0 is `decline`
-        // — which lands in `Declined`. So position 0 is provably occupied here.
+        // `Offered` onward the only two things that empty position 0 are
+        // `decline` and `withdraw` — which land in `Declined` and `Slated`,
+        // both off the forward path to `Canceled`. Reaching `Canceled` after
+        // either therefore means passing through `Staffed` → `Offered` again,
+        // so position 0 is provably occupied here.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/19
         //
         // Deliberately not further forward. That lead had already accepted,
         // and the room and call number survive the cancel, so `Accepted` is
