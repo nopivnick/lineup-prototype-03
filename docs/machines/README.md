@@ -129,9 +129,9 @@ stays true.
 
 **Position 0 is editable only in `Slated` (fill) and `Staffed` (swap or vacate).** It is
 frozen everywhere else, `Revising` included — a vacate mid-revision would make
-`approve` → `Staffed` assert a lead that no longer exists. From `Offered` onward the
-only thing that empties it is `decline` — since ticket 19, `decline` or `withdraw` —
-because a rewritable position 0 would leave the transition log saying the offer went to
+`approve` → `Staffed` assert a lead that no longer exists. From `Offered` onward,
+both `decline` and `withdraw` empty it, because a rewritable position 0 would leave
+the transition log saying the offer went to
 one person while the roster says the class belongs to another. Positions 1..n stay
 non-gating and freely editable in any state.
 
