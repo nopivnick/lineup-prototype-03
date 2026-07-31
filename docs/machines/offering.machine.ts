@@ -131,8 +131,8 @@ export const machine = setup({
       // the refusal by email — so without `subject_netid` the roster row is
       // deleted and who said no survives nowhere.
       | { type: "decline" }
-      // The department pulling an offer the lead has not answered — the act
-      // that had no honest move before
+      // The department pulling an offer that the lead has not answered — the act
+      // that had no honest move before.
       // https://github.com/nopivnick/lineup-prototype-03/issues/19.
       // `decline` would have put a refusal in their history that never
       // happened, `cancel` means the class is not running (and is unavailable
