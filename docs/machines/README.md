@@ -64,8 +64,7 @@ synchronous guard cannot query the database, so this also decides how `noLiveOff
 gets its answer:
 [What does Offering machine context hold?](https://github.com/nopivnick/lineup-prototype-03/issues/15)
 
-**Persisted snapshots do not survive machine changes.** `createActor(machine, {
-snapshot })` validates the persisted structure against the current machine definition,
+**Persisted snapshots do not survive machine changes.** `createActor(machine, { snapshot })` validates the persisted structure against the current machine definition,
 so a renamed or removed state throws on read rather than degrading. Nothing is
 invalidated today — nothing is built — but this ticket alone renamed a state and added
 a context field. Whether there is a version stamp, a rebuild path, or an explicit
