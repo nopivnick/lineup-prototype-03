@@ -30,24 +30,47 @@ auto-promotion of position 1.
 The vacate-on-decline action is **not** in the machine: what it writes depends on the
 context design, which is still open below.
 
+**`remember(...)` is now `assign`, and the store is machine context.**
+[How does machine state persist?](https://github.com/nopivnick/lineup-prototype-03/issues/6)
+made the persisted XState snapshot the source of truth for both machines, which means
+context persists for free. The remembered prior state is therefore not a column or a
+derived query but an ordinary context field, `revisingFrom`, and the six `was*` guards
+string-compare against it. The machine stays **flat** — this was chosen over an XState
+history state precisely to keep `snapshot.value` a plain string, because the catalog
+list view filters on a `status` column generated from `snapshot->>'value'`, and a
+history state would have made `value` sometimes a string and sometimes an object.
+
+**`Confirmed` is gone; the state is `Accepted`.** Same ticket. `accept` → `Accepted`
+matches `decline` → `Declined` and `defer` → `Deferred`; `Confirmed` was the sole pair
+breaking the rule, and it appears nowhere in the legacy database. The guard is now
+`wasAccepted`. This mattered more than cosmetics: `revisingFrom` holds a state-name
+literal that a guard compares, so the mismatch would have silently fallen through the
+`approve` cascade to the `Slated` default.
+
 ## Open questions
 
-**`remember(...)` is undefined.** `offering.machine.ts` calls it on every `revise`
-transition but never defines or imports it. Whatever it writes is the same store the
-six `was*` guards read to route `approve` back out of `Revising`. That store has no
-home yet — deciding where it lives is the substance of the "how does machine state
-persist" ticket.
-
-**`remember("Confirmed")` names a state that doesn't exist.** The `Accepted` state
-remembers itself as `"Confirmed"`, and the guard that routes back to it is
-`wasConfirmed`. Every other state remembers itself under its own name. Either the
-state should be `Confirmed`, or the label and guard should be `Accepted` — the two
-vocabularies are currently mixed.
-
 **`noLiveOfferings` has no definition of "live".** It guards `retire` on both
-`Approved` and `Revising` Courses. Which of the fourteen Offering states count as
-live is undecided — and it's a cross-entity query, so it also depends on how machine
-state is persisted.
+`Approved` and `Revising` Courses. The persistence half of this is now discharged —
+`offering.status` is a generated, indexed column in the same project as `course`, so
+the query is cheap and same-project. What remains is which of the fourteen Offering
+states count as live, and whether the question is scoped by term:
+[Which Offering states count as live?](https://github.com/nopivnick/lineup-prototype-03/issues/14)
+
+**Context holds `revisingFrom` and nothing else yet.** `hasLead` is still
+`return true`, and vacate-on-decline is still absent, because both depend on whether
+the instructor roster is mirrored into context — which, now that context persists
+inside a `jsonb` snapshot, means duplicating relational rows into a blob. A
+synchronous guard cannot query the database, so this also decides how `noLiveOfferings`
+gets its answer:
+[What does Offering machine context hold?](https://github.com/nopivnick/lineup-prototype-03/issues/15)
+
+**Persisted snapshots do not survive machine changes.** `createActor(machine, {
+snapshot })` validates the persisted structure against the current machine definition,
+so a renamed or removed state throws on read rather than degrading. Nothing is
+invalidated today — nothing is built — but this ticket alone renamed a state and added
+a context field. Whether there is a version stamp, a rebuild path, or an explicit
+deferral is
+[What happens to persisted snapshots when the machine changes?](https://github.com/nopivnick/lineup-prototype-03/issues/13)
 
 ## Observations about lifecycle shape
 
@@ -67,6 +90,11 @@ is much cheaper to confirm now than to discover once the schema is built.
 ## Provenance
 
 Both machines were authored in Stately and pasted in verbatim at map creation, then
-amended as tickets landed — see *Decided* above for every change since. The
-`context: ({ input }) => input` line and empty `context: {} as {}` type are Stately
-scaffolding, not a considered context design.
+amended as tickets landed — see *Decided* above for every change since.
+
+The Stately scaffolding is now partly replaced. `offering.machine.ts` has a real
+`OfferingContext` type and a real initial context, so its `context: {} as {}` and
+`context: ({ input }) => input` lines are gone — though only `revisingFrom` is a
+considered field, and the rest of that design is open above.
+`course.machine.ts` still carries both scaffolding lines untouched: nothing has yet
+decided whether Course context holds anything at all.
