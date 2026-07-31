@@ -10,7 +10,7 @@ import { assign, setup } from "xstate";
  * `context.revisingFrom` can hold. `Revising` routes `approve` back to
  * whichever of these it came from.
  *
- * Every other state either cannot be revised (`Published`, `Listed`,
+ * Every other state either cannot be revised (`Revising`, `Published`, `Listed`,
  * `Running`, `Declined`) or is final (`Dead`, `Concluded`).
  */
 type RevisableState =
