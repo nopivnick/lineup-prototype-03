@@ -30,10 +30,9 @@ export type OfferingState =
  * the definition of "live" behind the Course machine's `noLiveOfferings`.
  * See https://github.com/nopivnick/lineup-prototype-03/issues/14.
  *
- * The rule is that **live ends when teaching ends**: everything up to and
- * including `Running` is live, everything after it is not. The five excluded
- * states are `Declined`, `Canceled`, `Evaluating`, `Concluded` and `Dead`.
- *
+ * The rule is that **live ends when teaching ends**: the forward lifecycle path
+ * is live up to and including `Running`. The five excluded states are
+ * `Declined`, `Canceled`, `Evaluating`, `Concluded` and `Dead`.
  * `Revising` is here unconditionally, whatever `revisingFrom` holds — an
  * offering being edited right now is exactly the in-flight work retirement
  * would contradict, so the guard never reads context to decide.

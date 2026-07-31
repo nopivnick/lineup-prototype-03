@@ -59,7 +59,7 @@ export const machine = setup({
       // the transaction that locks the course row. A client passing this to
       // `.can()` is producing an affordance, not a decision.
       if (event.type !== "retire") return false;
-      return event.liveOfferings.length === 0;
+      return event.liveOfferings?.length === 0;
     },
   },
 }).createMachine({
