@@ -6,6 +6,60 @@
 import { assign, setup } from "xstate";
 
 /**
+ * Every state of this machine. Hand-maintained in lockstep with `states` below —
+ * rename a state there and this union must move with it.
+ */
+export type OfferingState =
+  | "Slated"
+  | "Offered"
+  | "Accepted"
+  | "Declined"
+  | "Deferred"
+  | "Revising"
+  | "Scheduled"
+  | "Published"
+  | "Listed"
+  | "Running"
+  | "Evaluating"
+  | "Canceled"
+  | "Concluded"
+  | "Dead";
+
+/**
+ * The states in which an Offering blocks its Course from being retired —
+ * the definition of "live" behind the Course machine's `noLiveOfferings`.
+ * See https://github.com/nopivnick/lineup-prototype-03/issues/14.
+ *
+ * The rule is that **live ends when teaching ends**: everything up to and
+ * including `Running` is live, everything after it is not. The five excluded
+ * states are `Declined`, `Canceled`, `Evaluating`, `Concluded` and `Dead`.
+ *
+ * `Revising` is here unconditionally, whatever `revisingFrom` holds — an
+ * offering being edited right now is exactly the in-flight work retirement
+ * would contradict, so the guard never reads context to decide.
+ *
+ * This is the single source of the definition. The query that builds a
+ * `retire` event's `liveOfferings` spreads it into a `status IN (...)`, against
+ * the generated, indexed `status` column from
+ * https://github.com/nopivnick/lineup-prototype-03/issues/6. Deliberately not
+ * an `is_live` generated column: the set is arguable policy, and policy in a
+ * generated column costs a migration and a table rewrite to change.
+ */
+export const LIVE_STATES = [
+  "Slated",
+  "Offered",
+  "Accepted",
+  "Deferred",
+  "Revising",
+  "Scheduled",
+  "Published",
+  "Listed",
+  "Running",
+] as const satisfies readonly OfferingState[];
+
+export type LiveState = (typeof LIVE_STATES)[number];
+
+/**
  * The states a `revise` can be entered from, and therefore the states
  * `context.revisingFrom` can hold. `Revising` routes `approve` back to
  * whichever of these it came from.
@@ -189,6 +243,14 @@ export const machine = setup({
     },
     Declined: {
       on: {
+        // Not live, so a Declined offering never blocks its Course from being
+        // retired. The cost is that this `retry` could otherwise produce a
+        // Slated offering of a Retired Course. That check belongs here, on
+        // `retry`, not on the Course's `retire` — loading it onto `retire`
+        // would make a course unretirable forever over an offering nobody
+        // intends to revive. This machine cannot see Course state, so the
+        // Server Action asserts it.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/14
         retry: {
           target: "Slated",
         },
@@ -224,6 +286,13 @@ export const machine = setup({
     },
     Canceled: {
       on: {
+        // Not live — and this is the state that forced that. `cancel` is how you
+        // clear the way to retire a Course; were Canceled live, the only way to
+        // satisfy `noLiveOfferings` would be `kill` → `Dead` on every offering,
+        // discarding the call number, SIS number, room and schedule that
+        // https://github.com/nopivnick/lineup-prototype-03/issues/2 preserved.
+        // Same `retry` caveat as Declined above.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/14
         retry: {
           target: "Slated",
         },
