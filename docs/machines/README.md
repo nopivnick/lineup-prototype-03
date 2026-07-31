@@ -9,6 +9,30 @@ below into *Decided*, linking the ticket that settled it. Never amend a machine
 without a closed ticket behind it — the decision lives in the ticket, and a change
 with no link is a decision nobody made.
 
+## Standing principles
+
+Rules that came out of specific tickets but bind every later one. Apply them in this
+order.
+
+**1. When a guard wants to read relational state, first ask whether that state should
+be a *state*.** From [What does Offering machine context hold?](https://github.com/nopivnick/lineup-prototype-03/issues/15).
+`hasLead` was never implemented — it was deleted, because `Staffed` encodes the same
+fact in the lifecycle and makes `offer` unreachable without a lead. Encoding a fact as
+a state removes the question of how a synchronous guard sees the database instead of
+answering it, and it makes the fact queryable through the generated `status` column for
+free. The cost to weigh against that is a second place that can disagree with the
+first, which is only acceptable when one transaction writes both.
+
+**2. Failing that: context holds machine-remembered facts, the event carries
+query-derived ones.** From [Which Offering states count as live?](https://github.com/nopivnick/lineup-prototype-03/issues/14).
+Context persists inside the snapshot, so a query result cached there is a stale copy
+that survives to mislead the next read. `revisingFrom` qualifies because the machine
+itself produced it. `liveOfferings` does not, and neither does the instructor roster —
+worse, since roster writes fire no event at all.
+
+**3. Never amend a machine without a closed ticket behind it.** The decision lives in
+the ticket; a change with no link is a decision nobody made.
+
 ## Decided
 
 Settled by closed map tickets. The machines already reflect these.
@@ -21,14 +45,15 @@ number, room and schedule. `Declined` keeps `kill` → `Dead`, and stays a disti
 from `Canceled` — "they said no" and "we pulled it" carry different follow-up. It
 remains the only non-final state without `revise`: you re-slate, then revise.
 
-**`offer` is guarded on `hasLead`.** Same ticket. An Offering owns an ordered instructor
-roster where position 0 is the lead, and `offer` / `accept` / `decline` / `defer` speak
-for the lead alone. A `Slated` Offering may have an empty roster, so `offer` has no one
-to address until position 0 is filled. `decline` vacates position 0 with no
-auto-promotion of position 1.
+**Position 0 of the instructor roster is the lead.** Same ticket. An Offering owns an
+ordered instructor roster, and `offer` / `accept` / `decline` / `defer` speak for the
+lead alone. A `Slated` Offering may have an empty roster. `decline` vacates position 0,
+with no auto-promotion of position 1 — that would make someone the lead of a class they
+never agreed to lead.
 
-The vacate-on-decline action is **not** in the machine: what it writes depends on the
-context design, which is still open below.
+That ticket also added a `hasLead` guard on `offer`, and left the vacate-on-decline
+action out of the machine pending a context design. Both are now superseded — see
+*The roster stays relational, and `hasLead` becomes a state* below.
 
 **`remember(...)` is now `assign`, and the store is machine context.**
 [How does machine state persist?](https://github.com/nopivnick/lineup-prototype-03/issues/6)
@@ -77,15 +102,71 @@ One consequence the machines cannot express: `retry` from `Declined` or `Cancele
 must be blocked when the Course is `Retired`. It is asserted in the Server Action —
 see the comments on those two transitions.
 
+**The roster stays relational, and `hasLead` becomes a state.**
+[What does Offering machine context hold?](https://github.com/nopivnick/lineup-prototype-03/issues/15)
+closed the context question with **nothing**: context is `{ revisingFrom }` and the
+instructor roster is never mirrored into it. Mirroring would persist a copy inside the
+`jsonb` snapshot that goes stale from writes the machine cannot see — adding a
+co-instructor fires no event — and the only remedy would be to make every roster edit
+load, mutate and re-save the snapshot.
+
+The guard that wanted the roster is **gone rather than implemented**. A new state,
+`Staffed`, sits between `Slated` and `Offered` and means exactly *position 0 is
+occupied*. `offer` is reachable only from `Staffed`, so there is nothing for `hasLead`
+to check. `Slated` now means "we are running this class and have not picked who to
+ask", which is a state departments genuinely rest in — the term's staffing plan is
+assembled before offers go out — and it makes *"which Fall offerings still need an
+instructor?"* a `status` filter rather than an anti-join. `Staffed` joins `LIVE_STATES`
+and `RevisableState`, adding a `wasStaffed` guard ahead of the `Slated` fallback in the
+`approve` cascade.
+
+The cost is two places that can disagree about whether a lead exists, and the mechanism
+that prevents it is that **`staff` and `unstaff` are never user-facing events**. One
+Server Action writes the `offering_instructor` row and sends the event in the same
+transaction, so no code path writes one without the other. They track **occupancy, not
+identity**: swapping lead A for lead B inside `Staffed` fires nothing, because the state
+stays true.
+
+**Position 0 is editable only in `Slated` (fill) and `Staffed` (swap or vacate).** It is
+frozen everywhere else, `Revising` included — a vacate mid-revision would make
+`approve` → `Staffed` assert a lead that no longer exists. From `Offered` onward the
+only thing that empties it is `decline`, because a rewritable position 0 would leave the
+transition log saying the offer went to one person while the roster says the class
+belongs to another. Positions 1..n stay non-gating and freely editable in any state.
+
+**Vacate-on-decline is a `DELETE` in the Server Action's transaction**, not an XState
+action — the roster is relational and the machine cannot write to it. Every `decline`
+edge now says so, since the machine previously implied otherwise by omission.
+
+**`Canceled.retry` → `Staffed`; `Declined.retry` → `Slated`.** Both unconditional. A
+`Declined` offering provably has no lead, because `decline` vacated position 0 on the
+way in. A `Canceled` one provably has one: `Canceled` is reachable only from `Published`
+and `Listed`, both downstream of `Offered`, and `decline` — the only thing that vacates
+from there — lands in `Declined`. Routing `Canceled` to `Slated` would have asserted a
+vacancy that isn't there, which is the `Staffed` divergence showing up on day one. It
+deliberately does not land further forward: that lead had accepted, but revivals here
+are slow and material, and a state asserting "they said yes" when the yes has gone stale
+gets published to the catalog and never caught.
+
+**The transition log gains a nullable `subject_netid`**, populated by `staff`, `unstaff`
+and `decline`, null elsewhere. This **amends ticket 6's column list**. `actor_netid`
+records who clicked, which for a decline is routinely an admin taking a refusal by
+email — so with the roster row deleted in the same transaction, who said no would
+survive nowhere, defeating ticket 2's requirement that it be recordable. The same hole
+hit `staff`: the log would say a lead was assigned without saying whom, and since
+swapping within `Staffed` fires no transition, the original name would simply be gone.
+Rejected alternative: soft-deleting roster rows, which ticket 2 already refused and
+which complicates the per-offering uniqueness constraint on `position`.
+
 ## Open questions
 
-**Context holds `revisingFrom` and nothing else yet.** `hasLead` is still
-`return true`, and vacate-on-decline is still absent, because both depend on whether
-the instructor roster is mirrored into context — which, now that context persists
-inside a `jsonb` snapshot, means duplicating relational rows into a blob:
-[What does Offering machine context hold?](https://github.com/nopivnick/lineup-prototype-03/issues/15)
-`noLiveOfferings` no longer waits on this — ticket 14 took the event-payload route and
-left `hasLead` a precedent to accept or reject.
+**The department cannot withdraw an offer.** Freezing position 0 from `Offered` onward
+left a real departmental act unrepresentable: pulling an offer the instructor has not
+refused. `decline` puts a refusal in their history that never happened, `cancel` means
+the class is not running and is unavailable before `Published` anyway, `revise` cannot
+touch position 0, and `kill` throws away the offering ticket 2 went out of its way to
+preserve. Surfaced while resolving ticket 15:
+[Can the department withdraw an offer?](https://github.com/nopivnick/lineup-prototype-03/issues/19)
 
 **Which states can be revised, and does revision always need approval?** `revise` is
 available from `Evaluating` and `Canceled` — editing an offering whose class already
@@ -96,9 +177,10 @@ while resolving ticket 14:
 
 **Persisted snapshots do not survive machine changes.** `createActor(machine, { snapshot })` validates the persisted structure against the current machine definition,
 so a renamed or removed state throws on read rather than degrading. Nothing is
-invalidated today — nothing is built — but this ticket alone renamed a state and added
-a context field. Whether there is a version stamp, a rebuild path, or an explicit
-deferral is
+invalidated today — nothing is built — but ticket 6 alone renamed a state and added a
+context field, and ticket 15 has since **added** one (`Staffed`) and widened
+`RevisableState`. Two tickets, three shape changes; the rate is the argument. Whether
+there is a version stamp, a rebuild path, or an explicit deferral is
 [What happens to persisted snapshots when the machine changes?](https://github.com/nopivnick/lineup-prototype-03/issues/13)
 
 ## Observations about lifecycle shape
@@ -123,8 +205,8 @@ amended as tickets landed — see *Decided* above for every change since.
 
 The Stately scaffolding is now partly replaced. `offering.machine.ts` has a real
 `OfferingContext` type and a real initial context, so its `context: {} as {}` and
-`context: ({ input }) => input` lines are gone — though only `revisingFrom` is a
-considered field, and the rest of that design is open above.
+`context: ({ input }) => input` lines are gone. That design is now **closed**: ticket 15
+settled Offering context as `{ revisingFrom }` and nothing more.
 `course.machine.ts` still carries both scaffolding lines untouched. Nothing has
 positively decided that Course context is empty, but nothing needs it either — ticket
 14 was the one open claim on it, and routing `liveOfferings` through the event payload
