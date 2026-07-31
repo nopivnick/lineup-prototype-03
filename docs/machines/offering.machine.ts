@@ -1,14 +1,43 @@
-// Not yet wired into an application, and does not currently compile:
-// `remember(...)` is referenced but never defined or imported.
+// Not yet wired into an application.
 // Source of truth for the Offering lifecycle while the map is being worked.
 // Amended as map tickets land — see docs/machines/README.md for what has been
 // decided and what is still open.
 
-import { setup } from "xstate";
+import { assign, setup } from "xstate";
+
+/**
+ * The states a `revise` can be entered from, and therefore the states
+ * `context.revisingFrom` can hold. `Revising` routes `approve` back to
+ * whichever of these it came from.
+ *
+ * Every other state either cannot be revised (`Revising`, `Published`, `Listed`,
+ * `Running`, `Declined`) or is final (`Dead`, `Concluded`).
+ */
+type RevisableState =
+  | "Slated"
+  | "Offered"
+  | "Accepted"
+  | "Deferred"
+  | "Scheduled"
+  | "Evaluating"
+  | "Canceled";
+
+/**
+ * Persisted inside the XState snapshot — see
+ * https://github.com/nopivnick/lineup-prototype-03/issues/6.
+ *
+ * `revisingFrom` is the whole of the context this map has settled. What else
+ * belongs here — above all whether the instructor roster is mirrored in, which
+ * `hasLead` and vacate-on-decline both wait on — is
+ * https://github.com/nopivnick/lineup-prototype-03/issues/15.
+ */
+type OfferingContext = {
+  revisingFrom: RevisableState | null;
+};
 
 export const machine = setup({
   types: {
-    context: {} as {},
+    context: {} as OfferingContext,
     events: {} as
       | { type: "run" }
       | { type: "kill" }
@@ -27,39 +56,35 @@ export const machine = setup({
       | { type: "conclude" },
   },
   guards: {
-    wasEvaluating: function ({ context, event }) {
-      // Add your guard condition here
-      return true;
+    wasEvaluating: function ({ context }) {
+      return context.revisingFrom === "Evaluating";
     },
-    wasCanceled: function ({ context, event }) {
-      // Add your guard condition here
-      return true;
+    wasCanceled: function ({ context }) {
+      return context.revisingFrom === "Canceled";
     },
-    wasScheduled: function ({ context, event }) {
-      // Add your guard condition here
-      return true;
+    wasScheduled: function ({ context }) {
+      return context.revisingFrom === "Scheduled";
     },
-    wasDeferred: function ({ context, event }) {
-      // Add your guard condition here
-      return true;
+    wasDeferred: function ({ context }) {
+      return context.revisingFrom === "Deferred";
     },
-    wasConfirmed: function ({ context, event }) {
-      // Add your guard condition here
-      return true;
+    wasAccepted: function ({ context }) {
+      return context.revisingFrom === "Accepted";
     },
-    wasOffered: function ({ context, event }) {
-      // Add your guard condition here
-      return true;
+    wasOffered: function ({ context }) {
+      return context.revisingFrom === "Offered";
     },
     hasLead: function ({ context, event }) {
       // True when position 0 of the instructor roster is occupied. A Slated
       // offering may have an empty roster, so `offer` has no one to address
-      // until a lead is placed. Unimplementable until context is designed.
+      // until a lead is placed. Still unimplementable: whether the roster is
+      // visible to a guard at all is
+      // https://github.com/nopivnick/lineup-prototype-03/issues/15.
       return true;
     },
   },
 }).createMachine({
-  context: ({ input }) => input,
+  context: { revisingFrom: null },
   id: "Offering",
   initial: "Slated",
   states: {
@@ -76,7 +101,7 @@ export const machine = setup({
         },
         revise: {
           target: "Revising",
-          actions: remember("Slated"),
+          actions: assign({ revisingFrom: "Slated" }),
         },
       },
     },
@@ -93,7 +118,7 @@ export const machine = setup({
         },
         revise: {
           target: "Revising",
-          actions: remember("Offered"),
+          actions: assign({ revisingFrom: "Offered" }),
         },
       },
     },
@@ -130,7 +155,7 @@ export const machine = setup({
           {
             target: "Accepted",
             guard: {
-              type: "wasConfirmed",
+              type: "wasAccepted",
             },
           },
           {
@@ -158,7 +183,7 @@ export const machine = setup({
         },
         revise: {
           target: "Revising",
-          actions: remember("Confirmed"),
+          actions: assign({ revisingFrom: "Accepted" }),
         },
       },
     },
@@ -176,7 +201,7 @@ export const machine = setup({
       on: {
         revise: {
           target: "Revising",
-          actions: remember("Deferred"),
+          actions: assign({ revisingFrom: "Deferred" }),
         },
         decline: {
           target: "Declined",
@@ -190,7 +215,7 @@ export const machine = setup({
       on: {
         revise: {
           target: "Revising",
-          actions: remember("Evaluating"),
+          actions: assign({ revisingFrom: "Evaluating" }),
         },
         conclude: {
           target: "Concluded",
@@ -204,7 +229,7 @@ export const machine = setup({
         },
         revise: {
           target: "Revising",
-          actions: remember("Canceled"),
+          actions: assign({ revisingFrom: "Canceled" }),
         },
         kill: {
           target: "Dead",
@@ -224,7 +249,7 @@ export const machine = setup({
         },
         revise: {
           target: "Revising",
-          actions: remember("Scheduled"),
+          actions: assign({ revisingFrom: "Scheduled" }),
         },
       },
     },
