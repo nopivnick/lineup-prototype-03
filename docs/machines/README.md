@@ -419,26 +419,72 @@ does **not** hold for the Course machine's surviving `approve`, which re-approve
 that already sits in a catalog. That one is program-scoped, and it belongs to
 [Role x transition permission matrix](https://github.com/nopivnick/lineup-prototype-03/issues/8).
 
+**Changing a machine invalidates persisted snapshots, and the recovery is to reseed.**
+[What happens to persisted snapshots when the machine changes?](https://github.com/nopivnick/lineup-prototype-03/issues/13)
+settled what the six shape changes above cost. **Nothing here changes any lifecycle** —
+this is the only *Decided* entry that amends no machine — but it constrains what a
+machine change costs from here on, so read it before making one.
+
+**Only the state set matters.** XState validates the persisted snapshot's `value` against
+the machine's state nodes and nothing else, so the four kinds of change this map has made
+are not equally dangerous:
+
+- **Removing or renaming an occupied state throws**, loudly, on read. Ticket 6's
+  `Confirmed` → `Accepted` and ticket 17's deletion of `Revising`.
+- **Adding a state, adding or deleting transitions, changing guards — all survive.**
+  Ticket 15's `Staffed` and ticket 21 (three edges deleted, four added, state set
+  untouched) would both have been harmless.
+- **Removing a context field survives *silently*.** Ticket 17 emptied `OfferingContext`,
+  but a persisted `{ revisingFrom: "Slated" }` restores without complaint — XState never
+  validates context, so the dead key just sits there. **The only case that does not
+  announce itself**, and currently vacuous: all three machines are
+  `Record<string, never>`, and standing principles 1 and 2 both push facts *out* of
+  context, toward states and event payloads.
+- **Ticket 7's split is a different problem wearing the same clothes.** A `Proposed`
+  Course snapshot is not merely invalid against `course.machine.ts`; the row is the wrong
+  entity in the wrong table. No rehydration strategy addresses that.
+
+So the ticket's own framing — does the answer need to distinguish edge changes from state
+changes — resolves to *yes, and only the state set needs covering.*
+
+**Reseed, with no version stamp.** Fixtures are regenerable by construction, so nothing is
+lost. Ticket 6's generated `status` column already makes `SELECT DISTINCT status` an exact
+enumeration of occupied states — *derived*, so it cannot be forgotten, where a
+`machine_version` column is *declared*, and an unbumped stamp reports health it never
+checked. **Rebuild-from-log was rejected on a fact worth remembering**: a row stuck in
+`Revising` has a log whose last `to_state` is the *string* `'Revising'`, so replaying it
+reconstructs the identical invalid snapshot. The log rebuilds history, not validity.
+
+**The database now holds a second copy of the state set, and a test keeps it honest.**
+Ticket 6's `CHECK` on `status` is that copy, which standing principle 1 permits only when
+one transaction writes both — and here it is this file and a hand-written migration,
+authored sessions apart. The build asserts the CHECK's value set `==` the machine's
+exported state union. The **test** is the alarm, the **migration** is the gate (an `ALTER`
+dropping an occupied value refuses to run), **reseed** is the fix. It is a forward guard,
+not a reconciliation: there is no database during this map, so the six changes so far
+leave no debt.
+
+**What this means for amending a machine here.** Adding states and rewiring edges stays
+free. Removing or renaming a state is the expensive move, and after the build exists it
+costs a migration that will fail until the data is reseeded — so it is worth spending the
+extra thought at the point of deletion rather than at the point of deploy. Ticket 17's
+deletion of `Revising` is the worked example.
+
+**Consequences that land outside the machines.** No genesis transition row: `from_state`
+is `NOT NULL`, and creation is recorded as `created_at` / `created_by netid` on the entity
+row — consistent with *the review has no `propose` event* below, creation being an act but
+not a transition. `from_state` and `to_state` are CHECK-constrained against ticket 6's
+`status` value list; `event` deliberately is not, staying exactly the event union as a
+TypeScript fact. And transitions commit through a plain
+`applyTransition(tx, entity, event, actor)` with the Server Action as a thin auth wrapper,
+because the seed script is a second caller — it **drives fixtures through the machine**
+rather than inserting them at rest, so snapshots are valid by construction instead of
+hand-authored XState internals, and the transition log ships populated.
+
 ## Open questions
 
-**Persisted snapshots do not survive machine changes.** `createActor(machine, { snapshot })` validates the persisted structure against the current machine definition,
-so a renamed or removed state throws on read rather than degrading. Nothing is
-invalidated today — nothing is built — but ticket 6 alone renamed a state and added a
-context field, and ticket 15 has since **added** one (`Staffed`) and widened
-`RevisableState`. Ticket 17 has now **removed** one (`Revising`) and emptied context
-entirely, which is the sharpest form of the problem: a persisted `Revising` snapshot no
-longer validates at all, and there is no forward path for it that does not amount to
-choosing a state on its behalf. Three tickets, five shape changes; the rate is the
-argument. Ticket 21 is a useful contrast and may sharpen the question: it removed three
-transitions and added four without
-touching the state set, so every persisted snapshot would have survived it. Ticket 7 has
-now done the most severe thing yet: **split one state set into two machines**, so a
-persisted Course snapshot in `Proposed`, `Developing` or `Rejected` no longer validates
-against `course.machine.ts` at all, and its forward path is a different machine on a
-different row. Four tickets, six shape changes. Whether the
-answer needs to distinguish edge changes from state changes, and whether there is a
-version stamp, a rebuild path, or an explicit deferral, is
-[What happens to persisted snapshots when the machine changes?](https://github.com/nopivnick/lineup-prototype-03/issues/13)
+None open. Every question raised of these machines has been settled by a closed ticket —
+see *Decided* above. The *Observations* below are unresolved but unticketed.
 
 ## Observations about lifecycle shape
 
@@ -488,8 +534,10 @@ The Stately scaffolding is now partly replaced. `offering.machine.ts` has a real
 `context: ({ input }) => input` lines are gone. That design is now **closed**: ticket 15
 settled Offering context as `{ revisingFrom }` and nothing more, and ticket 17 then
 deleted `revisingFrom` too, so the type is `Record<string, never>` — empty, and stated as
-a type rather than left as scaffolding.
-`course.machine.ts` still carries both scaffolding lines untouched. Nothing has
-positively decided that Course context is empty, but nothing needs it either — ticket
-14 was the one open claim on it, and routing `liveOfferings` through the event payload
-withdrew that claim.
+a type rather than left as scaffolding. `course.machine.ts` and
+`course-proposal-review.machine.ts` now read the same way — `context: {} as Record<string,
+never>` and `context: {}` — so the Stately scaffolding is gone from all three files.
+Nothing has positively decided that Course context is empty, but nothing needs it either:
+ticket 14 was the one open claim on it, and routing `liveOfferings` through the event
+payload withdrew that claim. That all three are empty is now load-bearing rather than
+incidental — it is why ticket 13 could rule the silent context-drift failure vacuous.
