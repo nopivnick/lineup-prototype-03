@@ -1,7 +1,7 @@
 # State machines
 
-The Course and Offering lifecycles. These files are **reference, not application
-code** — nothing imports them yet.
+The Course-proposal-review, Course and Offering lifecycles. These files are **reference,
+not application code** — nothing imports them yet.
 
 They **track the wayfinder map**: when a map ticket decides something about a
 lifecycle, the machine is amended and the resolved item moves from *Open questions*
@@ -56,7 +56,19 @@ rather than two acts that agree. Ask what the child's copy refers to. Offering's
 `approve` was the *curriculum* approval and referred to nothing once separated — it was
 the only `approve` in that machine, and nothing else in it is an approval.
 
-**5. Never amend a machine without a closed ticket behind it.** The decision lives in
+**5. A column whose nullability is decided by lifecycle position is usually two
+entities sharing one table.** From
+[How are ITP, IMA and LowRes modelled?](https://github.com/nopivnick/lineup-prototype-03/issues/7).
+`program_code` was null in exactly `Proposed`, `Developing` and `Rejected`, and non-null
+in exactly `Approved`, `Revising` and `Retired` — a clean partition of the state set by a
+single column's nullability. That is the shape of two lifecycles wearing one name, and the
+seam is the transition the partition falls across. The confirming test is whether a
+terminal state can be reached twice with different answers: `reject` is final, yet one
+proposal can be rejected by ITP while IMA approves it, which no single row can hold. When
+a column and a state set disagree about how many things there are, the state set is
+usually wrong.
+
+**6. Never amend a machine without a closed ticket behind it.** The decision lives in
 the ticket; a change with no link is a decision nobody made.
 
 ## Decided
@@ -374,6 +386,39 @@ recorded as a constraint on
 **the transition log is not a general audit log.** Same shape as the free-text `reason`
 question ticket 19 parked there.
 
+**The Course machine splits at `approve`, and `Proposed` / `Developing` / `Rejected`
+leave it.** [How are ITP, IMA and LowRes modelled?](https://github.com/nopivnick/lineup-prototype-03/issues/7)
+established that program is *requested* at proposal and *assigned* at approval, that each
+requested program reviews the proposal **independently**, and that those reviews can
+disagree and land at different times. A single Course row cannot represent that: `Rejected`
+is final, and one proposal can be rejected by ITP while IMA approves it.
+
+So there are two lifecycles, and the front half was never about a course:
+
+- **`course-proposal-review.machine.ts`** — one actor per `(proposal, program)` pair,
+  holding `Proposed` / `Developing` / `Rejected` and a now-final `Approved`. The proposal
+  *body* is shared and edited once; only the verdicts are per-program.
+- **`course.machine.ts`** — `Approved` (now the initial state) / `Revising` / `Retired`,
+  structurally unchanged otherwise, `noLiveOfferings` intact.
+
+**`approve` is the seam and mints a row.** The Server Action moves the review to `Approved`
+and creates a `course` in that program's catalog in the same transaction — the `staff`
+pattern from ticket 15. The minted course **copies** the proposal's body rather than
+referencing it, because variants in different programs are meant to diverge; legacy agrees,
+`course_x_attributes` carrying a per-row `title` and `course_num`.
+
+**The proposal itself has no state.** All state lives in its reviews; "fully rejected" and
+"still pending somewhere" are queries. A proposal-level machine was rejected on
+reversibility rather than taste: adding one later is additive and invalidates no persisted
+snapshot, while removing one later is the throwing case below.
+
+**This amends ticket 4's stated reason, not its rule.** Course approval was ruled flat
+across all program directors because a course can be approved before it has a program. That
+holds for the *review's* `approve` — the proposal genuinely has no assigned program — and
+does **not** hold for the Course machine's surviving `approve`, which re-approves a course
+that already sits in a catalog. That one is program-scoped, and it belongs to
+[Role x transition permission matrix](https://github.com/nopivnick/lineup-prototype-03/issues/8).
+
 ## Open questions
 
 **Persisted snapshots do not survive machine changes.** `createActor(machine, { snapshot })` validates the persisted structure against the current machine definition,
@@ -386,7 +431,11 @@ longer validates at all, and there is no forward path for it that does not amoun
 choosing a state on its behalf. Three tickets, five shape changes; the rate is the
 argument. Ticket 21 is a useful contrast and may sharpen the question: it removed three
 transitions and added four without
-touching the state set, so every persisted snapshot would have survived it. Whether the
+touching the state set, so every persisted snapshot would have survived it. Ticket 7 has
+now done the most severe thing yet: **split one state set into two machines**, so a
+persisted Course snapshot in `Proposed`, `Developing` or `Rejected` no longer validates
+against `course.machine.ts` at all, and its forward path is a different machine on a
+different row. Four tickets, six shape changes. Whether the
 answer needs to distinguish edge changes from state changes, and whether there is a
 version stamp, a rebuild path, or an explicit deferral, is
 [What happens to persisted snapshots when the machine changes?](https://github.com/nopivnick/lineup-prototype-03/issues/13)
@@ -409,9 +458,12 @@ is much cheaper to confirm now than to discover once the schema is built.
   so no state can. "Once an offering is published, editing it means cancelling it" was
   weakly enforced by that absence and now is not enforced at all — if it is still a rule
   it is a permission rule, and belongs to ticket 8 rather than to the machine.
-- **Course `Approved` cannot return to `Developing`** — only `Revising`.
-- **Course has no `propose` event.** `Proposed` is the initial state, so a course is
-  proposed by being created rather than by a transition.
+- **Course `Approved` cannot return to `Developing`.** Sharpened by ticket 7 rather than
+  resolved: `Developing` is no longer in the same machine, so the return is not merely
+  absent but inexpressible. A course needing that much rework would be a fresh proposal.
+- **The review has no `propose` event.** `Proposed` is the initial state, so a review is
+  opened by being created rather than by a transition — one per requested program, at
+  proposal time. Formerly recorded of the Course machine; it moved with the state.
 
 ## Provenance
 
@@ -421,8 +473,15 @@ amended as tickets landed — see *Decided* above for every change since.
 **They were one machine before that.** Ticket 17 established it, and it is load-bearing
 rather than trivia: it is why the Offering carried an `approve` that approved nothing, and
 the reason standing principle 4 tells you to ask what a duplicated event refers to. Treat
-any remaining symmetry between the two files as evidence to be checked rather than as
+any remaining symmetry between the files as evidence to be checked rather than as
 design.
+
+**There are now three files, not two.** Ticket 7 split `course.machine.ts` at `approve`;
+`course-proposal-review.machine.ts` is its front half, moved rather than rewritten. So the
+supplied pair has been found to be *under*-split twice, in opposite directions — the
+Offering carried an event belonging to a machine it had been separated from, and the Course
+carried a whole lifecycle belonging to an entity that had never been separated out. Both
+were found by asking what a thing refers to rather than by reading the diagram.
 
 The Stately scaffolding is now partly replaced. `offering.machine.ts` has a real
 `OfferingContext` type and a real initial context, so its `context: {} as {}` and

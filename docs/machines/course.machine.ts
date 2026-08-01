@@ -1,7 +1,17 @@
 // Not yet wired into an application.
 // Source of truth for the Course lifecycle while the map is being worked.
-// Structurally as provided — no transition has been amended. See
-// docs/machines/README.md for what has been decided and what is still open.
+// See docs/machines/README.md for what has been decided and what is still open.
+//
+// This machine is the back half of the Course machine as originally supplied.
+// https://github.com/nopivnick/lineup-prototype-03/issues/7 split it at `approve`
+// and moved `Proposed`, `Developing` and `Rejected` to
+// course-proposal-review.machine.ts. A Course does not begin life here by being
+// proposed — it is **minted** by an approving review, already in `Approved`, in
+// exactly one program's catalog.
+//
+// The tell was `program_code`: null in exactly the three states that left, and
+// non-null in exactly the three that stayed. See standing principle 5 in
+// docs/machines/README.md.
 
 import { setup } from "xstate";
 
@@ -30,9 +40,8 @@ export type LiveOffering = {
 
 export const machine = setup({
   types: {
-    context: {} as {},
+    context: {} as Record<string, never>,
     events: {} as
-      | { type: "reject" }
       | { type: "retire"; liveOfferings: LiveOffering[] }
       // **The only revision in the system.** The Offering machine used to carry
       // a `revise` / `approve` pair of its own; it was deleted, because both
@@ -59,8 +68,18 @@ export const machine = setup({
       // leaves `Approved` and returns to it), so there is never an approval
       // missing for an offering to wait on.
       | { type: "revise" }
-      | { type: "approve" }
-      | { type: "develop" },
+      // Re-approval after a revision, and **not** the same act as the review's
+      // `approve` in course-proposal-review.machine.ts. That one mints a course;
+      // this one restores an approval a `revise` re-opened, on a course that
+      // already has a program.
+      //
+      // That difference bites on permissions.
+      // https://github.com/nopivnick/lineup-prototype-03/issues/4 ruled course
+      // approval flat across all program directors, on the grounds that a course
+      // can be approved before it has a program. That reasoning holds for the
+      // review's `approve` and **not** for this one — see
+      // https://github.com/nopivnick/lineup-prototype-03/issues/8.
+      | { type: "approve" },
   },
   guards: {
     noLiveOfferings: function ({ event }) {
@@ -87,26 +106,12 @@ export const machine = setup({
     },
   },
 }).createMachine({
-  context: ({ input }) => input,
+  context: {},
   id: "Course",
-  initial: "Proposed",
+  // A course is minted already approved, by an approving review. It is never
+  // proposed here — see course-proposal-review.machine.ts.
+  initial: "Approved",
   states: {
-    Proposed: {
-      on: {
-        reject: {
-          target: "Rejected",
-        },
-        approve: {
-          target: "Approved",
-        },
-        develop: {
-          target: "Developing",
-        },
-      },
-    },
-    Rejected: {
-      type: "final",
-    },
     Approved: {
       on: {
         revise: {
@@ -117,16 +122,6 @@ export const machine = setup({
           guard: {
             type: "noLiveOfferings",
           },
-        },
-      },
-    },
-    Developing: {
-      on: {
-        approve: {
-          target: "Approved",
-        },
-        reject: {
-          target: "Rejected",
         },
       },
     },
