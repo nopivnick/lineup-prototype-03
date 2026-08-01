@@ -265,7 +265,7 @@ export const machine = setup({
      * `Slated` and `Staffed` are also the **only** two states in which position
      * 0 may be edited — filled here, swapped or vacated here. It is frozen from
      * `Offered` onward, where only `decline` and `withdraw` empty it and both
-     * record whom of. That rule used to carry an explicit exception for
+     * record who it was emptied of. That rule used to carry an explicit exception for
      * `Revising`, which no longer exists
      * (https://github.com/nopivnick/lineup-prototype-03/issues/17); deleting
      * the state removed a clause from the rule rather than weakening it.
