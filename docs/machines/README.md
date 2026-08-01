@@ -481,6 +481,50 @@ because the seed script is a second caller — it **drives fixtures through the 
 rather than inserting them at rest, so snapshots are valid by construction instead of
 hand-authored XState internals, and the transition log ships populated.
 
+**Who may fire each transition is settled, and no machine changed.**
+[Role x transition permission matrix](https://github.com/nopivnick/lineup-prototype-03/issues/8)
+produced the full matrix for all three machines plus field writes. **Nothing here amends a
+lifecycle** — like ticket 13, it constrains what the machines mean without changing what
+they are — but three of its findings bear directly on these files.
+
+**A sixth role, `coordinator`.** The Offering's forward path — `schedule`, `publish`,
+`list`, `run`, `evaluate`, `conclude` — is departmental bookkeeping, and none of ticket 4's
+five roles is that person. It cannot be automated either: ticket 3 deferred term dates, so
+nothing can compute when a class starts and fire `run`. The line between `coordinator`
+(flat, department-wide) and `program_director` (scoped by `offering.program_code`) is
+**decision versus execution**. The coordinator executes and asks — the six forward-path
+events plus `offer`, since ticket 15 already recorded the *pick* as the position-0 roster
+write and `offer` is only the asking. The director reserves creation, the position-0 write,
+`withdraw`, `cancel`, `retry` and `kill`.
+
+**`accept` / `decline` / `defer` are not the lead's alone**, and ticket 15 had already
+established why: the log carries `subject_netid` because `actor_netid` "records who
+clicked, which for a decline is routinely an admin taking a refusal by email." All three
+are available to the lead, a `coordinator`, or the offering's director. This costs **no
+schema change** — ticket 19 ruled that `offer` and `accept` need no `subject_netid` because
+the roster row survives them, and `defer` leaves it intact too.
+
+**Offering edits are gated by field class, not by lifecycle state**, and Course edits are
+gated by state. The rule behind the asymmetry: *a field write is state-gated exactly where
+a state asserts something about that field's content.* `Approved` asserts the course body
+was approved, so title, description, credits and number are editable only in `Revising`. No
+Offering state asserts anything about a room, so room, call number, SIS number and meeting
+pattern are editable by a coordinator or the offering's director in **any** state,
+`Concluded` included. What is frozen instead is the structural set — `course_id`,
+`term_code`, `program_code` — immutable for everyone, `kill` and recreate.
+
+That kills the *published-means-cancel* observation above. It was an artifact of where
+`revise` happened to be wired rather than a stated policy, and a freeze at `Published`
+forbids the exact case ticket 17 opened with — post-hoc correction of a finished offering
+— forcing a `Canceled` row for a typo.
+
+**The Course `Revising` one-exit observation is deliberately left open.** An instructor
+route on `revise` was weighed and would have made it a real gate at the permission level
+without touching the machine — instructor proposes, governance signs off. It was declined
+on reversibility: under-grants are loud and over-grants are silent, and the governance-only
+rule is a strict subset that is free to widen later. So the observation stays parked rather
+than being answered sideways through permissions.
+
 ## Open questions
 
 None open. Every question raised of these machines has been settled by a closed ticket —
@@ -501,9 +545,10 @@ is much cheaper to confirm now than to discover once the schema is built.
   is public. It could once be `defer`red too; ticket 21 removed that. `Listed` can only
   be cancelled. The related observation that `Published`, `Listed` and `Running` were the
   only non-final states that could not be `revise`d is gone: ticket 17 deleted `revise`,
-  so no state can. "Once an offering is published, editing it means cancelling it" was
-  weakly enforced by that absence and now is not enforced at all — if it is still a rule
-  it is a permission rule, and belongs to ticket 8 rather than to the machine.
+  so no state can. The trailing half of this observation — whether
+  "once an offering is published, editing it means cancelling it" survives as a
+  permission rule — is **resolved**: it does not. See *Offering edits are gated by field
+  class, not by lifecycle state* under *Decided*.
 - **Course `Approved` cannot return to `Developing`.** Sharpened by ticket 7 rather than
   resolved: `Developing` is no longer in the same machine, so the return is not merely
   absent but inexpressible. A course needing that much rework would be a fresh proposal.
