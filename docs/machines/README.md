@@ -42,7 +42,21 @@ turned out to encode an act the domain does not have. Splitting is the fallback 
 every inbound edge is genuinely needed; deleting is better when they are not, because it
 leaves one state whose name means one thing.
 
-**4. Never amend a machine without a closed ticket behind it.** The decision lives in
+**4. A gate with one exit is not a gate.** From
+[Which states can be revised, and does revision always need approval?](https://github.com/nopivnick/lineup-prototype-03/issues/17).
+Before trusting a state that models review, approval or sign-off, count its exits. A
+review you can only leave by approving is not a review — there is no outcome it can
+record that its absence would not. Offering `Revising` had exactly one, `approve`: no
+reject, no abandon, no `kill`. Course's real approval has the opposite shape, with
+`Rejected` reachable from both states that approve into `Approved`.
+
+Provenance is the tell, and it generalises past this pair: **these two machines were
+split out of a single one**, so an event appearing in both may be one act duplicated
+rather than two acts that agree. Ask what the child's copy refers to. Offering's
+`approve` was the *curriculum* approval and referred to nothing once separated — it was
+the only `approve` in that machine, and nothing else in it is an approval.
+
+**5. Never amend a machine without a closed ticket behind it.** The decision lives in
 the ticket; a change with no link is a decision nobody made.
 
 ## Decided
@@ -291,22 +305,87 @@ enumerated form had been reworded twice already — ticket 15 wrote it, ticket 1
 it, and this ticket adds three more `cancel` sources — so it is now phrased so that new
 source states cannot invalidate it. The claim is unchanged and still holds.
 
-## Open questions
-
-**Which states can be revised, and does revision always need approval?** `revise` is
-available from `Evaluating` and `Canceled` — editing an offering whose class already
-finished, or one that was abandoned. Post-hoc correction of the record is a real need,
-but whether it deserves a full `revise` / `approve` round-trip is not settled. Surfaced
-while resolving ticket 14:
+**Offering `revise` and `approve` are deleted, and so is `Revising`.**
 [Which states can be revised, and does revision always need approval?](https://github.com/nopivnick/lineup-prototype-03/issues/17)
+was opened to ask whether `revise` should leave `Evaluating` and `Canceled`. It leaves
+those two and the other six as well, taking the `Revising` state, `revisingFrom`,
+`RevisableState` and all eight `was*` guards with it. `OfferingState` goes 15 → 14,
+`LIVE_STATES` 10 → 9, and `OfferingContext` is now genuinely empty.
+
+**The reframe that decided it: these two machines were split out of one.** That is the
+provenance, and it explains every anomaly the ticket was circling. `revise` on the
+Offering is a real act — ticket 2's "a co-instructor's refusal is handled out-of-band by
+revising the Offering" is unmistakably an edit to that offering's roster. `approve` is
+not. In the combined machine it was the **curriculum** approval; split into two, the
+Offering kept a copy referring to nothing. It was the only `approve` in that machine and
+nothing else in it is an approval, whereas Course's invalidates a specific prior one.
+
+So there are **two acts on two artifacts, and only one is a transition.** Revising the
+Course re-opens the approval `Approved` asserts and needs a fresh `approve`. Revising an
+Offering asserts nothing that needs re-approving, so it is an ordinary field write gated
+by the permission matrix. A user who notices the course is wrong while looking at an
+offering fires `revise` on the **Course** machine from that screen; the Offering does not
+move. The opposite arrow — Course `revise` parking its Offerings — remains rejected, by
+ticket 14, on a different argument; this ticket ruled on Offering → Course, which ticket
+14 never considered.
+
+Three further reasons, beyond the missing referent: the forward path **already carries
+the departmental sign-offs**, since `schedule` and `publish` are where an offering's
+details get checked; "this edit needs permission" is a permission fact and not a
+lifecycle one, so putting it in the machine puts it in the one place a client cannot be
+trusted to enforce it; and `Revising` had **exactly one exit** — see standing principle 4,
+which came out of this.
+
+**Post-hoc correction is not a lifecycle transition.** Correcting a finished or abandoned
+offering — wrong room, wrong instructor credited, a call number keyed in wrong — is a
+real need and the one the ticket opened with. Nothing about the offering's progress
+changes, so it is an edit. `Canceled` was the worse of the two: `Revising` was
+unconditionally live, so revising a canceled offering resurrected it into liveness and
+blocked its Course from being retired — exactly what excluding `Canceled` from
+`LIVE_STATES` was meant to prevent.
+
+**Nothing freezes while a Course is `Revising`.** No cross-entity invariant, unlike
+`retry` against a `Retired` course. `revise` leaves `Approved` and returns to it, so a
+course in `Revising` is an *approved* course being edited and there is never an approval
+missing for an offering to wait on. Keying an invariant on a transient state would also
+freeze a whole term's offerings over a typo, and the obvious worry — a catalog showing a
+half-edited description — is a read concern that freezing publication does not fix.
+
+**What this does not disturb.** Ticket 15's position-0 rule survives verbatim: "editable
+only in `Slated` and `Staffed`, frozen everywhere else" loses a clause from *everywhere
+else* rather than a case. Tickets 2, 14 and 21 stand. No state is stranded — every
+non-final state keeps an exit, `Evaluating`'s becoming `conclude` alone and `Canceled`'s
+`retry` and `kill`, as the ticket predicted.
+
+**It amends ticket 15 and cleans up ticket 14.** Offering context is still empty, now for
+a second independent reason rather than one. And `Revising` leaves `LIVE_STATES`
+altogether, so ticket 14's "live *unconditionally*, whatever `revisingFrom` holds" — which
+it named as a compromise adopted partly to avoid reading context back out of the snapshot
+— disappears rather than becoming exact. Every state left in the set is live for a reason
+about that state alone.
+
+**Ruled out of scope: a general audit trail.** Deleting the transition means an ordinary
+field write now leaves no trace, where `revise` at least logged *someone changed this*.
+That is sharpest for the post-hoc correction case — quietly editing history is the edit
+you would most want attributable. It is a property of the schema rather than of this
+decision, since it applies equally to a `Slated` offering's meeting pattern, so it is
+recorded as a constraint on
+[The curated Postgres schema for both projects](https://github.com/nopivnick/lineup-prototype-03/issues/10):
+**the transition log is not a general audit log.** Same shape as the free-text `reason`
+question ticket 19 parked there.
+
+## Open questions
 
 **Persisted snapshots do not survive machine changes.** `createActor(machine, { snapshot })` validates the persisted structure against the current machine definition,
 so a renamed or removed state throws on read rather than degrading. Nothing is
 invalidated today — nothing is built — but ticket 6 alone renamed a state and added a
 context field, and ticket 15 has since **added** one (`Staffed`) and widened
-`RevisableState`. Two tickets, three shape changes; the rate is the argument. Ticket 21
-is a useful contrast and may sharpen the question: it removed three transitions and added
-four without
+`RevisableState`. Ticket 17 has now **removed** one (`Revising`) and emptied context
+entirely, which is the sharpest form of the problem: a persisted `Revising` snapshot no
+longer validates at all, and there is no forward path for it that does not amount to
+choosing a state on its behalf. Three tickets, five shape changes; the rate is the
+argument. Ticket 21 is a useful contrast and may sharpen the question: it removed three
+transitions and added four without
 touching the state set, so every persisted snapshot would have survived it. Whether the
 answer needs to distinguish edge changes from state changes, and whether there is a
 version stamp, a rebuild path, or an explicit deferral, is
@@ -317,11 +396,19 @@ version stamp, a rebuild path, or an explicit deferral, is
 These may all be deliberate. They're recorded because they're the kind of thing that
 is much cheaper to confirm now than to discover once the schema is built.
 
-- **`Published`, `Listed` and `Running` cannot be revised.** Every other non-final
-  state can. Once an offering is published, editing it means cancelling it.
+- **Course `Revising` has one exit too** — `approve`, plus `retire`. Standing principle 4
+  came out of the Offering's identical shape, and it is worth asking here whether a course
+  revision can be rejected or abandoned. It is *not* the same finding: Course `revise` has
+  a referent, and `Rejected` is reachable from both states that approve into `Approved`,
+  so the machine can express rejection and simply does not on this edge. Recorded rather
+  than resolved, because ticket 17 ruled only on the Offering.
 - **`Published` can still be `decline`d** — an instructor backing out after the offering
   is public. It could once be `defer`red too; ticket 21 removed that. `Listed` can only
-  be cancelled.
+  be cancelled. The related observation that `Published`, `Listed` and `Running` were the
+  only non-final states that could not be `revise`d is gone: ticket 17 deleted `revise`,
+  so no state can. "Once an offering is published, editing it means cancelling it" was
+  weakly enforced by that absence and now is not enforced at all — if it is still a rule
+  it is a permission rule, and belongs to ticket 8 rather than to the machine.
 - **Course `Approved` cannot return to `Developing`** — only `Revising`.
 - **Course has no `propose` event.** `Proposed` is the initial state, so a course is
   proposed by being created rather than by a transition.
@@ -331,10 +418,18 @@ is much cheaper to confirm now than to discover once the schema is built.
 Both machines were authored in Stately and pasted in verbatim at map creation, then
 amended as tickets landed — see *Decided* above for every change since.
 
+**They were one machine before that.** Ticket 17 established it, and it is load-bearing
+rather than trivia: it is why the Offering carried an `approve` that approved nothing, and
+the reason standing principle 4 tells you to ask what a duplicated event refers to. Treat
+any remaining symmetry between the two files as evidence to be checked rather than as
+design.
+
 The Stately scaffolding is now partly replaced. `offering.machine.ts` has a real
 `OfferingContext` type and a real initial context, so its `context: {} as {}` and
 `context: ({ input }) => input` lines are gone. That design is now **closed**: ticket 15
-settled Offering context as `{ revisingFrom }` and nothing more.
+settled Offering context as `{ revisingFrom }` and nothing more, and ticket 17 then
+deleted `revisingFrom` too, so the type is `Record<string, never>` — empty, and stated as
+a type rather than left as scaffolding.
 `course.machine.ts` still carries both scaffolding lines untouched. Nothing has
 positively decided that Course context is empty, but nothing needs it either — ticket
 14 was the one open claim on it, and routing `liveOfferings` through the event payload

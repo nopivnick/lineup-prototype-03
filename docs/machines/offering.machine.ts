@@ -3,7 +3,7 @@
 // Amended as map tickets land — see docs/machines/README.md for what has been
 // decided and what is still open.
 
-import { assign, setup } from "xstate";
+import { setup } from "xstate";
 
 /**
  * Every state of this machine. Hand-maintained in lockstep with `states` below —
@@ -16,7 +16,6 @@ export type OfferingState =
   | "Accepted"
   | "Declined"
   | "Deferred"
-  | "Revising"
   | "Scheduled"
   | "Published"
   | "Listed"
@@ -34,9 +33,14 @@ export type OfferingState =
  * The rule is that **live ends when teaching ends**: the forward lifecycle path
  * is live up to and including `Running`. The five excluded states are
  * `Declined`, `Canceled`, `Evaluating`, `Concluded` and `Dead`.
- * `Revising` is here unconditionally, whatever `revisingFrom` holds — an
- * offering being edited right now is exactly the in-flight work retirement
- * would contradict, so the guard never reads context to decide.
+ *
+ * Nine states, not the ten ticket 14 ruled on. `Revising` is gone from the
+ * machine entirely — https://github.com/nopivnick/lineup-prototype-03/issues/17.
+ * Ticket 14 had made it live *unconditionally*, whatever `revisingFrom` held,
+ * partly to avoid reading context back out of the snapshot, and named that a
+ * compromise. Deleting the state removes the compromise rather than vindicating
+ * it: every state left in this set is live for a reason about that state alone,
+ * and none of them needs context to decide.
  *
  * This is the single source of the definition. The query that builds a
  * `retire` event's `liveOfferings` spreads it into a `status IN (...)`, against
@@ -51,7 +55,6 @@ export const LIVE_STATES = [
   "Offered",
   "Accepted",
   "Deferred",
-  "Revising",
   "Scheduled",
   "Published",
   "Listed",
@@ -61,43 +64,27 @@ export const LIVE_STATES = [
 export type LiveState = (typeof LIVE_STATES)[number];
 
 /**
- * The states a `revise` can be entered from, and therefore the states
- * `context.revisingFrom` can hold. `Revising` routes `approve` back to
- * whichever of these it came from.
- *
- * Every other state either cannot be revised (`Revising`, `Published`, `Listed`,
- * `Running`, `Declined`) or is final (`Dead`, `Concluded`).
- */
-type RevisableState =
-  | "Slated"
-  | "Staffed"
-  | "Offered"
-  | "Accepted"
-  | "Deferred"
-  | "Scheduled"
-  | "Evaluating"
-  | "Canceled";
-
-/**
  * Persisted inside the XState snapshot — see
  * https://github.com/nopivnick/lineup-prototype-03/issues/6.
  *
- * `revisingFrom` is the whole of it, and
- * https://github.com/nopivnick/lineup-prototype-03/issues/15 closed the
- * question of what else belongs here with: nothing.
+ * **Empty.** https://github.com/nopivnick/lineup-prototype-03/issues/15 first
+ * closed this question with "nothing beyond `revisingFrom`"; ticket 17 then
+ * deleted `revisingFrom` along with the `Revising` state, so the answer is now
+ * literally nothing.
  *
- * The instructor roster is **not** mirrored in. It stays purely relational, in
- * `offering_instructor`. Mirroring it would persist a copy inside this snapshot
- * that goes stale from writes the machine cannot see — adding a co-instructor
- * fires no event — and the only fix would be to make every roster edit load,
- * mutate and re-save the snapshot.
+ * Two independent reasons, both still worth stating, because either alone would
+ * keep this type empty:
  *
- * The guard that wanted it, `hasLead`, is gone: `Staffed` encodes the same fact
- * as a state, so `offer` needs no guard at all.
+ * - The instructor roster is **not** mirrored in. It stays purely relational, in
+ *   `offering_instructor`. Mirroring it would persist a copy inside this
+ *   snapshot that goes stale from writes the machine cannot see — adding a
+ *   co-instructor fires no event.
+ * - Query-derived facts belong on the event, not here (standing principle 2).
+ *
+ * The guard that wanted the roster, `hasLead`, is gone: `Staffed` encodes the
+ * same fact as a state, so `offer` needs no guard at all.
  */
-type OfferingContext = {
-  revisingFrom: RevisableState | null;
-};
+type OfferingContext = Record<string, never>;
 
 export const machine = setup({
   types: {
@@ -146,8 +133,33 @@ export const machine = setup({
       // and a `Slated` or `Staffed` offering has none of them. `withdraw` and
       // `kill` cover that end of the lifecycle.
       | { type: "cancel" }
-      | { type: "revise" }
-      | { type: "approve" }
+
+      // `revise` and `approve` are **gone**, along with the `Revising` state,
+      // `revisingFrom`, `RevisableState` and the eight `was*` guards.
+      // https://github.com/nopivnick/lineup-prototype-03/issues/17
+      //
+      // Both were inherited from the single machine these two were split out
+      // of, where `approve` was the *curriculum* approval. Split into Course
+      // and Offering, the Offering kept a copy of `approve` with no referent:
+      // it was the only `approve` in this machine and nothing else here is an
+      // approval, whereas Course's invalidates a specific prior one and can
+      // reach `Rejected`.
+      //
+      // Editing an Offering is therefore an ordinary field write, gated by the
+      // permission matrix
+      // (https://github.com/nopivnick/lineup-prototype-03/issues/8) rather than
+      // by lifecycle state. The forward path already carries the departmental
+      // sign-offs — `schedule` and `publish` are where an offering's details
+      // get checked — and `Revising` had exactly one exit, `approve`, with no
+      // reject and no way to abandon, which is not a review gate.
+      //
+      // This is the act ticket 2 called revising the Offering ("a
+      // co-instructor's refusal is handled out-of-band by revising the
+      // Offering"). It survives as an act; it is no longer a transition.
+      // Revising the *Course* is a different act on a different artifact, and
+      // fires `revise` on the Course machine — including when a user reaches
+      // it from an offering's screen.
+
       // `decline` **vacates position 0**, and that vacate is a `DELETE` against
       // `offering_instructor` in the Server Action's transaction — the same one
       // that locks the row, writes the snapshot and appends the transition-log
@@ -165,8 +177,11 @@ export const machine = setup({
       // https://github.com/nopivnick/lineup-prototype-03/issues/19.
       // `decline` would have put a refusal in their history that never
       // happened, `cancel` means the class is not running (and is unavailable
-      // this early), `revise` cannot touch position 0, and `kill` discards the
-      // offering.
+      // this early), and `kill` discards the offering. Ticket 19 also ruled out
+      // `revise`, on the grounds that it could not touch position 0; that event
+      // has since been deleted outright
+      // (https://github.com/nopivnick/lineup-prototype-03/issues/17), which
+      // strengthens the conclusion rather than disturbing it.
       //
       // Leaves `Offered` and `Deferred` — the two states where no answer has
       // come back. `Deferred` was excluded when ticket 19 landed, on the
@@ -193,36 +208,19 @@ export const machine = setup({
       | { type: "evaluate" }
       | { type: "conclude" },
   },
-  guards: {
-    wasEvaluating: function ({ context }) {
-      return context.revisingFrom === "Evaluating";
-    },
-    wasCanceled: function ({ context }) {
-      return context.revisingFrom === "Canceled";
-    },
-    wasScheduled: function ({ context }) {
-      return context.revisingFrom === "Scheduled";
-    },
-    wasDeferred: function ({ context }) {
-      return context.revisingFrom === "Deferred";
-    },
-    wasAccepted: function ({ context }) {
-      return context.revisingFrom === "Accepted";
-    },
-    wasOffered: function ({ context }) {
-      return context.revisingFrom === "Offered";
-    },
-    wasStaffed: function ({ context }) {
-      return context.revisingFrom === "Staffed";
-    },
-    // `hasLead` used to live here, guarding `offer` on position 0 being
-    // occupied. It is gone, not implemented:
-    // https://github.com/nopivnick/lineup-prototype-03/issues/15 encoded the
-    // same fact as the `Staffed` state, so `offer` is simply unreachable until
-    // a lead exists and there is nothing left for a guard to check.
-  },
+  // **No guards.** This machine has none at all, and both absences are
+  // deliberate deletions rather than omissions.
+  //
+  // `hasLead` was deleted rather than implemented: `Staffed` encodes the same
+  // fact as a state, so `offer` is simply unreachable until a lead exists
+  // (https://github.com/nopivnick/lineup-prototype-03/issues/15). The eight
+  // `was*` guards went with the `Revising` state
+  // (https://github.com/nopivnick/lineup-prototype-03/issues/17).
+  //
+  // Constraints the lifecycle cannot express are asserted in the Server Action
+  // — see the `retry` comments on `Declined` and `Canceled` below.
 }).createMachine({
-  context: { revisingFrom: null },
+  context: {},
   id: "Offering",
   initial: "Slated",
   states: {
@@ -236,10 +234,6 @@ export const machine = setup({
         },
         kill: {
           target: "Dead",
-        },
-        revise: {
-          target: "Revising",
-          actions: assign({ revisingFrom: "Slated" }),
         },
       },
     },
@@ -267,6 +261,14 @@ export const machine = setup({
      * event in the same transaction, so no code path writes one without the
      * other. They track **occupancy, not identity** — swapping lead A for
      * lead B while `Staffed` fires nothing, because the state stays true.
+     *
+     * `Slated` and `Staffed` are also the **only** two states in which position
+     * 0 may be edited — filled here, swapped or vacated here. It is frozen from
+     * `Offered` onward, where only `decline` and `withdraw` empty it and both
+     * record who it was emptied of. That rule used to carry an explicit exception for
+     * `Revising`, which no longer exists
+     * (https://github.com/nopivnick/lineup-prototype-03/issues/17); deleting
+     * the state removed a clause from the rule rather than weakening it.
      */
     Staffed: {
       on: {
@@ -282,10 +284,6 @@ export const machine = setup({
         },
         kill: {
           target: "Dead",
-        },
-        revise: {
-          target: "Revising",
-          actions: assign({ revisingFrom: "Staffed" }),
         },
       },
     },
@@ -323,70 +321,10 @@ export const machine = setup({
         defer: {
           target: "Deferred",
         },
-        revise: {
-          target: "Revising",
-          actions: assign({ revisingFrom: "Offered" }),
-        },
       },
     },
     Dead: {
       type: "final",
-    },
-    // Position 0 is frozen here, whatever `revisingFrom` holds — including
-    // `Slated` and `Staffed`, which are otherwise the only two states where it
-    // is editable. Vacating it mid-revision would make `approve` → `Staffed`
-    // assert a lead that no longer exists.
-    // https://github.com/nopivnick/lineup-prototype-03/issues/15
-    Revising: {
-      on: {
-        approve: [
-          {
-            target: "Evaluating",
-            guard: {
-              type: "wasEvaluating",
-            },
-          },
-          {
-            target: "Canceled",
-            guard: {
-              type: "wasCanceled",
-            },
-          },
-          {
-            target: "Scheduled",
-            guard: {
-              type: "wasScheduled",
-            },
-          },
-          {
-            target: "Deferred",
-            guard: {
-              type: "wasDeferred",
-            },
-          },
-          {
-            target: "Accepted",
-            guard: {
-              type: "wasAccepted",
-            },
-          },
-          {
-            target: "Offered",
-            guard: {
-              type: "wasOffered",
-            },
-          },
-          {
-            target: "Staffed",
-            guard: {
-              type: "wasStaffed",
-            },
-          },
-          {
-            target: "Slated",
-          },
-        ],
-      },
     },
     Accepted: {
       on: {
@@ -409,10 +347,6 @@ export const machine = setup({
         // had already answered, and it fed the ambiguity that made `Deferred`
         // unable to certify anything.
         // https://github.com/nopivnick/lineup-prototype-03/issues/21
-        revise: {
-          target: "Revising",
-          actions: assign({ revisingFrom: "Accepted" }),
-        },
       },
     },
     Declined: {
@@ -452,24 +386,23 @@ export const machine = setup({
      * reading. That ambiguity is what kept `withdraw` off it in ticket 19.
      *
      * The fix was to delete the three post-acceptance edges rather than to
-     * split the state, so this is still **one** entry in `LIVE_STATES` and one
-     * in `RevisableState`, exactly as
-     * https://github.com/nopivnick/lineup-prototype-03/issues/14 ruled. It
-     * remains live: the department still intends to run the class.
+     * split the state, so this is still **one** entry in `LIVE_STATES`, exactly
+     * as https://github.com/nopivnick/lineup-prototype-03/issues/14 ruled. (It
+     * was one entry in `RevisableState` too, and had a `wasDeferred` guard;
+     * both are gone with the `Revising` state, which changes nothing about this
+     * state's meaning — https://github.com/nopivnick/lineup-prototype-03/issues/17.)
+     * It remains live: the department still intends to run the class.
      *
-     * It survives as a state rather than collapsing into `Offered` because a
-     * deferred offering **rests** here — parked-ness is present-tense, which is
-     * what a `status` column holds. That is the disanalogy with the rejected
-     * `Withdrawn` state, which an offering would only ever pass through. The
-     * distinction it buys is operational: "who hasn't replied at all?" wants a
-     * chase, "who asked for time?" wants a wait.
+     * It survives as a state rather than collapsing into `Offered` (as a logged
+     * self-transition) because a deferred offering **rests** here — parked-ness
+     * is present-tense, which is what a `status` column holds. That is the
+     * disanalogy with the rejected `Withdrawn` state, which an offering would
+     * only ever pass through. The distinction it buys is operational: "who
+     * hasn't replied at all?" wants a chase, "who asked for time?" wants a
+     * wait.
      */
     Deferred: {
       on: {
-        revise: {
-          target: "Revising",
-          actions: assign({ revisingFrom: "Deferred" }),
-        },
         // Vacates position 0 — see the `decline` event above.
         decline: {
           target: "Declined",
@@ -491,12 +424,17 @@ export const machine = setup({
         },
       },
     },
+    // `conclude` is the sole exit. It used to have `revise` as well — editing
+    // an offering whose class has already been taught — which is the anomaly
+    // that opened
+    // https://github.com/nopivnick/lineup-prototype-03/issues/17. Post-hoc
+    // correction of the record is a real need (wrong room, wrong instructor
+    // credited, a call number keyed in wrong), but it is not a lifecycle
+    // transition: nothing about the offering's progress changes, and routing it
+    // through a `Revising` state made a concluded class briefly live again.
+    // It is an ordinary field write, gated by permission.
     Evaluating: {
       on: {
-        revise: {
-          target: "Revising",
-          actions: assign({ revisingFrom: "Evaluating" }),
-        },
         conclude: {
           target: "Concluded",
         },
@@ -538,10 +476,15 @@ export const machine = setup({
         retry: {
           target: "Staffed",
         },
-        revise: {
-          target: "Revising",
-          actions: assign({ revisingFrom: "Canceled" }),
-        },
+        // `revise` is gone from here too, and for the same reason as
+        // `Evaluating` above — correcting the record of an abandoned offering
+        // is an edit, not a step in its lifecycle. Here it was worse than
+        // anomalous: `Revising` was unconditionally live
+        // (https://github.com/nopivnick/lineup-prototype-03/issues/14), so
+        // revising a `Canceled` offering resurrected it into liveness and
+        // blocked its Course from being retired — the exact outcome excluding
+        // `Canceled` from `LIVE_STATES` was meant to prevent.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/17
         kill: {
           target: "Dead",
         },
@@ -560,10 +503,6 @@ export const machine = setup({
         // https://github.com/nopivnick/lineup-prototype-03/issues/21
         cancel: {
           target: "Canceled",
-        },
-        revise: {
-          target: "Revising",
-          actions: assign({ revisingFrom: "Scheduled" }),
         },
       },
     },
