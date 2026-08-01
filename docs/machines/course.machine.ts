@@ -34,6 +34,30 @@ export const machine = setup({
     events: {} as
       | { type: "reject" }
       | { type: "retire"; liveOfferings: LiveOffering[] }
+      // **The only revision in the system.** The Offering machine used to carry
+      // a `revise` / `approve` pair of its own; it was deleted, because both
+      // machines were split out of a single one and the Offering's copy of
+      // `approve` had no referent — this is the approval it meant.
+      // https://github.com/nopivnick/lineup-prototype-03/issues/17
+      //
+      // That leaves two distinct acts on two distinct artifacts, and only this
+      // one is a transition:
+      //
+      // - Revising the **Course** — title, description, credits, the
+      //   curriculum record — invalidates the approval `Approved` asserts, so
+      //   it re-opens it and needs a fresh `approve`. That is this event.
+      // - Revising an **Offering** — its room, call number, meeting pattern,
+      //   roster — asserts nothing that needs re-approving. It is an ordinary
+      //   field write gated by the permission matrix
+      //   (https://github.com/nopivnick/lineup-prototype-03/issues/8).
+      //
+      // A user who notices the course is wrong while looking at one of its
+      // offerings fires *this* event, from that screen. The Offering does not
+      // move, and nothing about it freezes while its Course sits in `Revising`
+      // — no cross-entity invariant, unlike `retry` against a `Retired` course.
+      // A course in `Revising` is an *approved* course being edited (`revise`
+      // leaves `Approved` and returns to it), so there is never an approval
+      // missing for an offering to wait on.
       | { type: "revise" }
       | { type: "approve" }
       | { type: "develop" },
