@@ -30,7 +30,19 @@ that survives to mislead the next read. `revisingFrom` qualifies because the mac
 itself produced it. `liveOfferings` does not, and neither does the instructor roster —
 worse, since roster writes fire no event at all.
 
-**3. Never amend a machine without a closed ticket behind it.** The decision lives in
+**3. A state certifies only what all of its inbound edges agree on.** From
+[What does Deferred mean, and can it tell you whether the lead agreed?](https://github.com/nopivnick/lineup-prototype-03/issues/21).
+Before reaching for a guard that asks *how did this offering get here?*, count the
+inbound edges — if they disagree about the fact you need, the state cannot supply it and
+no predicate over the transition log should be asked to, since principle 2 keeps
+query-derived history out of the machine. `Deferred` had four inbound edges and so could
+certify nothing, which is what blocked `withdraw` in ticket 19. The fix was to **delete
+the edges that disagreed**, not to split the state or to add a guard: three of the four
+turned out to encode an act the domain does not have. Splitting is the fallback when
+every inbound edge is genuinely needed; deleting is better when they are not, because it
+leaves one state whose name means one thing.
+
+**4. Never amend a machine without a closed ticket behind it.** The decision lives in
 the ticket; a change with no link is a decision nobody made.
 
 ## Decided
@@ -141,10 +153,11 @@ edge now says so, since the machine previously implied otherwise by omission.
 
 **`Canceled.retry` → `Staffed`; `Declined.retry` → `Slated`.** Both unconditional. A
 `Declined` offering provably has no lead, because `decline` vacated position 0 on the
-way in. A `Canceled` one provably has one: `Canceled` is reachable only from `Published`
-and `Listed`, both downstream of `Offered`, and `decline` — the only thing that vacates
-from there — lands in `Declined`. Routing `Canceled` to `Slated` would have asserted a
-vacancy that isn't there, which is the `Staffed` divergence showing up on day one. It
+way in. A `Canceled` one provably has one: **every path into `Canceled` runs through
+`accept`, and nothing downstream of `accept` vacates position 0 except `decline` and
+`withdraw`, both of which leave the forward path.** Routing `Canceled` to `Slated` would
+have asserted a vacancy that isn't there, which is the `Staffed` divergence showing up on
+day one. It
 deliberately does not land further forward: that lead had accepted, but revivals here
 are slow and material, and a state asserting "they said yes" when the yes has gone stale
 gets published to the catalog and never caught.
@@ -174,15 +187,17 @@ the lead was told. One event for both would make the log read identically for "w
 staffing plan nobody had seen" and "we retracted an offer from someone waiting on an
 answer", and the second is the one that needs a paper trail.
 
-**`Offered` is the only source state**, because it is the only one where the act is
+**`Offered` was the only source state**, because it was the only one where the act is
 provably honest — `accept`, `decline` and `defer` are its sole exits, so no answer has come
-back. `Deferred` was the arguable case and was **excluded on a factual correction**: it has
-four inbound edges, so it cannot certify that the lead hasn't already agreed, and `withdraw`
-there would let a renege wear the name reserved for retracting an unanswered question. That
-leaves a real hole — deferred, then the department wants someone else — deliberately left
-visible as ticket 21 rather than closed by a move that can mislabel. `Accepted` onward is a
-different act, breaking an agreement rather than retracting a question, and is out of scope
-until someone shows it happens.
+back. `Deferred` was the arguable case and was **excluded on a factual correction**: it had
+four inbound edges, so it could not certify that the lead hadn't already agreed, and
+`withdraw` there would let a renege wear the name reserved for retracting an unanswered
+question. That left a real hole — deferred, then the department wants someone else —
+deliberately visible as ticket 21 rather than closed by a move that can mislabel.
+**Ticket 21 has since closed it** by removing the three inbound edges that caused the
+ambiguity, so `withdraw` now leaves `Deferred` too — see *`Deferred` means asked and
+unanswered* below. `Accepted` onward remains a different act, breaking an agreement rather
+than retracting a question, and is still out of scope until someone shows it happens.
 
 **It lands in `Slated` and vacates position 0** — the same `DELETE` in the same Server
 Action transaction as `decline`, not an XState action. `Staffed` was rejected because swaps
@@ -212,13 +227,71 @@ of the system and not of this event: a free-text **reason** on the log row (`can
 `offer`, `withdraw` and `cancel` all imply an off-system act, the machines model decisions
 rather than communication, and the map now says so explicitly.
 
-## Open questions
-
-**What does `Deferred` mean?** It has four inbound edges — `Offered`, `Accepted`,
-`Scheduled` and `Published` — so a deferred offering is sometimes "asked, hasn't
-answered" and sometimes "said yes, then put it on hold", and the machine cannot tell
-which. That ambiguity is what kept `withdraw` off it. Surfaced while resolving ticket 19:
+**`Deferred` means asked and unanswered, and `defer` is the lead's third answer.**
 [What does Deferred mean, and can it tell you whether the lead agreed?](https://github.com/nopivnick/lineup-prototype-03/issues/21)
+settled `defer` as the **lead's** act — "ask me later", alongside `accept` and `decline`,
+speaking for position 0 like the other three. It is not the department putting an
+offering on hold; that reading was considered and rejected, and the giveaway was that
+`defer` and `decline` shared an identical four-state inbound edge set, which is what a
+sibling response looks like rather than a departmental hold.
+
+**`defer` now leaves `Offered` and nowhere else.** The edges from `Accepted`, `Scheduled`
+and `Published` are deleted. "Ask me later" is meaningless once the question has been
+answered, and the ACT-UAW Local 7902 contract (2022–2028) — which covers ITP/IMA
+adjuncts, Tisch not being among its excluded schools — recognises **no adjunct-side pause
+after acceptance**. Nothing in its 98 pages mentions deferring, holding, or a tentative
+or contingent appointment; the vocabulary is strictly accept-or-decline. After acceptance
+it recognises exactly two moves, and a `Deferred` limbo obscures which one occurred while
+money turns on the difference:
+
+- the university **cancels**, owing cancellation pay (Art. IV(C)) — 20% of course
+  compensation if cancelled 14 or fewer days before the first class, 20% plus a
+  proportional amount for contact hours taught if after classes begin;
+- the adjunct **declines**, which is counted — three consecutive declined offers cost
+  them the good-faith reappointment consideration of Art. VI(B).
+
+That second point sharpens ticket 19's don't-log-a-lie principle into something with
+teeth: recording a `decline` that did not happen moves a real person toward losing a
+contractual right. It is why folding the post-acceptance `defer` into `decline` was
+rejected outright.
+
+**`Deferred` survives as a state, with one inbound edge**, and is therefore able to
+certify what `withdraw` needs. It was **not split**: `LIVE_STATES` and `RevisableState`
+are unchanged, one entry each, and `wasDeferred` stays — ticket 14's ruling stands
+untouched. It survives rather than collapsing into `Offered` (as a logged self-transition)
+because a deferred offering **rests** here, and parked-ness is present-tense, which is
+what a `status` column holds. That is the disanalogy with the `Withdrawn` state ticket 19
+rejected, which an offering would only ever pass through. The distinction it buys is
+operational: *who hasn't replied at all?* wants a chase, *who asked for time?* wants a
+wait.
+
+**`Deferred --withdraw--> Slated`**, closing the hole ticket 19 left visible. Identical to
+`Offered.withdraw` in every respect — lands in `Slated`, vacates position 0 by the same
+`DELETE` in the Server Action's transaction, carries `subject_netid`.
+
+**`cancel` is available exactly downstream of `accept`** — `Accepted`, `Scheduled`,
+`Published`, `Listed`, `Running`. The first two and the last are new. This boundary is
+drawn by the contract rather than invented: Art. IV(C) attaches the cancellation-pay
+obligation to "a course that an adjunct **has accepted** to teach", and to nothing
+earlier. Before acceptance `Canceled` would have nothing to preserve — it exists to keep
+the call number, SIS number, room and schedule, and a `Slated` or `Staffed` offering has
+none of them; `withdraw` and `kill` cover that end. `Running` is included because
+Art. IV(C)(2) prices cancellation "after the first day of class begins", so a class
+collapsing mid-term is a case the university has already agreed can happen.
+
+**The machine does not branch on union membership.** Not every lead is in the bargaining
+unit — full-time faculty are explicitly excluded, and the unit covers adjuncts at 40+
+contact hours per academic year — so offerings will hold leads of both kinds. But the
+contract gives unionized leads *money and counting rules*, not *fewer moves*: the
+lifecycle shape is identical either way, and the obligations attach outside the machine.
+No guard reads employment class.
+
+**Ticket 15's `Canceled.retry` proof was restated as an invariant**, not amended. Its
+enumerated form had been reworded twice already — ticket 15 wrote it, ticket 19 reworded
+it, and this ticket adds three more `cancel` sources — so it is now phrased so that new
+source states cannot invalidate it. The claim is unchanged and still holds.
+
+## Open questions
 
 **Which states can be revised, and does revision always need approval?** `revise` is
 available from `Evaluating` and `Canceled` — editing an offering whose class already
@@ -231,8 +304,12 @@ while resolving ticket 14:
 so a renamed or removed state throws on read rather than degrading. Nothing is
 invalidated today — nothing is built — but ticket 6 alone renamed a state and added a
 context field, and ticket 15 has since **added** one (`Staffed`) and widened
-`RevisableState`. Two tickets, three shape changes; the rate is the argument. Whether
-there is a version stamp, a rebuild path, or an explicit deferral is
+`RevisableState`. Two tickets, three shape changes; the rate is the argument. Ticket 21
+is a useful contrast and may sharpen the question: it removed three transitions and added
+four without
+touching the state set, so every persisted snapshot would have survived it. Whether the
+answer needs to distinguish edge changes from state changes, and whether there is a
+version stamp, a rebuild path, or an explicit deferral, is
 [What happens to persisted snapshots when the machine changes?](https://github.com/nopivnick/lineup-prototype-03/issues/13)
 
 ## Observations about lifecycle shape
@@ -242,10 +319,9 @@ is much cheaper to confirm now than to discover once the schema is built.
 
 - **`Published`, `Listed` and `Running` cannot be revised.** Every other non-final
   state can. Once an offering is published, editing it means cancelling it.
-- **`Published` can still be `decline`d or `defer`red** — an instructor backing out
-  after the offering is public. `Listed` cannot; it can only be cancelled.
-- **`Running` has one exit,** `evaluate`. There's no path for a class that collapses
-  mid-term.
+- **`Published` can still be `decline`d** — an instructor backing out after the offering
+  is public. It could once be `defer`red too; ticket 21 removed that. `Listed` can only
+  be cancelled.
 - **Course `Approved` cannot return to `Developing`** — only `Revising`.
 - **Course has no `propose` event.** `Proposed` is the initial state, so a course is
   proposed by being created rather than by a transition.

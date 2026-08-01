@@ -106,6 +106,21 @@ export const machine = setup({
       | { type: "run" }
       | { type: "kill" }
       | { type: "list" }
+      // The lead's third answer, alongside `accept` and `decline`: "ask me
+      // later". It speaks for position 0 only, like the other three
+      // (https://github.com/nopivnick/lineup-prototype-03/issues/2), and it is
+      // **not** the department putting an offering on hold — that reading was
+      // considered and rejected.
+      // https://github.com/nopivnick/lineup-prototype-03/issues/21
+      //
+      // Available from `Offered` and nowhere else. It used to leave `Accepted`,
+      // `Scheduled` and `Published` too, which is what made `Deferred`
+      // ambiguous — "ask me later" is meaningless once the question has been
+      // answered. The ACT-UAW Local 7902 contract (2022-2028) recognises no
+      // adjunct-side pause after acceptance: the university cancels, owing
+      // cancellation pay (Art. IV(C)), or the adjunct declines, which is
+      // counted against them (Art. VI(B)). A limbo state between those two
+      // obscures which one happened, and money turns on the difference.
       | { type: "defer" }
       | { type: "offer" }
       | { type: "retry" }
@@ -116,6 +131,20 @@ export const machine = setup({
       // https://github.com/nopivnick/lineup-prototype-03/issues/15
       | { type: "staff" }
       | { type: "accept" }
+      // The department pulling a class it has committed to running. Available
+      // **exactly downstream of `accept`** — `Accepted`, `Scheduled`,
+      // `Published`, `Listed`, `Running` — a boundary drawn by the contract
+      // rather than invented here: Art. IV(C) attaches cancellation pay to "a
+      // course that an adjunct **has accepted** to teach", and to nothing
+      // earlier. Art. IV(C)(2) prices the after-classes-begin case, which is
+      // why `Running` is included.
+      // https://github.com/nopivnick/lineup-prototype-03/issues/21
+      //
+      // Before acceptance there is nothing for `Canceled` to preserve — it
+      // exists to keep the call number, SIS number, room and schedule that
+      // https://github.com/nopivnick/lineup-prototype-03/issues/2 protected,
+      // and a `Slated` or `Staffed` offering has none of them. `withdraw` and
+      // `kill` cover that end of the lifecycle.
       | { type: "cancel" }
       | { type: "revise" }
       | { type: "approve" }
@@ -138,6 +167,14 @@ export const machine = setup({
       // happened, `cancel` means the class is not running (and is unavailable
       // this early), `revise` cannot touch position 0, and `kill` discards the
       // offering.
+      //
+      // Leaves `Offered` and `Deferred` — the two states where no answer has
+      // come back. `Deferred` was excluded when ticket 19 landed, on the
+      // then-correct grounds that four inbound edges left it unable to certify
+      // the lead hadn't already agreed;
+      // https://github.com/nopivnick/lineup-prototype-03/issues/21 removed
+      // three of those edges, and with one inbound edge from `Offered` the
+      // certification holds.
       //
       // Distinct from `unstaff` rather than an extension of it. `unstaff` is
       // never user-facing — it is bookkeeping that fires from inside the
@@ -261,17 +298,12 @@ export const machine = setup({
         decline: {
           target: "Declined",
         },
-        // The only state `withdraw` leaves from, and the only state where it
-        // is provably honest: `accept`, `decline` and `defer` are the sole
+        // Provably honest here: `accept`, `decline` and `defer` are the sole
         // exits, so an offering still in `Offered` has had no answer back.
         //
-        // `Deferred` was the arguable case and is excluded — it has four
-        // inbound edges (`Offered`, `Accepted`, `Scheduled`, `Published`), so
-        // a deferred offering may be one whose lead already agreed, and the
-        // machine cannot tell which. Allowing `withdraw` there would let a
-        // renege wear the name reserved for taking back an unanswered
-        // question. `Accepted` onward is a different act entirely — breaking
-        // an agreement, not retracting a question — and is out of scope.
+        // `Deferred` is the other such state — see its `withdraw` below.
+        // `Accepted` onward is a different act entirely — breaking an
+        // agreement, not retracting a question — and is out of scope.
         //
         // Lands in `Slated`, not `Staffed`, and vacates position 0. `Staffed`
         // would keep the withdrawn lead seated and let the department swap in
@@ -365,9 +397,18 @@ export const machine = setup({
         decline: {
           target: "Declined",
         },
-        defer: {
-          target: "Deferred",
+        // The earliest `cancel` — this is the state `accept` creates, and
+        // Art. IV(C) attaches the university's cancellation-pay obligation to
+        // exactly that. A lead who has agreed and then finds they cannot teach
+        // has `decline`; this is the department's side of the same situation.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/21
+        cancel: {
+          target: "Canceled",
         },
+        // `defer` is gone from here. It meant "ask me later" from a lead who
+        // had already answered, and it fed the ambiguity that made `Deferred`
+        // unable to certify anything.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/21
         revise: {
           target: "Revising",
           actions: assign({ revisingFrom: "Accepted" }),
@@ -397,6 +438,32 @@ export const machine = setup({
         },
       },
     },
+    /**
+     * The lead has been asked and has said "not yet" — they have neither
+     * accepted nor refused. **One inbound edge, from `Offered`**, which is what
+     * makes that sentence true of every offering in this state.
+     * https://github.com/nopivnick/lineup-prototype-03/issues/21
+     *
+     * It used to have four (`Offered`, `Accepted`, `Scheduled`, `Published`),
+     * so a deferred offering was sometimes "asked, hasn't answered" and
+     * sometimes "said yes, then put it on hold" — obligations that point in
+     * opposite directions, told apart only by the transition log's
+     * `from_state`, which standing principle 2 forbids the machine from
+     * reading. That ambiguity is what kept `withdraw` off it in ticket 19.
+     *
+     * The fix was to delete the three post-acceptance edges rather than to
+     * split the state, so this is still **one** entry in `LIVE_STATES` and one
+     * in `RevisableState`, exactly as
+     * https://github.com/nopivnick/lineup-prototype-03/issues/14 ruled. It
+     * remains live: the department still intends to run the class.
+     *
+     * It survives as a state rather than collapsing into `Offered` because a
+     * deferred offering **rests** here — parked-ness is present-tense, which is
+     * what a `status` column holds. That is the disanalogy with the rejected
+     * `Withdrawn` state, which an offering would only ever pass through. The
+     * distinction it buys is operational: "who hasn't replied at all?" wants a
+     * chase, "who asked for time?" wants a wait.
+     */
     Deferred: {
       on: {
         revise: {
@@ -409,6 +476,18 @@ export const machine = setup({
         },
         accept: {
           target: "Accepted",
+        },
+        // The hole ticket 19 left deliberately visible, now closed. `Offered`'s
+        // only exits are `accept`, `decline` and `defer`, and `defer` is by
+        // definition not an answer — so an offering here has provably not
+        // agreed, and retracting the question is honest.
+        //
+        // Identical to `Offered.withdraw` in every respect: lands in `Slated`,
+        // vacates position 0 by the same `DELETE` in the Server Action's
+        // transaction, carries the withdrawn instructor as `subject_netid`.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/21
+        withdraw: {
+          target: "Slated",
         },
       },
     },
@@ -436,14 +515,19 @@ export const machine = setup({
         // Lands in `Staffed`, unlike `Declined` — `cancel` is the department
         // pulling the class, not the lead withdrawing, so position 0 is
         // untouched and routing to `Slated` would assert a vacancy that isn't
-        // there. Unconditional, no guard: `Canceled` is reachable only from
-        // `Published` and `Listed`, both downstream of `Offered`, and from
-        // `Offered` onward the only two things that empty position 0 are
-        // `decline` and `withdraw` — which land in `Declined` and `Slated`,
-        // both off the forward path to `Canceled`. Reaching `Canceled` after
-        // either therefore means passing through `Staffed` → `Offered` again,
-        // so position 0 is provably occupied here.
-        // https://github.com/nopivnick/lineup-prototype-03/issues/19
+        // there. Unconditional, no guard, and the proof is stated without
+        // enumerating source states so that it survives `cancel` gaining new
+        // ones: **every path into `Canceled` runs through `accept`, and nothing
+        // downstream of `accept` vacates position 0 except `decline` and
+        // `withdraw`, both of which leave the forward path** (to `Declined` and
+        // `Slated` respectively). Position 0 is therefore provably occupied
+        // here.
+        //
+        // The enumerated form of this argument has now been rewritten twice as
+        // the machine grew — ticket 15 wrote it, ticket 19 reworded it, ticket
+        // 21 added three more `cancel` sources — which is why it is phrased as
+        // an invariant instead.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/21
         //
         // Deliberately not further forward. That lead had already accepted,
         // and the room and call number survive the cancel, so `Accepted` is
@@ -472,8 +556,10 @@ export const machine = setup({
         decline: {
           target: "Declined",
         },
-        defer: {
-          target: "Deferred",
+        // Downstream of `accept`, so `cancel` reaches here.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/21
+        cancel: {
+          target: "Canceled",
         },
         revise: {
           target: "Revising",
@@ -492,12 +578,14 @@ export const machine = setup({
         cancel: {
           target: "Canceled",
         },
-        // Vacates position 0 — see the `decline` event above.
+        // Vacates position 0 — see the `decline` event above. An instructor
+        // backing out after the offering is public is still a real act; what
+        // is gone from here is `defer`, which let a published offering land in
+        // `Deferred` whose only forward exit is `accept` → `Accepted`,
+        // silently discarding the schedule and the publication.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/21
         decline: {
           target: "Declined",
-        },
-        defer: {
-          target: "Deferred",
         },
       },
     },
@@ -515,6 +603,16 @@ export const machine = setup({
       on: {
         evaluate: {
           target: "Evaluating",
+        },
+        // A class that collapses mid-term. `Running` used to have `evaluate` as
+        // its sole exit, which was recorded as a lifecycle observation rather
+        // than a decision. Art. IV(C)(2) settles it: the contract prices
+        // cancellation "after the first day of class begins" at twenty percent
+        // plus a proportional amount for contact hours actually taught, so it
+        // is a case the university has already agreed can happen.
+        // https://github.com/nopivnick/lineup-prototype-03/issues/21
+        cancel: {
+          target: "Canceled",
         },
       },
     },
