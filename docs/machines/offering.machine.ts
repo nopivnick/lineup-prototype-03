@@ -64,6 +64,49 @@ export const LIVE_STATES = [
 export type LiveState = (typeof LIVE_STATES)[number];
 
 /**
+ * The states in which an Offering is visible to a `student` or an `advisor` —
+ * the two roles that hold nothing anywhere in the permission matrix.
+ * See https://github.com/nopivnick/lineup-prototype-03/issues/28.
+ *
+ * The rule is **an instructor agreed to teach this, or did once**. The six
+ * excluded states — `Slated`, `Staffed`, `Offered`, `Deferred`, `Declined`,
+ * `Dead` — are the department's staffing process, which is internal work.
+ *
+ * This set had to be *certifiable*, which is why it is drawn at `accept` rather
+ * than at `publish`. "Students see what has been published" is the rule you
+ * reach for first, and it is inexpressible: standing principle 3 says a state
+ * certifies only what all of its inbound edges agree on, and
+ * https://github.com/nopivnick/lineup-prototype-03/issues/21 gave `Canceled`
+ * five inbound edges, two of them (`Accepted`, `Scheduled`) pre-publication. So
+ * a `Canceled` offering cannot say whether it was ever published — that is
+ * history, and `status` holds only the present. This set *can* be certified,
+ * because ticket 21 made `cancel` available exactly downstream of `accept`.
+ *
+ * Hiding `Declined` alone was rejected for leaking the thing it hides: an
+ * offering that vanishes from `Offered` and reappears in `Slated` announces the
+ * decline by its absence. `Canceled` is deliberately included — a class that was
+ * going to run and isn't is what a student most needs to see.
+ *
+ * Like `LIVE_STATES`, and for the same reason
+ * (https://github.com/nopivnick/lineup-prototype-03/issues/14): an exported
+ * constant rather than a generated column, because an arguable policy should
+ * cost a one-line edit and not a table rewrite. Every other role sees all
+ * fourteen states.
+ */
+export const COMMITTED_STATES = [
+  "Accepted",
+  "Scheduled",
+  "Published",
+  "Listed",
+  "Running",
+  "Evaluating",
+  "Concluded",
+  "Canceled",
+] as const satisfies readonly OfferingState[];
+
+export type CommittedState = (typeof COMMITTED_STATES)[number];
+
+/**
  * Persisted inside the XState snapshot — see
  * https://github.com/nopivnick/lineup-prototype-03/issues/6.
  *

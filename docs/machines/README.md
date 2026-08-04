@@ -525,6 +525,54 @@ on reversibility: under-grants are loud and over-grants are silent, and the gove
 rule is a strict subset that is free to widen later. So the observation stays parked rather
 than being answered sideways through permissions.
 
+**Permission enforcement lives in one TypeScript module, inside the writer.**
+[Where does permission enforcement physically live?](https://github.com/nopivnick/lineup-prototype-03/issues/28)
+settled where ticket 8's matrix runs. **No lifecycle changed**, but the Offering machine
+gains a second exported state set and three of its findings bear on these files.
+
+**`COMMITTED_STATES` — the states a `student` or `advisor` may see.** The rule is *an
+instructor agreed to teach this, or did once*: `Accepted`, `Scheduled`, `Published`,
+`Listed`, `Running`, `Evaluating`, `Concluded`, `Canceled`. The six excluded are the
+department's staffing process. It sits beside `LIVE_STATES` for the same reason ticket 14
+gave — an arguable policy costs a one-line edit rather than a table rewrite.
+
+It is drawn at `accept` because that boundary is **certifiable** and the obvious one is
+not. *Students see what has been published* is inexpressible under standing principle 3:
+ticket 21 gave `Canceled` five inbound edges, two of them pre-publication, so a `Canceled`
+offering cannot say whether it was ever published. `cancel` being available exactly
+downstream of `accept` is what makes this set provable instead.
+
+**Permissions and invariants are different things, and the test is whether the rule names
+an actor.** A permission is ticket 4's conjunction of a role and a relationship. An
+invariant holds regardless of who acts — a director cannot do it either. The test decides
+placement, because **the database has no actor**: with RLS ruled out, Postgres cannot see
+who is acting, so exactly the actorless rules are eligible for the schema.
+
+Three rules in these machines that read as permissions are invariants: position 0 writable
+only in `Slated` / `Staffed`, the course body only while `Revising`, the proposal body only
+while a review is `Developing`. Ticket 8's own rule — *a field write is state-gated exactly
+where a state asserts something about that field's content* — is a statement about states
+with no actor in it. Those writes carry two predicates, ANDed: a state predicate binding
+everyone including the seed script, and a role predicate binding the actor.
+
+The two cross-entity invariants these files already carry stay **out** of the database.
+`retry` against a `Retired` Course needs a cross-table read, so only a trigger could hold
+it — rejected by tickets 13 and 30 on *where would a reader find it* — and it is a
+transition rule, so it belongs where a reader looks for transition rules, inside
+`applyTransition`. `staff` / `unstaff` never being user-facing is **non-exposure rather
+than a check**: ticket 15's *divergence has no code path* is made structural by the action
+layer exposing a narrower event union than `applyTransition` accepts.
+
+**Two amendments land on the machines' surroundings.** The check moves **inside**
+`applyTransition`, so ticket 13's "thin auth wrapper" becomes an actor-resolution wrapper
+and **the seed script is checked like anyone else** — an exempt seed is the one caller able
+to write a log row saying a `student` cancelled a class, which is the lie tickets 19 and 21
+spent their length preventing. And **the machine is no longer imported client-side**:
+ticket 17 deleted every Offering guard, so `.can()` client-side is bare edge existence,
+while the invariants and permissions that decide whether a control is live are both
+server-side. The server ships a per-row permitted-action set instead — ticket 14's shape,
+so rule and explanation cannot drift. That amends ticket 6.
+
 ## Open questions
 
 None open. Every question raised of these machines has been settled by a closed ticket —
