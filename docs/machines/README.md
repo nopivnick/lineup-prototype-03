@@ -68,6 +68,17 @@ proposal can be rejected by ITP while IMA approves it, which no single row can h
 a column and a state set disagree about how many things there are, the state set is
 usually wrong.
 
+**Its boundary, from
+[Where are a course's area and area head assigned?](https://github.com/nopivnick/lineup-prototype-03/issues/32):
+impossible-before and guaranteed-after is a seam; merely *incomplete* early is a
+completeness rule.** `area_head` looked like this shape — null while `Proposed`, filled by
+`Approved` — and is its opposite, because a director may assign it before approval, at
+approval, or after. The early states *can* hold a value and the late ones *can* lack one,
+so there is no partition at either end. The test is not "is it usually null early" but
+"can it be non-null early at all". A seam finds a second entity; a completeness rule finds
+a gate, and the gate belongs wherever the thing it protects happens — for that column, the
+Offering create path, not `approve`.
+
 **6. Never amend a machine without a closed ticket behind it.** The decision lives in
 the ticket; a change with no link is a decision nobody made.
 
@@ -572,6 +583,70 @@ ticket 17 deleted every Offering guard, so `.can()` client-side is bare edge exi
 while the invariants and permissions that decide whether a control is live are both
 server-side. The server ships a per-row permitted-action set instead — ticket 14's shape,
 so rule and explanation cannot drift. That amends ticket 6.
+
+**The `approve` seam also copies the area assignment, and principle 1 was asked and
+refused.** [Where are a course's area and area head assigned?](https://github.com/nopivnick/lineup-prototype-03/issues/32)
+settled that a program director assigns a course's areas and its area head at **no fixed
+point** — sometimes before approval, sometimes as part of it, sometimes after — but that a
+course must not become an Offering without both. **Only one comment changed**, on the
+review's `approve`, and the rest of this entry records what was checked and found not to
+apply.
+
+**The assignment lives on the review before `approve` and on the course after**, because
+[#25](https://github.com/nopivnick/lineup-prototype-03/issues/25) made `area`
+program-scoped and a shared proposal body cannot hold a program-scoped value. `approve`
+copies it forward alongside the body — same reason, and three approving programs mint
+three courses that may sit in three different areas under three different heads. Nullable
+on both sides, and **no guard on this transition checks it**.
+
+**Standing principle 1 was asked and refused on a structural obstruction.** A Course
+`Ready` state meaning *area and head assigned* is the exact analogue of
+[#15](https://github.com/nopivnick/lineup-prototype-03/issues/15)'s `Staffed`, and would
+make offering creation unreachable without them while turning *"which approved courses
+cannot be offered yet?"* into a `status` filter. It cannot be built. Course is
+`Approved ⇄ Revising`, so a second post-approval state forces `Revising --approve--> ?` to
+remember which to return to — that memory is `revisingFrom`, which
+[#17](https://github.com/nopivnick/lineup-prototype-03/issues/17) deleted, in machines
+whose empty context [#13](https://github.com/nopivnick/lineup-prototype-03/issues/13) then
+made load-bearing. Orthogonal parallel states are the only escape and
+[#6](https://github.com/nopivnick/lineup-prototype-03/issues/6) forbade them, having fixed
+all three machines flat so `snapshot.value` stays a plain string.
+
+Worth carrying, since principle 1 will be asked again: **the cost of a new state is not
+local.** `Staffed` was cheap because `Slated → Staffed → Offered` is a chain with one
+forward path. A state added *beside* one that a revision cycle returns to is expensive,
+because the return needs memory this map has spent two tickets removing.
+
+**The gate is the Offering create path, which no machine can hold.** Creation is an act and
+not a transition ([#13](https://github.com/nopivnick/lineup-prototype-03/issues/13)), so
+the rule is asserted in the single writer
+[#30](https://github.com/nopivnick/lineup-prototype-03/issues/30) already established —
+which loads the course row to derive `program_code`, so the check reads a row it has in
+hand. It is the third actorless invariant to land in a writer rather than the schema, and
+the first that is intra-database and still stays out of it. The assignment is **monotone** —
+areas and heads may be swapped but never emptied, non-exposure in
+[#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s `staff`/`unstaff`
+sense — which is what makes a create-time check sufficient forever.
+
+**The review's `approve` / `reject` / `develop` gain an area-head route.**
+[#28](https://github.com/nopivnick/lineup-prototype-03/issues/28) found
+[#8](https://github.com/nopivnick/lineup-prototype-03/issues/8) self-contradictory — its
+prose dropped the area-head route from the review *for want of a subject*, its table kept
+it. The subject now exists whenever a director assigned early, so the **table was right**:
+the route is *director of that review's program* **or** `review.area_head`. Ticket 8's
+finding that the review *is* a program by construction is untouched, so the director route
+stays program-scoped. The route is contingent rather than arbitrary — a review with no
+assigned head has nobody holding it, exactly as a course with no area head has nobody
+holding the Course `revise` route, which is
+[#4](https://github.com/nopivnick/lineup-prototype-03/issues/4)'s conjunction model working
+as designed.
+
+**No other machine is amended** — checked explicitly. `course.machine.ts` and
+`offering.machine.ts` are untouched: this is a field with a gate outside every lifecycle,
+and its write is **state-blind on the Course** by ticket 8's own rule, since `Approved`
+asserts the body was approved and asserts nothing about an area proposers never requested.
+That makes it the first state-blind Course field, and it shows ticket 8's cut was by field
+class both times rather than by artifact.
 
 ## Open questions
 
