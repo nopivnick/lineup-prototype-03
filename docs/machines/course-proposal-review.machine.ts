@@ -40,6 +40,24 @@ export const machine = setup({
       // own numbers, and each is revisable independently via the Course machine's
       // own `revise`. Legacy agrees: `course_x_attributes` carried a per-row
       // `title` and `course_num`.
+      //
+      // The mint copies **the review's area assignment too** — `area_head` and
+      // the review's area rows — and for the same reason.
+      // https://github.com/nopivnick/lineup-prototype-03/issues/32 established
+      // that a director assigns a course's areas and its area head at no fixed
+      // point: sometimes before approval, sometimes as part of it, sometimes
+      // after. Areas are program-scoped
+      // (https://github.com/nopivnick/lineup-prototype-03/issues/25), so an ITP
+      // area cannot sit on the shared proposal body — the assignment lives per
+      // review, and three approving programs mint three courses that may sit in
+      // three different areas under three different heads.
+      //
+      // Both are **nullable on both sides**, and no guard here checks them. The
+      // rule they answer to — *a course must not become an offering without an
+      // area and an area head* — is asserted in the Offering create path, not
+      // on this transition. Creation is an act and not a transition
+      // (https://github.com/nopivnick/lineup-prototype-03/issues/13), so no
+      // machine can hold it.
       | { type: "approve" }
       | { type: "reject" },
   },
