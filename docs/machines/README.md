@@ -288,7 +288,10 @@ from `Offered` onward, so the roster answers "who is the lead" directly.
 
 Two things were ruled **out of scope** rather than settled, both because they are properties
 of the system and not of this event: a free-text **reason** on the log row (`cancel` and
-`kill` want it as much; it belongs to the schema ticket) and **notifying the instructor** —
+`kill` want it as much; it belongs to the schema ticket — **since settled by
+[The curated Postgres schema for both projects](https://github.com/nopivnick/lineup-prototype-03/issues/10):
+free text is in, on all three logs, and the structured reason codes ticket 21 pushed toward
+are out of scope**) and **notifying the instructor** —
 `offer`, `withdraw` and `cancel` all imply an off-system act, the machines model decisions
 rather than communication, and the map now says so explicitly.
 
@@ -424,6 +427,16 @@ recorded as a constraint on
 [The curated Postgres schema for both projects](https://github.com/nopivnick/lineup-prototype-03/issues/10):
 **the transition log is not a general audit log.** Same shape as the free-text `reason`
 question ticket 19 parked there.
+
+**Ticket 10 has since honoured that constraint and closed the question the other way.** The
+log's columns stay exactly machine values. What records an ordinary field write is
+`updated_at` / `updated_by` on the entity row, written by ticket 28's single field writer
+and never by a trigger — *that* something changed and by whom, never *what*. The full audit
+table is **out of scope for this destination**, on a ground none of the five tickets that
+raised the gap had available: ticket 9 made the database rebuild from seed with `db:reset`,
+so the usual unanswerable argument for audit logging — you cannot add it retroactively,
+the history is gone — does not apply, because there is no history worth keeping. It returns
+with real data, alongside legacy migration and real authentication.
 
 **The Course machine splits at `approve`, and `Proposed` / `Developing` / `Rejected`
 leave it.** [How are ITP, IMA and LowRes modelled?](https://github.com/nopivnick/lineup-prototype-03/issues/7)
@@ -735,6 +748,38 @@ transition; ticket 13 already established that creation is an act and not a tran
 this is the same shape. `course.machine.ts` and `course-proposal-review.machine.ts` are
 untouched, checked explicitly. `offering.machine.ts` gains one comment on `Staffed`,
 recording that the roster writer refuses a netid lacking `instructor`.
+
+### The schema exists, and `approve` acquired a side effect
+
+[The curated Postgres schema for both projects](https://github.com/nopivnick/lineup-prototype-03/issues/10)
+is the synthesis ticket, and it touches these machines in three places. The schema itself
+lives in [`docs/schema/`](../schema/README.md).
+
+**Course `approve` bumps `course.edition`.** Legacy's `edition` column survives the
+curation as a stored integer, at the requester's direction and against the recommendation
+to derive it from the `approve` rows in `course_transition`. That makes it a second copy of
+a fact the log already holds, which **standing principle 1** permits only when one
+transaction writes both — and `applyTransition` does, exactly as it does for `staff` and
+`Staffed`. It bumps on `approve` rather than on `revise`: an edition is a thing that was
+published and stood, and the number then never has to go backwards, which matters because
+ticket 17 gave `Revising` no abandon exit. So `approve` joins `staff` and the review's own
+`approve` as an event whose Server Action writes more than a snapshot and a log row.
+
+**A third machine means a third log.** Ticket 6 specified two transition logs for what were
+then two machines; ticket 7 then split off `course-proposal-review.machine.ts` and nothing
+revisited the count. `course_proposal_review_transition` closes it. Without it
+`applyTransition` needs a branch for a machine with no log, and a rejection is recorded
+nowhere — ticket 13's `created_by` on a minted course makes an *approval* attributable, but
+nothing makes a `reject` or a `develop` so.
+
+**`credits` is confirmed a Course field, not an Offering one.** Legacy put it on `section`;
+the requester confirms a course does not run for different credit amounts in different
+terms. The comment on `revise` describing a revision as covering *"title, description,
+credits"* was therefore right, and is left as it stands.
+
+Two things this ticket settled are recorded above rather than here, at the entries that
+raised them: the free-text `reason` on log rows (ticket 19's entry) and the general audit
+trail (ticket 17's entry).
 
 ## Open questions
 

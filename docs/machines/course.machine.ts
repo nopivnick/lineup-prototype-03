@@ -79,6 +79,21 @@ export const machine = setup({
       // can be approved before it has a program. That reasoning holds for the
       // review's `approve` and **not** for this one — see
       // https://github.com/nopivnick/lineup-prototype-03/issues/8.
+      //
+      // **This event bumps `course.edition`**, and it is the only thing that
+      // does. https://github.com/nopivnick/lineup-prototype-03/issues/10 kept
+      // legacy's `edition` column as a stored integer rather than deriving it
+      // from the `approve` rows in `course_transition` — at the requester's
+      // direction, against the recommendation, because the number is read by
+      // people. Storing it is a second copy of a fact the log already holds,
+      // which standing principle 1 permits only when one transaction writes
+      // both: `applyTransition` does, exactly as it does for `staff` and the
+      // `Staffed` state.
+      //
+      // On `approve` and not on `revise`. An edition is a thing that was
+      // published and stood, so a course sitting in `Revising` still reads as
+      // the edition it last was — and the number never has to go backwards,
+      // which matters because ticket 17 gave `Revising` no abandon exit.
       | { type: "approve" },
   },
   guards: {
