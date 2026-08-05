@@ -79,7 +79,35 @@ so there is no partition at either end. The test is not "is it usually null earl
 a gate, and the gate belongs wherever the thing it protects happens — for that column, the
 Offering create path, not `approve`.
 
-**6. Never amend a machine without a closed ticket behind it.** The decision lives in
+**6. When a role is scoped by a relationship, the writer of the relationship refuses a
+subject who does not hold the role.** From
+[Who writes `user_role`?](https://github.com/nopivnick/lineup-prototype-03/issues/34).
+[#4](https://github.com/nopivnick/lineup-prototype-03/issues/4) made every permission a
+conjunction of a role and a relationship, which means a relationship row naming someone
+without the role is **inert** — it looks like an assignment, confers nothing, and reports
+nothing. That is a *silent under-grant*, the one combination
+[#8](https://github.com/nopivnick/lineup-prototype-03/issues/8)'s axis has no comfort for,
+and it is discovered when the person clicks and nothing happens.
+[#32](https://github.com/nopivnick/lineup-prototype-03/issues/32) ruled it for
+`course.area_head` by analogy to `instructor` plus roster position 0 — and the analogy had
+the check the model lacked, so `staff` could write a roster row for a netid who then could
+not `accept` their own offer. Ticket 34 closed that and generalised. It binds exactly three
+pairs, which is what makes it a complete rule rather than an open-ended one:
+`instructor`/`offering_instructor` (**every** roster row, not just position 0 — position is
+scope for *events*, the role is the qualification to teach),
+`area_head`/`course.area_head`, and `program_director`/`program_director(program_code,
+netid)`. It does not reach `student` or `advisor`, which have no relationship to write.
+
+**Its boundary: the check names no actor, so it is an *invariant*, not a permission.** By
+[#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s test that is what
+decides placement — and it is why the `chair` added by ticket 34, who bypasses permissions
+entirely, still cannot be staffed on an offering without holding `instructor`. The bypass
+covers what a person may **do**; this rule constrains what may be **done to** them, and no
+amount of authority reaches the subject side. Read backwards it also governs revocation: a
+role may not be revoked while a live relationship depends on it, or the same inert pair is
+reached through the other door.
+
+**7. Never amend a machine without a closed ticket behind it.** The decision lives in
 the ticket; a change with no link is a decision nobody made.
 
 ## Decided
@@ -647,6 +675,66 @@ and its write is **state-blind on the Course** by ticket 8's own rule, since `Ap
 asserts the body was approved and asserts nothing about an area proposers never requested.
 That makes it the first state-blind Course field, and it shows ticket 8's cut was by field
 class both times rather than by artifact.
+
+**A seventh role, `chair`, writes `user_role` — and bypasses permissions only.**
+[Who writes `user_role`?](https://github.com/nopivnick/lineup-prototype-03/issues/34) gave
+the map's last unauthored table an author. Neither legacy database has a role table, a
+director table or any authorization table at all — `itpdir.auth` is `(netid, token,
+updated_at)`, authentication only — so `user_role` and `program_director` are both
+[#4](https://github.com/nopivnick/lineup-prototype-03/issues/4) inventions with no
+precedent to carry forward. The chair is department-wide and flat, writes any `user_role`
+row and any `program_director` row, and is the **sole** writer of both; the bypass is one
+OR-clause ahead of the matrix rather than a seventh column, so events added later are
+covered by construction.
+
+**What the bypass does not reach.** [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)
+made a write `machine-legality AND invariants AND permissions`, and "the chair can do
+anything the other roles can do" is a statement about the third term only. So the chair
+cannot fire an event the machine does not offer, cannot violate an invariant — including
+[#32](https://github.com/nopivnick/lineup-prototype-03/issues/32)'s area-and-head gate on
+offering creation and standing principle 6 — and **cannot write the immutable field
+class**, because ticket 8's *"nobody — immutable"* on `course_id` / `term_code` /
+`program_code` was reclassified by ticket 28 as an invariant on the test that it names no
+actor. Ticket 30's whole argument therefore survives a superuser untouched, and it survives
+because of where that rule was filed. Ticket 28's actor-naming test, which read as a
+placement rule about databases, is what makes a superuser safe to add.
+
+**`user_role` holds capabilities and qualifications, and the chair subsumes only the
+first.** Capabilities are flat and actor-side: `coordinator`, and nothing else.
+Qualifications are subject-side and gate whether a relationship row may name you —
+`instructor`, `area_head`, `program_director`, and `advisor` once its table exists. This
+retro-explains ticket 8's two empty rows: `student` and `advisor` hold nothing in the
+matrix not because they were overlooked but because a qualification's entire content sits
+on the subject side, and theirs are registration (out of scope) and the advisee link
+(deliberately absent). The rows are **complete rather than incomplete**, which is what
+ticket 28 needed when it landed Tier 2's boundary on them. One literal consequence: the
+chair grants themselves `instructor` before teaching a class — not ceremony, since the
+chair may already act, but the grant is what makes the roster and the role table say the
+same thing.
+
+**Appointing a director is two writes, and revocation refuses while a live dependency
+exists.** The `program_director` role plus the `(program_code, netid)` row, both the
+chair's, the second refusing a netid without the first under principle 6. A program
+director may not appoint a co-director, rejected on circularity — an appointment power
+that reproduces itself makes the chair's monopoly decorative. Revoke is a `DELETE`, refused
+while the netid holds a roster row on an offering in `LIVE_STATES`, heads a non-`Retired`
+course, or holds any `program_director` row; history never blocks, which is why the
+predicate is over live dependencies rather than all of them. Cascade was rejected on ticket
+32 — it made the area-head assignment monotone precisely so its create-time gate is
+sufficient forever, and a cascade is the thing that violates it later. The writer also
+refuses to remove the last `chair`, or the system has no one who may grant anything.
+
+**The bootstrap is one seeded row.** Every route that writes `user_role` requires the
+`chair` role, so the first row cannot be written from inside — a fixed point, not a
+deferral. Ticket 28 made the seed *checked like anyone else*, so the seed inserts exactly
+one `chair` row unchecked — the **genesis grant** — and every later role write in the seed
+goes through the checked writer acting as that chair.
+
+**No machine is amended, and one comment is.** Granting a role is not a lifecycle
+transition; ticket 13 already established that creation is an act and not a transition, and
+this is the same shape. `course.machine.ts` and `course-proposal-review.machine.ts` are
+untouched, checked explicitly. `offering.machine.ts` gains one comment on `Staffed`,
+recording that the roster writer refuses a netid lacking `instructor`.
 
 ## Open questions
 

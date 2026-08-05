@@ -305,6 +305,17 @@ export const machine = setup({
      * other. They track **occupancy, not identity** — swapping lead A for
      * lead B while `Staffed` fires nothing, because the state stays true.
      *
+     * That writer **refuses a netid who does not hold the `instructor` role**
+     * (https://github.com/nopivnick/lineup-prototype-03/issues/34) — standing
+     * principle 6, and it applies to every roster row rather than position 0
+     * alone, since position is scope for *events* while the role is the
+     * qualification to teach. Without it, a roster row could name someone who
+     * then could not `accept` their own offer: a permission is a conjunction of
+     * a role and a relationship, so half of one is inert and reports nothing.
+     * The check names no actor, which makes it an invariant rather than a
+     * permission — so the `chair` added by that ticket, who bypasses
+     * permissions entirely, still cannot be staffed without the role.
+     *
      * `Slated` and `Staffed` are also the **only** two states in which position
      * 0 may be edited — filled here, swapped or vacated here. It is frozen from
      * `Offered` onward, where only `decline` and `withdraw` empty it and both
