@@ -1,0 +1,1033 @@
+<title>Catalog & Lineup — three variants</title>
+
+<!--
+  PROTOTYPE — throwaway. Answers issue #37, "What do the Catalog and Lineup views display?"
+
+  Three variants of the two list views, switchable via ?variant= and the floating
+  bar at the bottom. Hand-written fixtures, no data layer, no framework — this is a
+  static approximation of Next.js + Mantine + mantine-datatable, built to be reacted
+  to, not to be promoted.
+
+    A — Flat table         one row per Offering, every fact a column
+    B — Grouped by course  course header rows, sections nested beneath
+    C — Listing rows       two-line records, actions and refusals visible inline
+
+  The header's "viewing as" switcher is real: it re-filters the row set the way
+  #28's read tiers do, and swaps the per-row permitted-action sets.
+-->
+
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:        #ffffff;
+    --raised:        #f8f8fa;
+    --sunken:        #f1f1f4;
+    --line:          #e3e2e8;
+    --line-strong:   #c9c7d2;
+    --ink:           #1f1d26;
+    --ink-soft:      #63606f;
+    --ink-faint:     #8b8898;
+
+    --accent:        #57068c;
+    --accent-soft:   #f2e9f8;
+    --accent-line:   #ddc7ec;
+
+    --itp:           #7048a8;
+    --itp-bg:        #f3eefb;
+    --ima:           #0b7285;
+    --ima-bg:        #e3f4f7;
+    --lowres:        #a1651a;
+    --lowres-bg:     #fbf0de;
+
+    --live:          #2b8a3e;
+    --live-bg:       #e8f6ea;
+    --wait:          #b8600a;
+    --wait-bg:       #fdf1e2;
+    --stop:          #c92a2a;
+    --stop-bg:       #fceceb;
+    --idle:          #6b6878;
+    --idle-bg:       #eeedf1;
+
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #1a1b1e;
+      --raised:      #212226;
+      --sunken:      #26272c;
+      --line:        #34353b;
+      --line-strong: #4a4b53;
+      --ink:         #e6e5ea;
+      --ink-soft:    #a5a3af;
+      --ink-faint:   #7b7987;
+
+      --accent:      #b197fc;
+      --accent-soft: #2b2440;
+      --accent-line: #453a63;
+
+      --itp:         #b197fc;
+      --itp-bg:      #2b2440;
+      --ima:         #4dc4d9;
+      --ima-bg:      #17343a;
+      --lowres:      #dfa441;
+      --lowres-bg:   #3a2e17;
+
+      --live:        #63d67e;
+      --live-bg:     #16301d;
+      --wait:        #f0a45c;
+      --wait-bg:     #35240f;
+      --stop:        #ff8785;
+      --stop-bg:     #3a1c1c;
+      --idle:        #9b98a6;
+      --idle-bg:     #2c2d33;
+
+      --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+    }
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground:#ffffff; --raised:#f8f8fa; --sunken:#f1f1f4; --line:#e3e2e8; --line-strong:#c9c7d2;
+    --ink:#1f1d26; --ink-soft:#63606f; --ink-faint:#8b8898;
+    --accent:#57068c; --accent-soft:#f2e9f8; --accent-line:#ddc7ec;
+    --itp:#7048a8; --itp-bg:#f3eefb; --ima:#0b7285; --ima-bg:#e3f4f7; --lowres:#a1651a; --lowres-bg:#fbf0de;
+    --live:#2b8a3e; --live-bg:#e8f6ea; --wait:#b8600a; --wait-bg:#fdf1e2;
+    --stop:#c92a2a; --stop-bg:#fceceb; --idle:#6b6878; --idle-bg:#eeedf1;
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:#1a1b1e; --raised:#212226; --sunken:#26272c; --line:#34353b; --line-strong:#4a4b53;
+    --ink:#e6e5ea; --ink-soft:#a5a3af; --ink-faint:#7b7987;
+    --accent:#b197fc; --accent-soft:#2b2440; --accent-line:#453a63;
+    --itp:#b197fc; --itp-bg:#2b2440; --ima:#4dc4d9; --ima-bg:#17343a; --lowres:#dfa441; --lowres-bg:#3a2e17;
+    --live:#63d67e; --live-bg:#16301d; --wait:#f0a45c; --wait-bg:#35240f;
+    --stop:#ff8785; --stop-bg:#3a1c1c; --idle:#9b98a6; --idle-bg:#2c2d33;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--ground);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 88px;
+  }
+
+  /* ---------------------------------------------------------------- shell */
+
+  .shell-head {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--ground);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brandbar {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 20px 0;
+  }
+
+  .brand {
+    font-weight: 650; letter-spacing: -.01em; font-size: 15px;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .brand .dept { color: var(--ink-faint); font-weight: 450; font-size: 12px; }
+
+  .brandbar .spacer { flex: 1 1 auto; }
+
+  .as-switch { display: flex; align-items: center; gap: 8px; }
+  .as-switch label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--ink-faint); font-weight: 600;
+  }
+
+  select, .btn {
+    font: inherit; font-size: 13px;
+    color: var(--ink); background: var(--ground);
+    border: 1px solid var(--line-strong); border-radius: 6px;
+    padding: 5px 9px;
+  }
+  select:focus-visible, .btn:focus-visible, .tab:focus-visible, .vbtn:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  .tabs { display: flex; gap: 2px; padding: 8px 20px 0; }
+  .tab {
+    font: inherit; font-size: 13.5px; font-weight: 550;
+    background: none; border: none; cursor: pointer;
+    color: var(--ink-soft);
+    padding: 8px 12px 10px;
+    border-bottom: 2px solid transparent;
+  }
+  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not([aria-selected="true"]) { color: var(--ink); }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 20px; border-top: 1px solid var(--line);
+    background: var(--raised);
+  }
+  .toolbar .count { margin-left: auto; color: var(--ink-faint); font-size: 12.5px; }
+  .search {
+    font: inherit; font-size: 13px; width: 210px;
+    padding: 5px 9px; border-radius: 6px;
+    border: 1px solid var(--line-strong); background: var(--ground); color: var(--ink);
+  }
+
+  main { padding: 0 20px 40px; }
+
+  .note {
+    margin: 14px 0 0; padding: 10px 12px;
+    border-left: 3px solid var(--accent-line); background: var(--accent-soft);
+    border-radius: 0 6px 6px 0;
+    font-size: 12.5px; color: var(--ink-soft); max-width: 76ch;
+  }
+  .note b { color: var(--ink); font-weight: 600; }
+
+  /* ---------------------------------------------------------------- table */
+
+  .tablewrap { overflow-x: auto; margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; }
+
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+
+  thead th {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--sunken);
+    text-align: left; white-space: nowrap;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
+    color: var(--ink-soft);
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  thead th.sortable { cursor: pointer; }
+  thead th.sortable::after { content: " ⇅"; color: var(--ink-faint); font-size: 11px; }
+  thead th.sorted::after { content: " ↑"; color: var(--accent); }
+  thead th.nosort { color: var(--ink-faint); }
+
+  tbody td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--raised); }
+
+  .num { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; color: var(--ink-soft); }
+  .title { font-weight: 550; }
+  .sub { color: var(--ink-faint); font-size: 12px; }
+  .rt { text-align: right; }
+
+  /* --------------------------------------------------------------- chips */
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11.5px; font-weight: 550; line-height: 1;
+    padding: 4px 7px; border-radius: 5px; white-space: nowrap;
+    background: var(--idle-bg); color: var(--ink-soft);
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+  .chip.itp    { background: var(--itp-bg);    color: var(--itp); }
+  .chip.ima    { background: var(--ima-bg);    color: var(--ima); }
+  .chip.lowres { background: var(--lowres-bg); color: var(--lowres); }
+
+  /* foreign tags: same hue as their program, plus a dashed edge and a caret */
+  .chip.foreign { border: 1px dashed currentColor; }
+  .chip.foreign::before { content: "↳"; opacity: .75; }
+
+  .state {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; line-height: 1;
+    padding: 4px 8px 4px 6px; border-radius: 999px; white-space: nowrap;
+    background: var(--idle-bg); color: var(--idle);
+  }
+  .state::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+  .state.live { background: var(--live-bg); color: var(--live); }
+  .state.wait { background: var(--wait-bg); color: var(--wait); }
+  .state.stop { background: var(--stop-bg); color: var(--stop); }
+
+  .none { color: var(--ink-faint); font-style: italic; font-size: 12.5px; }
+
+  /* netid fallback where no person row resolved */
+  .netid-fallback { font-family: var(--mono); font-size: 12.5px; }
+  .netid-fallback::after {
+    content: "no name on file"; font-family: var(--sans); font-style: italic;
+    color: var(--ink-faint); font-size: 11.5px; margin-left: 6px;
+  }
+  .lead-mark {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--ink-faint); font-weight: 700; margin-left: 5px;
+  }
+
+  /* ------------------------------------------------------------- actions */
+
+  .menu { position: relative; display: inline-block; }
+  .menu > summary {
+    list-style: none; cursor: pointer;
+    border: 1px solid var(--line-strong); border-radius: 6px;
+    padding: 3px 8px; font-size: 13px; color: var(--ink-soft);
+    display: inline-block; user-select: none;
+  }
+  .menu > summary::-webkit-details-marker { display: none; }
+  .menu[open] > summary { background: var(--sunken); color: var(--ink); }
+  .menu-body {
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 30;
+    min-width: 240px; padding: 5px;
+    background: var(--ground); border: 1px solid var(--line-strong);
+    border-radius: 8px; box-shadow: var(--shadow);
+  }
+  .menu-item {
+    display: block; width: 100%; text-align: left;
+    padding: 6px 9px; border-radius: 5px; font-size: 13px;
+  }
+  .menu-item.ok { color: var(--ink); cursor: pointer; }
+  .menu-item.ok:hover { background: var(--accent-soft); color: var(--accent); }
+  .menu-item.no { color: var(--ink-faint); cursor: not-allowed; }
+  .menu-item .why { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 1px; }
+
+  .actbtns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .vbtn {
+    font: inherit; font-size: 12.5px; font-weight: 550;
+    padding: 4px 10px; border-radius: 6px; white-space: nowrap;
+    border: 1px solid var(--line-strong); background: var(--ground); color: var(--ink);
+    cursor: pointer;
+  }
+  /* the accent inverts between grounds, so the label on it inverts too */
+  :root { --on-accent: #ffffff; }
+  @media (prefers-color-scheme: dark) { :root { --on-accent: #1a1b1e; } }
+  :root[data-theme="light"] { --on-accent: #ffffff; }
+  :root[data-theme="dark"]  { --on-accent: #1a1b1e; }
+  .vbtn.primary { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+  .vbtn[disabled] { color: var(--ink-faint); border-style: dashed; cursor: not-allowed; background: none; }
+
+  .refusals { margin-top: 5px; display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
+  .refusal { font-size: 11.5px; color: var(--ink-faint); }
+  .refusal b { font-weight: 600; color: var(--ink-soft); }
+
+  /* --------------------------------------------------- B: grouped layout */
+
+  tr.group-head td {
+    background: var(--sunken);
+    border-top: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+  }
+  tr.group-head:hover td { background: var(--sunken); }
+  .group-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .group-meta { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .group-count {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--ink-faint); font-weight: 700;
+  }
+  td.indent { padding-left: 30px; position: relative; }
+  td.indent::before {
+    content: ""; position: absolute; left: 16px; top: 0; bottom: 0;
+    border-left: 1px solid var(--line);
+  }
+  tr.group-empty td { background: var(--ground); color: var(--ink-faint); font-style: italic; padding: 14px 30px; }
+
+  /* --------------------------------------------------- C: listing layout */
+
+  .listing { display: flex; flex-direction: column; margin-top: 14px;
+             border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .record { display: flex; gap: 16px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .record:last-child { border-bottom: none; }
+  .record:hover { background: var(--raised); }
+  .record .body { flex: 1 1 auto; min-width: 0; }
+  .record .side { flex: 0 0 auto; text-align: right; }
+  .rec-line1 { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .rec-line2 { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; margin-top: 5px;
+               color: var(--ink-soft); font-size: 12.5px; }
+  .rec-line2 .seg { display: inline-flex; align-items: center; gap: 5px; }
+  .rec-line2 .seg .k {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--ink-faint); font-weight: 700;
+  }
+  .rec-line3 { margin-top: 6px; }
+
+  /* --------------------------------------------------------- empty state */
+
+  .empty {
+    margin-top: 14px; padding: 44px 20px; text-align: center;
+    border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--raised);
+  }
+  .empty h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .empty p { color: var(--ink-soft); font-size: 13px; max-width: 46ch; margin: 0 auto; }
+
+  /* ------------------------------------------------------ variant switch */
+
+  .switcher {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 100;
+    display: flex; align-items: stretch; gap: 0;
+    background: var(--ink); color: var(--ground);
+    border-radius: 999px; box-shadow: var(--shadow);
+    font-size: 13px; overflow: hidden;
+  }
+  .switcher button {
+    font: inherit; background: none; border: none; color: inherit;
+    cursor: pointer; padding: 9px 14px; line-height: 1;
+  }
+  .switcher button:hover { background: color-mix(in srgb, var(--ground) 18%, transparent); }
+  .switcher .label { padding: 9px 6px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .switcher .key {
+    font-weight: 700; background: color-mix(in srgb, var(--ground) 22%, transparent);
+    border-radius: 4px; padding: 2px 6px; font-size: 12px;
+  }
+  .switcher .hint { font-size: 11px; opacity: .6; padding-right: 12px; align-self: center; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .tab, .vbtn, .menu > summary { transition: background-color .12s, color .12s, border-color .12s; }
+  }
+</style>
+
+<div class="shell-head">
+  <div class="brandbar">
+    <div class="brand">Lineup <span class="dept">ITP · IMA · IMA Low Res</span></div>
+    <div class="spacer"></div>
+    <div class="as-switch">
+      <label for="actor">Viewing as</label>
+      <select id="actor"></select>
+    </div>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-view="catalog">Catalog</button>
+    <button class="tab" role="tab" data-view="lineup">Lineup</button>
+  </div>
+  <div class="toolbar">
+    <input class="search" id="q" type="search" placeholder="Search title, number, instructor…" />
+    <select id="term"></select>
+    <select id="prog"></select>
+    <select id="status"></select>
+    <span class="count" id="count"></span>
+  </div>
+</div>
+
+<main id="app"></main>
+
+<div class="switcher" role="group" aria-label="Prototype variant">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span class="label"><span class="key" id="vkey">A</span><span id="vname"></span></span>
+  <button id="next" aria-label="Next variant">→</button>
+  <span class="hint">← → to cycle</span>
+</div>
+
+<script>
+/* ==========================================================================
+   Fixtures — hand-written, shaped to the curated schema in docs/schema/.
+   Deliberately exercises: seat-shared foreign tags, a course with no area,
+   a roster netid with no person row, a term with three sections of one course,
+   and the six states a student may not see.
+   ========================================================================== */
+
+const PEOPLE = {
+  na2481: "Nora Applebaum",
+  tv1067: "Theo Vance",
+  pr3390: "Priya Raman",
+  mo5512: "Marcus Ola",
+  xq7742: null,                      // roster netid `people` does not know
+};
+
+const ACTORS = [
+  { netid: "pr3390", roles: ["coordinator", "program_director"], programs: ["ITP"], label: "Priya Raman — coordinator + ITP director" },
+  { netid: "na2481", roles: ["instructor", "area_head"],         programs: [],      label: "Nora Applebaum — instructor + area head" },
+  { netid: "mo5512", roles: ["student"],                          programs: [],      label: "Marcus Ola — student" },
+  { netid: "tv1067", roles: ["chair", "instructor"],              programs: [],      label: "Theo Vance — chair (+ instructor)" },
+];
+
+const TERMS = [
+  { code: "20253", label: "Fall 2025" },
+  { code: "20261", label: "Spring 2026" },
+];
+
+const COMMITTED = ["Accepted","Scheduled","Published","Listed","Running","Evaluating","Concluded","Canceled"];
+
+const TONE = {
+  Slated:"idle", Staffed:"wait", Offered:"wait", Deferred:"wait", Declined:"stop", Dead:"stop",
+  Accepted:"live", Scheduled:"live", Published:"live", Listed:"live", Running:"live",
+  Evaluating:"idle", Concluded:"idle", Canceled:"stop",
+  Approved:"live", Revising:"wait", Retired:"idle",
+};
+
+/* --- courses ------------------------------------------------------------ */
+
+const COURSES = [
+  { id:1, prog:"ITP", number:"ITPG-GT 2233", title:"Physical Computing", credits:4, edition:3,
+    state:"Approved", areaHead:"na2481",
+    areas:[{p:"ITP",n:"Physical Interaction"}],
+    cats:[{p:"ITP",n:"Core"}] },
+  { id:2, prog:"ITP", number:"ITPG-GT 2048", title:"Live Web", credits:2, edition:1,
+    state:"Approved", areaHead:"na2481",
+    areas:[{p:"ITP",n:"Networks"}],
+    cats:[{p:"ITP",n:"Elective"}] },
+  { id:3, prog:"ITP", number:"ITPG-GT 3011", title:"Speculative Objects", credits:2, edition:1,
+    state:"Approved", areaHead:null,
+    areas:[],                                   // approved, area not yet assigned
+    cats:[{p:"ITP",n:"Elective"}] },
+  { id:4, prog:"IMA", number:"IMNY-UT 105", title:"Creative Coding", credits:4, edition:2,
+    state:"Approved", areaHead:"tv1067",
+    areas:[{p:"IMA",n:"Code & Media"}],
+    cats:[{p:"IMA",n:"Foundations"}] },
+  { id:5, prog:"IMA", number:"IMNY-UT 260", title:"Sound Studio", credits:4, edition:1,
+    state:"Approved", areaHead:"tv1067",
+    areas:[{p:"IMA",n:"Code & Media"}],
+    cats:[{p:"IMA",n:"Media Studies"}] },
+  { id:6, prog:"LOWRES", number:"IMLR-GT 1500", title:"Machine Vision Intensive", credits:4, edition:1,
+    state:"Approved", areaHead:"na2481",
+    areas:[{p:"LOWRES",n:"Computer Vision"}],
+    cats:[{p:"LOWRES",n:"Residency Intensive"}] },
+  { id:7, prog:"ITP", number:"ITPG-GT 2999", title:"Video Sketchbook", credits:2, edition:2,
+    state:"Revising", areaHead:"na2481",
+    areas:[{p:"ITP",n:"Networks"}],
+    cats:[{p:"ITP",n:"Elective"}] },
+  { id:8, prog:"ITP", number:"ITPG-GT 1010", title:"Introduction to Fabrication", credits:4, edition:5,
+    state:"Retired", areaHead:"na2481",
+    areas:[{p:"ITP",n:"Physical Interaction"}],
+    cats:[{p:"ITP",n:"Core"}] },
+];
+
+/* --- offerings ---------------------------------------------------------- */
+/* `foreignAreas` / `foreignCats` are seat-sharing grants: another program's tag
+   on this program's offering, written by that program's director (#25, #30). */
+
+const OFFERINGS = [
+  { id:101, course:1, term:"20253", section:"1", state:"Running",
+    roster:["na2481"], cap:24, mode:"In person",
+    meets:{kind:"weekly", text:"Mon 18:30–21:00", room:"370J-447"},
+    foreignAreas:[{p:"IMA",n:"Code & Media"}], foreignCats:[{p:"IMA",n:"Foundations"}] },
+
+  { id:102, course:1, term:"20253", section:"2", state:"Slated",
+    roster:[], cap:24, mode:"In person",
+    meets:{kind:"weekly", text:"Tue 18:30–21:00", room:"370J-447"},
+    foreignAreas:[], foreignCats:[] },
+
+  { id:103, course:1, term:"20253", section:"3", state:"Declined",
+    roster:[], cap:24, mode:"In person",
+    meets:{kind:"weekly", text:"Thu 18:30–21:00", room:"370J-447"},
+    foreignAreas:[], foreignCats:[] },
+
+  { id:104, course:2, term:"20253", state:"Offered", section:"1",
+    roster:["tv1067"], cap:18, mode:"In person",
+    meets:{kind:"weekly", text:"Wed 15:20–17:50", room:"370J-410"},
+    foreignAreas:[], foreignCats:[] },
+
+  { id:105, course:2, term:"20253", section:"2", state:"Listed",
+    roster:["tv1067"], cap:30, mode:"Online",
+    meets:{kind:"async", text:"Asynchronous", room:null},
+    foreignAreas:[], foreignCats:[] },
+
+  { id:106, course:4, term:"20253", section:"1", state:"Published",
+    roster:["pr3390","tv1067"], cap:20, mode:"In person",
+    meets:{kind:"weekly", text:"Thu 09:30–12:00", room:"370J-802"},
+    foreignAreas:[], foreignCats:[] },
+
+  { id:107, course:5, term:"20253", section:"1", state:"Canceled",
+    roster:["tv1067"], cap:16, mode:"In person",
+    meets:{kind:"weekly", text:"Fri 12:30–15:00", room:"370J-406"},
+    foreignAreas:[], foreignCats:[] },
+
+  { id:108, course:6, term:"20253", section:"1", state:"Accepted",
+    roster:["xq7742"], cap:14, mode:"In person",
+    meets:{kind:"dates", text:"5 Jan – 16 Jan, 10:00–16:00", room:"370J-Commons"},
+    foreignAreas:[{p:"ITP",n:"Physical Interaction"}], foreignCats:[] },
+
+  { id:201, course:1, term:"20261", section:"1", state:"Slated",
+    roster:[], cap:24, mode:"In person",
+    meets:{kind:"weekly", text:"Mon 18:30–21:00", room:"370J-447"},
+    foreignAreas:[], foreignCats:[] },
+];
+
+/* ==========================================================================
+   Read model — the two composed row shapes from #9, assembled here the way
+   getCatalogPage / getLineupPage would assemble them server-side.
+   ========================================================================== */
+
+const course = id => COURSES.find(c => c.id === id);
+const isDirectorOf = (a, p) => a.roles.includes("program_director") && a.programs.includes(p);
+const isChair = a => a.roles.includes("chair");
+const canAct = a => a.roles.some(r => ["instructor","coordinator","program_director","area_head","chair"].includes(r));
+
+/* #28 tier 1/2: `student` and `advisor` see only COMMITTED_STATES. A hidden row
+   is absent, never flagged. */
+function visibleOfferings(actor, term) {
+  return OFFERINGS
+    .filter(o => o.term === term)
+    .filter(o => canAct(actor) ? true : COMMITTED.includes(o.state));
+}
+
+/* The Catalog's row set: a Course eligible to be offered, now or in future. */
+function visibleCourses() {
+  return COURSES.filter(c => c.state !== "Retired");
+}
+
+/* Per-row permitted-action set: machine legality ∩ invariants ∩ permissions,
+   already intersected server-side. A refusal ships with its reason attached —
+   #14's rule that the rule and the explanation are one object. */
+const OFFERING_EVENTS = {
+  Slated:    ["staff","kill"],
+  Staffed:   ["offer","unstaff","kill"],
+  Offered:   ["accept","decline","withdraw","defer"],
+  Deferred:  ["accept","decline","withdraw"],
+  Accepted:  ["schedule","decline","cancel"],
+  Declined:  ["retry","kill"],
+  Scheduled: ["publish","decline","cancel"],
+  Published: ["list","decline","cancel"],
+  Listed:    ["run","cancel"],
+  Running:   ["evaluate","cancel"],
+  Evaluating:["conclude"],
+  Canceled:  ["retry","kill"],
+  Concluded: [], Dead: [],
+};
+
+const LEAD_ONLY = ["accept","decline","defer"];
+
+function offeringActions(actor, o) {
+  const c = course(o.course);
+  const lead = o.roster[0] ?? null;
+  return (OFFERING_EVENTS[o.state] ?? []).map(ev => {
+    if (LEAD_ONLY.includes(ev)) {
+      if (lead === actor.netid) return { ev, ok: true };
+      if (!lead) return { ev, ok: false, why: "No lead instructor to answer for this section" };
+      return { ev, ok: false, why: `Only ${nameOf(lead)}, the lead instructor, can ${ev} this` };
+    }
+    if (ev === "retry" && o.state === "Canceled" && !lead)
+      return { ev, ok: false, why: "Nothing to reinstate — this section has no instructor" };
+    if (isChair(actor)) return { ev, ok: true };
+    if (isDirectorOf(actor, c.prog) || (actor.roles.includes("coordinator") && c.prog === "ITP"))
+      return { ev, ok: true };
+    if (actor.roles.includes("area_head") && c.areaHead === actor.netid)
+      return { ev, ok: false, why: `Heading an area lets you approve the course, not run its sections` };
+    return { ev, ok: false, why: `${c.prog} offerings are the ${c.prog} director's to move` };
+  });
+}
+
+function courseActions(actor, c) {
+  return ["revise","retire"].map(ev => {
+    if (ev === "retire" && c.state === "Revising")
+      return { ev, ok: isChair(actor) || isDirectorOf(actor, c.prog), why: "Only a program director may retire a course" };
+    if (c.state === "Revising" && ev === "revise")
+      return { ev: "approve", ok: isChair(actor) || isDirectorOf(actor, c.prog) || c.areaHead === actor.netid,
+               why: `Approving a ${c.prog} revision is for the ${c.prog} director or the course's area head` };
+    if (isChair(actor)) return { ev, ok: true };
+    if (isDirectorOf(actor, c.prog)) return { ev, ok: true };
+    if (c.areaHead === actor.netid)
+      return { ev, ok: false, why: "An area head signs off on revisions but does not open them" };
+    return { ev, ok: false, why: `${c.prog} courses are the ${c.prog} director's to change` };
+  });
+}
+
+/* #9: displayName is nullable and a roster entry is never dropped for want of a
+   name. The fallback is the netid — a real identifier at NYU, not a placeholder. */
+function nameOf(netid) { return PEOPLE[netid] ?? netid; }
+function personCell(netid, lead) {
+  const name = PEOPLE[netid];
+  const mark = lead ? '<span class="lead-mark">lead</span>' : "";
+  return name
+    ? `<span>${name}</span>${mark}`
+    : `<span class="netid-fallback">${netid}</span>${mark}`;
+}
+
+/* ==========================================================================
+   Rendering
+   ========================================================================== */
+
+const state = {
+  variant: "A",
+  view: "lineup",
+  actor: ACTORS[0],
+  term: "20253",
+  prog: "",
+  status: "",
+  q: "",
+};
+
+const VARIANTS = {
+  A: "Flat table",
+  B: "Grouped by course",
+  C: "Listing rows",
+};
+
+const esc = s => String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+function chip(p, n, foreign) {
+  const cls = p.toLowerCase();
+  const label = foreign ? `${p} · ${n}` : n;
+  return `<span class="chip ${cls}${foreign ? " foreign" : ""}"${
+    foreign ? ` title="Seats shared with ${p}"` : ""}>${esc(label)}</span>`;
+}
+
+function tagCell(own, foreign) {
+  const bits = [
+    ...own.map(t => chip(t.p, t.n, false)),
+    ...foreign.map(t => chip(t.p, t.n, true)),
+  ];
+  return bits.length ? `<div class="chips">${bits.join("")}</div>` : `<span class="none">—</span>`;
+}
+
+function stateChip(s) { return `<span class="state ${TONE[s]}">${s}</span>`; }
+
+function rosterCell(roster) {
+  if (!roster.length) return `<span class="none">Needs an instructor</span>`;
+  return roster.map((n, i) => personCell(n, i === 0 && roster.length > 1)).join(", ");
+}
+
+function actionMenu(actions) {
+  if (!actions.length) return `<span class="none">—</span>`;
+  const items = actions.map(a => a.ok
+    ? `<span class="menu-item ok">${a.ev}</span>`
+    : `<span class="menu-item no">${a.ev}<span class="why">${esc(a.why)}</span></span>`).join("");
+  const n = actions.filter(a => a.ok).length;
+  return `<details class="menu"><summary>⋯ ${n}</summary><div class="menu-body">${items}</div></details>`;
+}
+
+function actionButtons(actions) {
+  if (!actions.length) return `<span class="none">No moves from here</span>`;
+  const btns = actions.map((a, i) => a.ok
+    ? `<button class="vbtn${i === 0 ? " primary" : ""}">${a.ev}</button>`
+    : `<button class="vbtn" disabled>${a.ev}</button>`).join("");
+  const refusals = actions.filter(a => !a.ok).map(a =>
+    `<span class="refusal"><b>${a.ev}</b> — ${esc(a.why)}</span>`).join("");
+  return `<div class="actbtns">${btns}</div>${refusals ? `<div class="refusals">${refusals}</div>` : ""}`;
+}
+
+/* --- filters ------------------------------------------------------------ */
+
+function matches(text) { return !state.q || text.toLowerCase().includes(state.q.toLowerCase()); }
+
+function catalogRows() {
+  return visibleCourses()
+    .filter(c => !state.prog || c.prog === state.prog)
+    .filter(c => !state.status || c.state === state.status)
+    .filter(c => matches(`${c.number} ${c.title} ${nameOf(c.areaHead ?? "")}`));
+}
+
+function lineupRows() {
+  return visibleOfferings(state.actor, state.term)
+    .filter(o => !state.prog || course(o.course).prog === state.prog)
+    .filter(o => !state.status || o.state === state.status)
+    .filter(o => {
+      const c = course(o.course);
+      return matches(`${c.number} ${c.title} ${o.roster.map(nameOf).join(" ")} ${o.roster.join(" ")}`);
+    });
+}
+
+/* --- variant A: flat table ---------------------------------------------- */
+
+function catalogA(rows) {
+  if (!rows.length) return emptyCatalog();
+  return `<div class="tablewrap"><table>
+    <thead><tr>
+      <th class="sortable sorted">Number</th>
+      <th class="sortable">Title</th>
+      <th class="sortable rt">Cr</th>
+      <th class="sortable">Program</th>
+      <th class="nosort">Areas</th>
+      <th class="nosort">Requirements</th>
+      <th class="sortable">Area head</th>
+      <th class="sortable">Status</th>
+      <th class="sortable rt">Ed.</th>
+      <th class="nosort rt">Actions</th>
+    </tr></thead><tbody>
+    ${rows.map(c => `<tr>
+      <td class="num">${c.number}</td>
+      <td class="title">${esc(c.title)}</td>
+      <td class="rt">${c.credits}</td>
+      <td>${chip(c.prog, c.prog, false)}</td>
+      <td>${tagCell(c.areas, [])}</td>
+      <td>${tagCell(c.cats, [])}</td>
+      <td>${c.areaHead ? personCell(c.areaHead, false) : `<span class="none">Unassigned</span>`}</td>
+      <td>${stateChip(c.state)}</td>
+      <td class="rt">${c.edition}</td>
+      <td class="rt">${actionMenu(courseActions(state.actor, c))}</td>
+    </tr>`).join("")}
+    </tbody></table></div>`;
+}
+
+function lineupA(rows) {
+  if (!rows.length) return emptyLineup();
+  return `<div class="tablewrap"><table>
+    <thead><tr>
+      <th class="sortable sorted">Number</th>
+      <th class="sortable">Title</th>
+      <th class="sortable rt">Sec</th>
+      <th class="sortable">Status</th>
+      <th class="nosort">Instructors</th>
+      <th class="nosort">Meets</th>
+      <th class="sortable rt">Cap</th>
+      <th class="nosort">Areas</th>
+      <th class="nosort">Requirements</th>
+      <th class="nosort rt">Actions</th>
+    </tr></thead><tbody>
+    ${rows.map(o => { const c = course(o.course); return `<tr>
+      <td class="num">${c.number}</td>
+      <td class="title">${esc(c.title)}<div class="sub">${chipInline(c.prog)}</div></td>
+      <td class="rt num">${o.section}</td>
+      <td>${stateChip(o.state)}</td>
+      <td>${rosterCell(o.roster)}</td>
+      <td><span class="num">${esc(o.meets.text)}</span>${o.meets.room ? `<div class="sub">${o.meets.room}</div>` : ""}</td>
+      <td class="rt">${o.cap}</td>
+      <td>${tagCell(c.areas, o.foreignAreas)}</td>
+      <td>${tagCell(c.cats, o.foreignCats)}</td>
+      <td class="rt">${actionMenu(offeringActions(state.actor, o))}</td>
+    </tr>`; }).join("")}
+    </tbody></table></div>`;
+}
+
+function chipInline(p) { return `<span class="chip ${p.toLowerCase()}">${p}</span>`; }
+
+/* --- variant B: grouped by course --------------------------------------- */
+
+function groupBy(rows, key) {
+  const m = new Map();
+  for (const r of rows) { const k = key(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); }
+  return m;
+}
+
+function catalogB(rows) {
+  if (!rows.length) return emptyCatalog();
+  const groups = groupBy(rows, c => c.prog);
+  let html = `<div class="tablewrap"><table>
+    <thead><tr>
+      <th class="sortable sorted">Number</th><th class="sortable">Title</th>
+      <th class="sortable rt">Cr</th><th class="nosort">Areas</th>
+      <th class="nosort">Requirements</th><th class="sortable">Area head</th>
+      <th class="sortable">Status</th><th class="nosort rt">Actions</th>
+    </tr></thead><tbody>`;
+  for (const [prog, cs] of groups) {
+    html += `<tr class="group-head"><td colspan="8"><div class="group-line">
+      ${chipInline(prog)}
+      <span class="title">${prog === "ITP" ? "Interactive Telecommunications"
+                          : prog === "IMA" ? "Interactive Media Arts" : "IMA Low Residency"}</span>
+      <span class="group-meta"><span class="group-count">${cs.length} course${cs.length===1?"":"s"}</span></span>
+    </div></td></tr>`;
+    html += cs.map(c => `<tr>
+      <td class="num indent">${c.number}</td>
+      <td class="title">${esc(c.title)}</td>
+      <td class="rt">${c.credits}</td>
+      <td>${tagCell(c.areas, [])}</td>
+      <td>${tagCell(c.cats, [])}</td>
+      <td>${c.areaHead ? personCell(c.areaHead, false) : `<span class="none">Unassigned</span>`}</td>
+      <td>${stateChip(c.state)}</td>
+      <td class="rt">${actionMenu(courseActions(state.actor, c))}</td>
+    </tr>`).join("");
+  }
+  return html + `</tbody></table></div>`;
+}
+
+function lineupB(rows) {
+  /* The group is (course_id, term_code) — single-program by construction since
+     #30, so no group needs an own-program label to tell it from its siblings. */
+  const groups = groupBy(rows, o => o.course);
+  const shown = new Set(groups.keys());
+
+  /* A group can be empty for a student and populated for a coordinator. Show the
+     courses that *are* offered this term but whose sections this actor can't see. */
+  const emptied = [...new Set(OFFERINGS.filter(o => o.term === state.term).map(o => o.course))]
+    .filter(id => !shown.has(id))
+    .filter(id => !state.prog || course(id).prog === state.prog);
+
+  if (!rows.length && !emptied.length) return emptyLineup();
+
+  let html = `<div class="tablewrap"><table>
+    <thead><tr>
+      <th class="sortable sorted rt">Sec</th><th class="sortable">Status</th>
+      <th class="nosort">Instructors</th><th class="nosort">Meets</th>
+      <th class="sortable rt">Cap</th><th class="nosort">Shared with</th>
+      <th class="nosort rt">Actions</th>
+    </tr></thead><tbody>`;
+
+  for (const [cid, os] of groups) {
+    const c = course(cid);
+    html += `<tr class="group-head"><td colspan="7"><div class="group-line">
+      <span class="num">${c.number}</span>
+      <span class="title">${esc(c.title)}</span>
+      <span class="sub">${c.credits} cr</span>
+      <span class="group-meta">
+        ${tagCell(c.areas, [])}${tagCell(c.cats, [])}
+        <span class="group-count">${os.length} section${os.length===1?"":"s"}</span>
+      </span>
+    </div></td></tr>`;
+    html += os.map(o => `<tr>
+      <td class="rt num indent">${o.section}</td>
+      <td>${stateChip(o.state)}</td>
+      <td>${rosterCell(o.roster)}</td>
+      <td><span class="num">${esc(o.meets.text)}</span>${o.meets.room ? `<div class="sub">${o.meets.room}</div>` : ""}</td>
+      <td class="rt">${o.cap}</td>
+      <td>${tagCell([], [...o.foreignAreas, ...o.foreignCats])}</td>
+      <td class="rt">${actionMenu(offeringActions(state.actor, o))}</td>
+    </tr>`).join("");
+  }
+
+  for (const cid of emptied) {
+    const c = course(cid);
+    html += `<tr class="group-head"><td colspan="7"><div class="group-line">
+      <span class="num">${c.number}</span><span class="title">${esc(c.title)}</span>
+      <span class="sub">${c.credits} cr</span>
+    </div></td></tr>
+    <tr class="group-empty"><td colspan="7">Nothing confirmed for this term yet.</td></tr>`;
+  }
+
+  return html + `</tbody></table></div>`;
+}
+
+/* --- variant C: listing rows -------------------------------------------- */
+
+function catalogC(rows) {
+  if (!rows.length) return emptyCatalog();
+  return `<div class="listing">${rows.map(c => `
+    <div class="record">
+      <div class="body">
+        <div class="rec-line1">
+          <span class="num">${c.number}</span>
+          <span class="title">${esc(c.title)}</span>
+          ${chipInline(c.prog)}
+          ${c.state === "Approved" ? "" : stateChip(c.state)}
+        </div>
+        <div class="rec-line2">
+          <span class="seg"><span class="k">Credits</span>${c.credits}</span>
+          <span class="seg"><span class="k">Edition</span>${c.edition}</span>
+          <span class="seg"><span class="k">Area head</span>${
+            c.areaHead ? personCell(c.areaHead, false) : `<span class="none">Unassigned</span>`}</span>
+        </div>
+        <div class="rec-line3">${tagCell([...c.areas, ...c.cats], [])}</div>
+      </div>
+      <div class="side">${actionButtons(courseActions(state.actor, c))}</div>
+    </div>`).join("")}</div>`;
+}
+
+function lineupC(rows) {
+  if (!rows.length) return emptyLineup();
+  return `<div class="listing">${rows.map(o => { const c = course(o.course); return `
+    <div class="record">
+      <div class="body">
+        <div class="rec-line1">
+          <span class="num">${c.number}-${o.section}</span>
+          <span class="title">${esc(c.title)}</span>
+          ${stateChip(o.state)}
+        </div>
+        <div class="rec-line2">
+          <span class="seg"><span class="k">Taught by</span>${rosterCell(o.roster)}</span>
+          <span class="seg"><span class="k">Meets</span><span class="num">${esc(o.meets.text)}</span>${
+            o.meets.room ? `<span class="sub">${o.meets.room}</span>` : ""}</span>
+          <span class="seg"><span class="k">Cap</span>${o.cap}</span>
+        </div>
+        <div class="rec-line3">${tagCell([...c.areas, ...c.cats],
+                                          [...o.foreignAreas, ...o.foreignCats])}</div>
+      </div>
+      <div class="side">${actionButtons(offeringActions(state.actor, o))}</div>
+    </div>`; }).join("")}</div>`;
+}
+
+/* --- empty states ------------------------------------------------------- */
+
+function emptyLineup() {
+  const t = TERMS.find(t => t.code === state.term).label;
+  const filtered = state.q || state.prog || state.status;
+  return `<div class="empty">
+    <h3>${filtered ? "Nothing matches those filters" : `No classes in ${t} yet`}</h3>
+    <p>${filtered
+      ? "Clear the search or the program and status filters to see the whole term."
+      : canAct(state.actor)
+        ? `Sections appear here as soon as a course is slated for ${t}.`
+        : `Once instructors have agreed to teach, ${t}'s classes will show up here.`}</p>
+  </div>`;
+}
+
+function emptyCatalog() {
+  return `<div class="empty">
+    <h3>No courses match</h3>
+    <p>Clear the search or the program filter. Retired courses are hidden — they can no longer be offered.</p>
+  </div>`;
+}
+
+/* --- shell -------------------------------------------------------------- */
+
+const NOTES = {
+  A: "<b>A — Flat table.</b> One row per offering, every fact its own column, sortable where the database can sort it. Closest to legacy <code>lineup_official</code> and to a spreadsheet. Three sections of Physical Computing read as three unrelated rows.",
+  B: "<b>B — Grouped by course.</b> The Lineup groups on <code>(course_id, term_code)</code>; the Catalog groups by program. Course-level facts sit on the header, section-level facts on the rows beneath. A group that is empty for you but populated for a coordinator still appears, so a term reads honestly.",
+  C: "<b>C — Listing rows.</b> Two lines per record, like a printed course bulletin. Actions are visible buttons and every refusal states its reason in the open rather than hiding it behind a hover.",
+};
+
+function render() {
+  const isCat = state.view === "catalog";
+  const rows = isCat ? catalogRows() : lineupRows();
+
+  const body =
+    state.variant === "A" ? (isCat ? catalogA(rows) : lineupA(rows)) :
+    state.variant === "B" ? (isCat ? catalogB(rows) : lineupB(rows)) :
+                            (isCat ? catalogC(rows) : lineupC(rows));
+
+  document.getElementById("app").innerHTML = `<p class="note">${NOTES[state.variant]}</p>` + body;
+
+  document.getElementById("count").textContent =
+    `${rows.length} ${isCat ? (rows.length === 1 ? "course" : "courses")
+                            : (rows.length === 1 ? "section" : "sections")}`;
+
+  document.getElementById("term").hidden = isCat;
+  document.querySelectorAll(".tab").forEach(t =>
+    t.setAttribute("aria-selected", String(t.dataset.view === state.view)));
+
+  const st = document.getElementById("status");
+  const opts = isCat ? ["Approved","Revising"] : Object.keys(TONE).slice(0, 14);
+  st.innerHTML = `<option value="">Any status</option>` +
+    opts.map(s => `<option${s === state.status ? " selected" : ""}>${s}</option>`).join("");
+
+  document.getElementById("vkey").textContent = state.variant;
+  document.getElementById("vname").textContent = VARIANTS[state.variant];
+
+  const u = new URL(location.href);
+  u.searchParams.set("variant", state.variant);
+  history.replaceState(null, "", u);
+}
+
+/* --- wiring ------------------------------------------------------------- */
+
+const actorSel = document.getElementById("actor");
+actorSel.innerHTML = ACTORS.map((a, i) => `<option value="${i}">${a.label}</option>`).join("");
+actorSel.onchange = e => { state.actor = ACTORS[+e.target.value]; render(); };
+
+const termSel = document.getElementById("term");
+termSel.innerHTML = TERMS.map(t => `<option value="${t.code}">${t.label}</option>`).join("");
+termSel.onchange = e => { state.term = e.target.value; render(); };
+
+const progSel = document.getElementById("prog");
+progSel.innerHTML = `<option value="">All programs</option>` +
+  ["ITP","IMA","LOWRES"].map(p => `<option>${p}</option>`).join("");
+progSel.onchange = e => { state.prog = e.target.value; render(); };
+
+document.getElementById("status").onchange = e => { state.status = e.target.value; render(); };
+document.getElementById("q").oninput = e => { state.q = e.target.value; render(); };
+
+document.querySelectorAll(".tab").forEach(t =>
+  t.onclick = () => { state.view = t.dataset.view; render(); });
+
+const keys = Object.keys(VARIANTS);
+function cycle(d) {
+  const i = keys.indexOf(state.variant);
+  state.variant = keys[(i + d + keys.length) % keys.length];
+  render();
+}
+document.getElementById("prev").onclick = () => cycle(-1);
+document.getElementById("next").onclick = () => cycle(1);
+
+addEventListener("keydown", e => {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+
+/* one menu open at a time */
+addEventListener("click", e => {
+  document.querySelectorAll("details.menu[open]").forEach(d => {
+    if (!d.contains(e.target)) d.removeAttribute("open");
+  });
+});
+
+const initial = new URL(location.href).searchParams.get("variant");
+if (initial && keys.includes(initial.toUpperCase())) state.variant = initial.toUpperCase();
+render();
+</script>
