@@ -9,6 +9,9 @@
   framework — a static approximation of Next.js + Mantine, built to be reacted
   to, not to be promoted.
 
+    D — Settled    the shape the requester assembled from the three — see the
+                   resolution on #41. D is the answer; A/B/C are the primary
+                   source it was assembled from, kept beside it deliberately.
     A — Dossier    one column, everything stated, history as the raw seven-column
                    table it is stored as
     B — Record     a header card with actions, body split into tabs, history as a
@@ -30,18 +33,21 @@
     course's offerings    | flat, term column  | grouped by term    | term-grouped list
     creation shows in     | provenance only    | timeline, derived  | feed, marked
 
-  Two things this file makes visible that are hard to see on paper:
+  Two things this file made visible that were hard to see on paper, both of
+  which the resolution acted on:
 
-  1. **The sentence form wants a name the log does not have.** #19 ruled that
+  1. **The sentence form wants a name the log did not have.** #19 ruled that
      `offer` and `accept` carry no `subject_netid`, the roster answering "who is
-     the lead" directly. Variant B therefore cannot say *who* an offer went to
-     without joining to a roster that may since have changed — see PComp §3,
-     where the offer went to two different people in one term. A and C do not
-     have this problem because they never claim to name anyone.
+     the lead" directly — but the roster answers who the lead is *now*. See
+     PComp §3, where the offer went to two different people in one term and
+     nobody holds position 0 today. Choosing sentences therefore forced the
+     column onto both events, which is #41's one amendment to a closed ticket.
+     The fixtures here carry it; the flagged, pre-decision version is one commit
+     back on this branch.
 
   2. **There is no genesis row** (#13), so a history that shows only log rows
-     starts mid-story. The three variants disagree about whether to derive a
-     creation line from `created_at` / `created_by`, and where to put it.
+     starts mid-story. D derives a creation line to open the history with, and
+     drops it from the rail so the fact is stated once.
 
   The "Viewing as" control is a prototype device for looking at what varies by
   role, not part of the page. A `student` gets no history at all — absent, not
@@ -282,6 +288,7 @@
   tbody tr:last-child td { border-bottom: 0; }
   .tablewrap { overflow-x: auto; }
   .num { font-variant-numeric: tabular-nums; }
+  .rt { text-align: right; }
 
   dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 7px 22px; margin: 0; }
   dl.facts dt { font-size: 12px; color: var(--ink-faint); font-weight: 600; }
@@ -597,8 +604,8 @@ const LOG = {
 
   "offering:101": [
     { event:"staff",    from:"Slated",    to:"Staffed",   actor:"pr3390", subject:"na2481", reason:null, at:"2025-03-04T13:02" },
-    { event:"offer",    from:"Staffed",   to:"Offered",   actor:"pr3390", subject:null, reason:null, at:"2025-03-04T13:03" },
-    { event:"accept",   from:"Offered",   to:"Accepted",  actor:"na2481", subject:null, reason:null, at:"2025-03-06T08:47" },
+    { event:"offer",    from:"Staffed",   to:"Offered",   actor:"pr3390", subject:"na2481", reason:null, at:"2025-03-04T13:03" },
+    { event:"accept",   from:"Offered",   to:"Accepted",  actor:"na2481", subject:"na2481", reason:null, at:"2025-03-06T08:47" },
     { event:"schedule", from:"Accepted",  to:"Scheduled", actor:"pr3390", subject:null, reason:null, at:"2025-04-11T10:20" },
     { event:"publish",  from:"Scheduled", to:"Published", actor:"pr3390", subject:null, reason:null, at:"2025-05-02T09:00" },
     { event:"list",     from:"Published", to:"Listed",    actor:"pr3390", subject:null, reason:null, at:"2025-07-15T14:30" },
@@ -607,18 +614,18 @@ const LOG = {
   "offering:102": [],
   "offering:103": [
     { event:"staff",    from:"Slated",   to:"Staffed",  actor:"pr3390", subject:"tv1067", reason:null, at:"2025-03-04T13:05" },
-    { event:"offer",    from:"Staffed",  to:"Offered",  actor:"pr3390", subject:null, reason:null, at:"2025-03-04T13:06" },
+    { event:"offer",    from:"Staffed",  to:"Offered",  actor:"pr3390", subject:"tv1067", reason:null, at:"2025-03-04T13:06" },
     { event:"defer",    from:"Offered",  to:"Deferred", actor:"tv1067", subject:null, reason:"Waiting on the sabbatical decision", at:"2025-03-10T11:15" },
     { event:"withdraw", from:"Deferred", to:"Slated",   actor:"pr3390", subject:"tv1067", reason:"The section had to be confirmed by 1 April", at:"2025-04-01T09:30" },
     { event:"staff",    from:"Slated",   to:"Staffed",  actor:"pr3390", subject:"ab9034", reason:null, at:"2025-04-03T10:00" },
-    { event:"offer",    from:"Staffed",  to:"Offered",  actor:"pr3390", subject:null, reason:null, at:"2025-04-03T10:01" },
+    { event:"offer",    from:"Staffed",  to:"Offered",  actor:"pr3390", subject:"ab9034", reason:null, at:"2025-04-03T10:01" },
     { event:"decline",  from:"Offered",  to:"Declined", actor:"pr3390", subject:"ab9034", reason:"Clash with her IMA teaching load", at:"2025-04-09T17:22" },
   ],
   "offering:201": [],
   "offering:108": [
     { event:"staff",  from:"Slated",  to:"Staffed",  actor:"rc1129", subject:"xq7742", reason:null, at:"2025-06-02T11:00" },
-    { event:"offer",  from:"Staffed", to:"Offered",  actor:"rc1129", subject:null, reason:null, at:"2025-06-02T11:01" },
-    { event:"accept", from:"Offered", to:"Accepted", actor:"xq7742", subject:null, reason:null, at:"2025-06-05T07:12" },
+    { event:"offer",  from:"Staffed", to:"Offered",  actor:"rc1129", subject:"xq7742", reason:null, at:"2025-06-02T11:01" },
+    { event:"accept", from:"Offered", to:"Accepted", actor:"xq7742", subject:"xq7742", reason:null, at:"2025-06-05T07:12" },
   ],
 };
 
@@ -629,6 +636,8 @@ const RECORDS = [
     note:"Four sections across two terms, two approved revisions, and a field edit the log is forbidden to record." },
   { key:"o101",kind:"offering", id:101, label:"Class · Physical Computing §1, Fall 2025 — Running",
     note:"The full forward path, two co-instructors, two meeting rows in two rooms, seat shared with IMA." },
+  { key:"o102",kind:"offering", id:102, label:"Class · Physical Computing §2, Fall 2025 — Slated",
+    note:"Decided to run, nobody picked to ask yet. No roster, no call number, no history — the emptiest a real section gets." },
   { key:"o103",kind:"offering", id:103, label:"Class · Physical Computing §3, Fall 2025 — Declined",
     note:"Deferred, withdrawn, re-staffed, declined. Two people held position 0; nobody holds it now." },
   { key:"o108",kind:"offering", id:108, label:"Class · Machine Vision Intensive §1, Spring 2026 — Accepted",
@@ -848,8 +857,13 @@ function historyTable(rows) {
 const PHRASE = {
   staff:    r => [`named ${nameOf(r.subject)} as lead instructor`, false],
   unstaff:  r => [`vacated the lead position`, false],
-  offer:    r => [`sent the offer out`, true],
-  accept:   r => [`recorded an acceptance`, true],
+  /* These two used to read "sent the offer out" and "recorded an acceptance"
+     with nobody named, because #19 gave neither event a `subject_netid`. That
+     is the hole the sentence treatment exposed and this ticket closed: both
+     events now carry one, so both lines can name their person. The flagged
+     version is one commit back on this branch if you want to see it. */
+  offer:    r => [r.subject ? `offered it to ${nameOf(r.subject)}` : `sent the offer out`, !r.subject],
+  accept:   r => [r.subject ? `recorded ${nameOf(r.subject)}'s acceptance` : `recorded an acceptance`, !r.subject],
   decline:  r => [`recorded ${nameOf(r.subject)}'s refusal`, false],
   defer:    r => [`recorded a request for more time`, false],
   withdraw: r => [`withdrew the offer to ${nameOf(r.subject)}`, false],
@@ -939,6 +953,7 @@ function reachStrip(rec) {
     A: ["A linked identifier", "The number is a link. Clicking the row still expands it — the link is a smaller target inside the bigger one."],
     B: ["An item in the ⋯ menu", "“Open class page” sits above the transitions in the menu #37 already built. No new control on the row."],
     C: ["A dedicated ↗ control", "A separate control at the row's right edge, outside the expand target."],
+    D: ["A dedicated ↗ control", "Settled: one click, outside the expand target, impossible to mis-hit. The row click still belongs to #37's grouping."],
   }[v];
 
   if (rec.kind === "course") {
@@ -954,7 +969,7 @@ function reachStrip(rec) {
           <span class="num">${c.credits} cr</span>
           ${stateChip(c.state)}
           ${v === "B" ? `<span class="mono openlink" data-open="${rec.key}">⋯ 2 ▾ Open course page</span>` : ""}
-          ${v === "C" ? `<button class="openbtn" data-open="${rec.key}" title="Open course page">↗</button>` : ""}
+          ${(v === "C" || v === "D") ? `<button class="openbtn" data-open="${rec.key}" title="Open course page">↗</button>` : ""}
           <span class="expandcue">▾ expands to its program group</span>
         </div>
       </div>
@@ -989,7 +1004,7 @@ function reachStrip(rec) {
           <span class="grow">${s.roster.length ? nameOf(s.roster[0]) : `<span class="none">Needs an instructor</span>`}</span>
           ${stateChip(s.state)}
           ${v === "B" ? `<span class="mono ${openable ? "openlink" : "none"}"${openable ? ` data-open="${openable}"` : ""}>⋯ ▾ Open class page</span>` : ""}
-          ${v === "C" && openable ? `<button class="openbtn" data-open="${openable}" title="Open class page">↗</button>` : ""}
+          ${(v === "C" || v === "D") && openable ? `<button class="openbtn" data-open="${openable}" title="Open class page">↗</button>` : ""}
         </div>`;
       }).join("")}
     </div>
@@ -1356,19 +1371,209 @@ function offeringC(o, rec, actor) {
 }
 
 /* ==========================================================================
+   Variant D — the settled page
+   Assembled from A, B and C one answer at a time; see the resolution on #41.
+
+     Q1 reached by a dedicated ↗ control at the row's right edge      (C)
+     Q2 rail layout — the record on the left, what you may do on the right (C)
+     Q3 history as a sentence per row                                 (B)
+     Q4 the course's sections grouped by term                        (B, C)
+     Q5 history in the main column, at the bottom, full width         (new)
+     Q6 the history opens with a derived creation line; the rail's
+        provenance box drops to *last changed* alone                  (new)
+     Q7 a record you may not see refuses without naming its state     (new)
+
+   The two consequences that fell out of those choices:
+
+   - **`offer` and `accept` gained `subject_netid`**, amending #19. Sentences
+     need a name and those two events did not carry one; the roster was #19's
+     answer and the roster is present-tense. See PComp §3.
+   - **The department-wide activity view is out of scope**, ruled here rather
+     than left as fog.
+   ========================================================================== */
+
+/* Sentences at full width. The creation line opens it — hollow dot, no
+   caption: the dot is what says "not a move", and #13's reason for having no
+   genesis row is not something a coordinator needs read to them. */
+function historyStory(rows, rec) {
+  const created = `<div class="tl derived">
+    <div class="dotcol"><span class="dot"></span><span class="stem"></span></div>
+    <div>
+      <div class="said">${named(rec.createdBy)} created it</div>
+      <div class="when">${fmt(rec.createdAt)}</div>
+    </div>
+  </div>`;
+  const body = rows.map(r => {
+    const [said] = (PHRASE[r.event] ?? (x => [x.event]))(r);
+    const quote = r.reason ? ` — <span class="quote">“${esc(r.reason)}”</span>` : "";
+    return `<div class="tl">
+      <div class="dotcol"><span class="dot ${TONE[r.to]}"></span><span class="stem"></span></div>
+      <div>
+        <div class="said"><b>${named(r.actor)}</b> ${said}${quote}</div>
+        <div class="when">${fmt(r.at)}</div>
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="timeline">${created}${body}</div>`;
+}
+
+function historySection(rows, rec, what, actor) {
+  if (!seesHistory(actor)) return "";
+  return `<div class="sect">
+    <h2>History <span class="n">${rows.length ? `${rows.length} move${rows.length === 1 ? "" : "s"}` : "no moves yet"}</span></h2>
+    ${historyStory(rows, rec)}
+  </div>`;
+}
+
+/* Created is now the history's first line, so this box carries changes alone —
+   the trace of the field writes #17 left the log forbidden to record. */
+function railChanged(r) {
+  return `<div class="railbox">
+    <h3>Last changed</h3>
+    ${r.updatedBy
+      ? `<div class="feed"><div class="f"><div class="l1"><span class="who">${named(r.updatedBy)}</span></div><div class="when">${fmt(r.updatedAt)}</div></div></div>`
+      : `<span class="none">Never changed since it was created.</span>`}
+  </div>`;
+}
+
+function railStatus(chipHtml, actionsHtml) {
+  return `<div class="railbox">
+    <h3>Status</h3>
+    <div style="margin-bottom:12px">${chipHtml}</div>
+    ${actionsHtml}
+  </div>`;
+}
+
+function sectionsByTerm(offs) {
+  if (!offs.length) return `<div class="empty"><b>This course has never been offered</b>No section of it exists in any term.</div>`;
+  const byTerm = {};
+  offs.forEach(o => (byTerm[o.term] ??= []).push(o));
+  return Object.keys(byTerm).sort().reverse().map(t => `<div class="termgroup">
+    <header>${esc(TERMS[t])}<span class="n">${byTerm[t].length} section${byTerm[t].length > 1 ? "s" : ""}</span></header>
+    <table><tbody>${byTerm[t].map(o => {
+      const key = RECORDS.find(r => r.kind === "offering" && r.id === o.id)?.key;
+      return `<tr>
+        <td class="num" style="width:56px">§${esc(o.section)}</td>
+        <td style="width:110px">${stateChip(o.state)}</td>
+        <td>${o.roster.length ? person(o.roster[0]) : `<span class="none">Needs an instructor</span>`}</td>
+        <td>${o.meetings.map(m => esc(meetingText(m))).join("<br>")}</td>
+        <td style="width:34px" class="rt">${key ? `<button class="openbtn" data-open="${key}" title="Open class page">↗</button>` : ""}</td>
+      </tr>`;
+    }).join("")}</tbody></table>
+  </div>`).join("");
+}
+
+function courseD(c, rec, actor) {
+  const rows = logFor(rec);
+  const offs = offeringsOfCourse(c.id);
+  const marker = notOfferable(c);
+  const terms = new Set(offs.map(o => o.term)).size;
+  return `
+  <div class="crumbs"><a href="#">Catalog</a><span class="sep">/</span><span>${esc(c.number)}</span></div>
+  <div class="c-grid">
+    <div>
+      <div class="c-head">
+        <div class="number">${esc(c.number)}</div>
+        <h1>${esc(c.title)}</h1>
+        <div style="display:flex;gap:11px;align-items:center;flex-wrap:wrap;margin-top:9px">
+          <span class="chip ${c.prog.toLowerCase()}">${esc(c.prog)}</span>
+          <span>${c.credits} credits</span>
+          <span>Edition ${c.edition}</span>
+          ${marker ? `<span class="warn">${esc(marker)}</span>` : ""}
+        </div>
+      </div>
+
+      ${c.description ? `<div class="sect"><h2>Description</h2><p style="max-width:66ch;margin:0">${esc(c.description)}</p></div>` : ""}
+
+      <div class="sect">
+        <h2>Where it sits</h2>
+        <dl class="facts">
+          <dt>Areas</dt><dd>${c.areas.length ? `<div class="chips">${c.areas.map(a => chip(a.p, a.n, false)).join("")}</div>` : `<span class="none">Not yet assigned</span>`}</dd>
+          <dt>Requirements</dt><dd>${c.cats.length ? `<div class="chips">${c.cats.map(a => chip(a.p, a.n, false)).join("")}</div>` : `<span class="none">None</span>`}</dd>
+          <dt>Area head</dt><dd>${c.areaHead ? person(c.areaHead, { pronouns: true }) : `<span class="none">Not yet assigned</span>`}</dd>
+          <dt>Link</dt><dd>${c.url ? `<a href="${esc(c.url)}">${esc(c.url)}</a>` : `<span class="none">None</span>`}</dd>
+        </dl>
+      </div>
+
+      <div class="sect">
+        <h2>Sections <span class="n">${offs.length ? `${offs.length} across ${terms} term${terms === 1 ? "" : "s"}` : "none"}</span></h2>
+        ${sectionsByTerm(offs)}
+      </div>
+
+      ${historySection(rows, c, "course", actor)}
+    </div>
+
+    <aside class="c-rail">
+      ${railStatus(stateChip(c.state), canAct(actor) ? actionBlock(courseActions(actor, c)) : "")}
+      ${railChanged(c)}
+    </aside>
+  </div>`;
+}
+
+function offeringD(o, rec, actor) {
+  const c = courseOf(o.course);
+  const rows = logFor(rec);
+  return `
+  <div class="crumbs"><a href="#">Lineup</a><span class="sep">/</span><span>${esc(TERMS[o.term])}</span><span class="sep">/</span><span>${esc(c.number)} §${esc(o.section)}</span></div>
+  <div class="c-grid">
+    <div>
+      <div class="c-head">
+        <div class="number">${esc(c.number)} §${esc(o.section)} · ${esc(TERMS[o.term])}</div>
+        <h1>${esc(c.title)}</h1>
+        <div style="display:flex;gap:11px;align-items:center;flex-wrap:wrap;margin-top:9px">
+          <span class="chip ${c.prog.toLowerCase()}">${esc(c.prog)}</span>
+          <span>${c.credits} credits</span>
+          ${courseLink(o.course, "The course")}
+        </div>
+      </div>
+
+      <div class="sect"><h2>Roster</h2>${rosterList(o)}</div>
+      <div class="sect"><h2>Meets <span class="n">${o.meetings.length} slot${o.meetings.length === 1 ? "" : "s"}</span></h2>${meetingsTable(o)}</div>
+
+      <div class="sect">
+        <h2>The section</h2>
+        <dl class="facts">
+          <dt>Enrollment limit</dt><dd>${o.cap ?? `<span class="none">Not set</span>`}</dd>
+          <dt>Mode</dt><dd>${o.mode ? esc(o.mode) : `<span class="none">Not set</span>`}</dd>
+          <dt>Call number</dt><dd>${o.call ? `<span class="mono">${esc(o.call)}</span>` : `<span class="none">Not assigned</span>`}</dd>
+          <dt>SIS class number</dt><dd>${o.sis ? `<span class="mono">${o.sis}</span>` : `<span class="none">Not assigned</span>`}</dd>
+          <dt>Link</dt><dd>${o.url ? `<a href="${esc(o.url)}">${esc(o.url)}</a>` : `<span class="none">None</span>`}</dd>
+        </dl>
+      </div>
+
+      <div class="sect">
+        <h2>Seats shared</h2>
+        ${(o.foreignAreas.length || o.foreignCats.length)
+          ? [...o.foreignAreas, ...o.foreignCats].map(t => `<div style="margin-bottom:6px">${chip(t.p, t.n, true, t.by, t.at)}</div>`).join("")
+          : `<span class="none">Not shared with another program.</span>`}
+      </div>
+
+      ${historySection(rows, o, "section", actor)}
+    </div>
+
+    <aside class="c-rail">
+      ${railStatus(stateChip(o.state), canAct(actor) ? actionBlock(offeringActions(actor, o)) : "")}
+      ${railChanged(o)}
+    </aside>
+  </div>`;
+}
+
+/* ==========================================================================
    Wiring
    ========================================================================== */
 
 const state = { variant: "A", record: "c1", actor: ACTORS[0], tab: "details", feedFull: false };
 
 const VARIANTS = [
+  { key:"D", name:"Settled — the shape assembled from A, B and C" },
   { key:"A", name:"Dossier — one column, raw log table" },
   { key:"B", name:"Record — header card, tabs, sentences" },
   { key:"C", name:"Rail — main column plus a status rail" },
 ];
-let vi = 0;
+let vi = 0;   // open on the settled shape
 
 const RENDER = {
+  D: { course: courseD, offering: offeringD },
   A: { course: courseA, offering: offeringA },
   B: { course: courseB, offering: offeringB },
   C: { course: courseC, offering: offeringC },
