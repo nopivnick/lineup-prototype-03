@@ -1,0 +1,1453 @@
+<title>Course and Offering detail pages — three variants</title>
+
+<!--
+  PROTOTYPE — throwaway. Answers issue #41, "What do the Course and Offering
+  detail pages show?"
+
+  Three structurally different takes on the two detail pages, switchable with the
+  floating bar or the ← → keys. Hand-written fixtures, no data layer, no
+  framework — a static approximation of Next.js + Mantine, built to be reacted
+  to, not to be promoted.
+
+    A — Dossier    one column, everything stated, history as the raw seven-column
+                   table it is stored as
+    B — Record     a header card with actions, body split into tabs, history as a
+                   sentence per row
+    C — Rail       two columns: what the record *is* on the left, what has
+                   happened to it and what you may do on the right; history as a
+                   readable line with the machine's own values kept visible
+
+  Every **rule** here is already settled and none of it is re-decided in this
+  file: #40 fixed the form (a page, not a drawer), refusals in the open, names
+  with #37's fallback, a provenance line, seat-sharing granters, `pronouns` on
+  people and not on history lines. What differs between the variants is
+  presentation, and exactly the six things #41 asks:
+
+                          | A Dossier          | B Record           | C Rail
+    reached from a row by | linked identifier  | ⋯ menu item        | a ↗ control
+    facts laid out as     | one column, all    | tabs               | main + rail
+    history renders as    | raw table          | a sentence per row | line + chips
+    course's offerings    | flat, term column  | grouped by term    | term-grouped list
+    creation shows in     | provenance only    | timeline, derived  | feed, marked
+
+  Two things this file makes visible that are hard to see on paper:
+
+  1. **The sentence form wants a name the log does not have.** #19 ruled that
+     `offer` and `accept` carry no `subject_netid`, the roster answering "who is
+     the lead" directly. Variant B therefore cannot say *who* an offer went to
+     without joining to a roster that may since have changed — see PComp §3,
+     where the offer went to two different people in one term. A and C do not
+     have this problem because they never claim to name anyone.
+
+  2. **There is no genesis row** (#13), so a history that shows only log rows
+     starts mid-story. The three variants disagree about whether to derive a
+     creation line from `created_at` / `created_by`, and where to put it.
+
+  The "Viewing as" control is a prototype device for looking at what varies by
+  role, not part of the page. A `student` gets no history at all — absent, not
+  empty (#40).
+-->
+
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:        #ffffff;
+    --raised:        #f8f8fa;
+    --sunken:        #f1f1f4;
+    --line:          #e3e2e8;
+    --line-strong:   #c9c7d2;
+    --ink:           #1f1d26;
+    --ink-soft:      #63606f;
+    --ink-faint:     #8b8898;
+
+    --accent:        #57068c;
+    --accent-soft:   #f2e9f8;
+    --accent-line:   #ddc7ec;
+    --on-accent:     #ffffff;
+
+    --itp:           #7048a8;
+    --itp-bg:        #f3eefb;
+    --ima:           #0b7285;
+    --ima-bg:        #e3f4f7;
+    --lowres:        #a1651a;
+    --lowres-bg:     #fbf0de;
+
+    --live:          #2b8a3e;
+    --live-bg:       #e8f6ea;
+    --wait:          #b8600a;
+    --wait-bg:       #fdf1e2;
+    --stop:          #c92a2a;
+    --stop-bg:       #fceceb;
+    --idle:          #6b6878;
+    --idle-bg:       #eeedf1;
+
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+    --shadow-lg: 0 2px 6px rgb(31 29 38 / .10), 0 12px 32px rgb(31 29 38 / .16);
+
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #1a1b1e;
+      --raised:      #212226;
+      --sunken:      #26272c;
+      --line:        #34353b;
+      --line-strong: #4a4b53;
+      --ink:         #e6e5ea;
+      --ink-soft:    #a5a3af;
+      --ink-faint:   #7b7987;
+
+      --accent:      #b197fc;
+      --accent-soft: #2b2440;
+      --accent-line: #453a63;
+      --on-accent:   #1a1b1e;
+
+      --itp:         #b197fc;
+      --itp-bg:      #2b2440;
+      --ima:         #4dc4d9;
+      --ima-bg:      #17343a;
+      --lowres:      #dfa441;
+      --lowres-bg:   #3a2e17;
+
+      --live:        #63d67e;
+      --live-bg:     #16301d;
+      --wait:        #f0a45c;
+      --wait-bg:     #35240f;
+      --stop:        #ff8785;
+      --stop-bg:     #3a1c1c;
+      --idle:        #9b98a6;
+      --idle-bg:     #2c2d33;
+
+      --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+      --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+    }
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground:#ffffff; --raised:#f8f8fa; --sunken:#f1f1f4; --line:#e3e2e8; --line-strong:#c9c7d2;
+    --ink:#1f1d26; --ink-soft:#63606f; --ink-faint:#8b8898;
+    --accent:#57068c; --accent-soft:#f2e9f8; --accent-line:#ddc7ec; --on-accent:#ffffff;
+    --itp:#7048a8; --itp-bg:#f3eefb; --ima:#0b7285; --ima-bg:#e3f4f7; --lowres:#a1651a; --lowres-bg:#fbf0de;
+    --live:#2b8a3e; --live-bg:#e8f6ea; --wait:#b8600a; --wait-bg:#fdf1e2;
+    --stop:#c92a2a; --stop-bg:#fceceb; --idle:#6b6878; --idle-bg:#eeedf1;
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+    --shadow-lg: 0 2px 6px rgb(31 29 38 / .10), 0 12px 32px rgb(31 29 38 / .16);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:#1a1b1e; --raised:#212226; --sunken:#26272c; --line:#34353b; --line-strong:#4a4b53;
+    --ink:#e6e5ea; --ink-soft:#a5a3af; --ink-faint:#7b7987;
+    --accent:#b197fc; --accent-soft:#2b2440; --accent-line:#453a63; --on-accent:#1a1b1e;
+    --itp:#b197fc; --itp-bg:#2b2440; --ima:#4dc4d9; --ima-bg:#17343a; --lowres:#dfa441; --lowres-bg:#3a2e17;
+    --live:#63d67e; --live-bg:#16301d; --wait:#f0a45c; --wait-bg:#35240f;
+    --stop:#ff8785; --stop-bg:#3a1c1c; --idle:#9b98a6; --idle-bg:#2c2d33;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+    --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--ground);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0 0 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * { box-sizing: border-box; }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- app chrome -------------------------------------------------------- */
+
+  .appbar { border-bottom: 1px solid var(--line); background: var(--raised); position: sticky; top: 0; z-index: 40; }
+  .appbar .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
+  .brand { font-weight: 700; letter-spacing: -.01em; }
+  .brand span { color: var(--accent); }
+  .nav { display: flex; gap: 4px; margin-left: 8px; }
+  .nav a { padding: 5px 11px; border-radius: 7px; text-decoration: none; color: var(--ink-soft); font-size: 13.5px; }
+  .nav a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .whoami { margin-left: auto; display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-soft); }
+  .whoami select {
+    padding: 5px 9px; border: 1px solid var(--line-strong); border-radius: 7px;
+    background: var(--ground); font-size: 13px; max-width: 300px;
+  }
+
+  .picker { border-bottom: 1px solid var(--line); background: var(--ground); }
+  .picker .wrap { display: flex; align-items: center; gap: 10px; height: 48px; flex-wrap: wrap; }
+  .picker label { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); font-weight: 700; }
+  .picker select { padding: 5px 9px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--ground); font-size: 13px; }
+  .picker .note { margin-left: auto; font-size: 12px; color: var(--ink-faint); }
+
+  /* ---- the "reached from" strip ------------------------------------------ */
+
+  .reach { margin: 20px 0 4px; border: 1px dashed var(--line-strong); border-radius: 10px; background: var(--sunken); }
+  .reach > header {
+    display: flex; align-items: baseline; gap: 10px; padding: 8px 14px; border-bottom: 1px dashed var(--line-strong);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; color: var(--ink-faint);
+  }
+  .reach > header em { text-transform: none; letter-spacing: 0; font-weight: 400; font-style: normal; font-size: 12px; }
+  .reach .rows { padding: 6px 8px; }
+  .reach .grouphead {
+    display: flex; align-items: center; gap: 10px; padding: 6px 8px; font-weight: 600;
+    border-bottom: 1px solid var(--line);
+  }
+  .reach .srow {
+    display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 26px;
+    border-bottom: 1px solid var(--line); font-size: 13px;
+  }
+  .reach .srow:last-child, .reach .grouphead:last-child { border-bottom: 0; }
+  .reach .srow .grow, .reach .grouphead .grow { flex: 1; }
+  .reach .here { background: var(--accent-soft); border-radius: 6px; }
+  .reach .expandcue { color: var(--ink-faint); font-size: 12px; }
+
+  .openlink {
+    font-family: var(--mono); font-size: 12.5px; color: var(--accent); text-decoration: underline;
+    text-underline-offset: 2px; cursor: pointer; background: none; border: 0; padding: 0;
+  }
+  .openbtn {
+    border: 1px solid var(--line-strong); background: var(--ground); border-radius: 7px;
+    width: 26px; height: 24px; cursor: pointer; color: var(--ink-soft); line-height: 1;
+  }
+  .openbtn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---- shared bits ------------------------------------------------------- */
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; background: var(--sunken); color: var(--ink-soft);
+  }
+  .chip.itp    { background: var(--itp-bg);    color: var(--itp); }
+  .chip.ima    { background: var(--ima-bg);    color: var(--ima); }
+  .chip.lowres { background: var(--lowres-bg); color: var(--lowres); }
+  .chip.foreign { border: 1px dashed currentColor; background: transparent; }
+
+  .state { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .01em; }
+  .state.live { background: var(--live-bg); color: var(--live); }
+  .state.wait { background: var(--wait-bg); color: var(--wait); }
+  .state.stop { background: var(--stop-bg); color: var(--stop); }
+  .state.idle { background: var(--idle-bg); color: var(--idle); }
+
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  .none { color: var(--ink-faint); font-style: italic; }
+  .netid-fallback { font-family: var(--mono); font-size: 12.5px; }
+  .netid-fallback::after {
+    content: "no name on file"; font-family: var(--sans); font-style: italic;
+    color: var(--ink-faint); font-size: 11.5px; margin-left: 6px;
+  }
+  .pronouns { color: var(--ink-faint); font-size: 12px; margin-left: 5px; }
+  .lead-mark {
+    margin-left: 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+    font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 0 5px;
+  }
+  .warn {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+    color: var(--wait); background: var(--wait-bg); border-radius: 6px; padding: 2px 9px;
+  }
+
+  .crumbs { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-soft); padding: 20px 0 0; }
+  .crumbs a { color: var(--accent); text-decoration: none; }
+  .crumbs .sep { color: var(--ink-faint); }
+
+  .prov {
+    font-size: 12px; color: var(--ink-faint); display: flex; gap: 20px; flex-wrap: wrap;
+    padding: 10px 0 0; border-top: 1px solid var(--line); margin-top: 10px;
+  }
+  .prov b { font-weight: 600; color: var(--ink-soft); }
+
+  .sect { margin: 26px 0 0; }
+  .sect > h2 {
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-faint);
+    font-weight: 700; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 9px;
+  }
+  .sect > h2 .n { font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 12px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--ink-faint); font-weight: 700; padding: 7px 10px; border-bottom: 1px solid var(--line-strong);
+    white-space: nowrap;
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .tablewrap { overflow-x: auto; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 7px 22px; margin: 0; }
+  dl.facts dt { font-size: 12px; color: var(--ink-faint); font-weight: 600; }
+  dl.facts dd { margin: 0; }
+  dl.facts dd p { margin: 0 0 8px; max-width: 66ch; }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .grant { font-size: 11.5px; color: var(--ink-faint); margin-left: 4px; }
+
+  .actbar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .vbtn {
+    border: 1px solid var(--line-strong); background: var(--ground); border-radius: 8px;
+    padding: 5px 13px; cursor: pointer; font-size: 13px;
+  }
+  .vbtn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .vbtn:disabled { opacity: .45; cursor: not-allowed; }
+  .refusals { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+  .refusal { font-size: 12.5px; color: var(--ink-soft); display: flex; gap: 8px; align-items: baseline; }
+  .refusal b { font-family: var(--mono); font-size: 12px; color: var(--ink); font-weight: 600; }
+  .refusal .why::before { content: "— "; color: var(--ink-faint); }
+
+  .empty {
+    padding: 22px; border: 1px dashed var(--line-strong); border-radius: 10px;
+    color: var(--ink-soft); background: var(--sunken); font-size: 13px;
+  }
+  .empty b { display: block; color: var(--ink); margin-bottom: 3px; }
+
+  /* ---- A: dossier -------------------------------------------------------- */
+
+  .a-head { padding: 12px 0 0; }
+  .a-head h1 { margin: 0; font-size: 26px; letter-spacing: -.02em; }
+  .a-head .idline { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .a-head .idline .number { font-family: var(--mono); font-size: 15px; color: var(--ink-soft); }
+  .a-head .meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 9px; }
+
+  .logtable td.ev  { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+  .logtable td.st  { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+  .logtable td.at  { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink-soft); font-size: 12.5px; }
+  .logtable td.rsn { color: var(--ink-soft); max-width: 30ch; }
+
+  /* ---- B: record --------------------------------------------------------- */
+
+  .b-card {
+    border: 1px solid var(--line); border-radius: 12px; background: var(--raised);
+    padding: 18px 20px; margin-top: 14px; box-shadow: var(--shadow);
+  }
+  .b-card h1 { margin: 2px 0 0; font-size: 24px; letter-spacing: -.02em; }
+  .b-card .over { font-family: var(--mono); font-size: 13px; color: var(--ink-soft); }
+  .b-card .row2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 11px; }
+  .b-card .acts { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line); }
+
+  .tabs { display: flex; gap: 2px; margin: 20px 0 0; border-bottom: 1px solid var(--line); }
+  .tabs button {
+    background: none; border: 0; border-bottom: 2px solid transparent; padding: 9px 15px;
+    cursor: pointer; color: var(--ink-soft); font-size: 13.5px;
+  }
+  .tabs button.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tabs button .c { color: var(--ink-faint); font-weight: 400; margin-left: 5px; font-size: 12px; }
+  .tabbody { padding-top: 18px; }
+
+  .timeline { display: flex; flex-direction: column; }
+  .tl {
+    display: grid; grid-template-columns: 13px 1fr; gap: 14px; padding: 0 0 16px;
+  }
+  .tl .dotcol { display: flex; flex-direction: column; align-items: center; }
+  .tl .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--line-strong); margin-top: 5px; flex: none; }
+  .tl .dot.live { background: var(--live); } .tl .dot.wait { background: var(--wait); }
+  .tl .dot.stop { background: var(--stop); } .tl .dot.idle { background: var(--idle); }
+  .tl .stem { width: 1px; flex: 1; background: var(--line); margin-top: 4px; }
+  .tl:last-child .stem { display: none; }
+  .tl .said { max-width: 74ch; }
+  .tl .said b { font-weight: 600; }
+  .tl .when { color: var(--ink-faint); font-size: 12px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tl .quote { color: var(--ink-soft); font-style: italic; }
+  .tl.derived .said { color: var(--ink-soft); }
+  .tl.derived .dot { background: transparent; border: 1px solid var(--line-strong); }
+  .tl .flag {
+    display: inline-block; margin-left: 7px; font-size: 11px; color: var(--wait);
+    border: 1px dashed var(--wait); border-radius: 5px; padding: 0 5px; vertical-align: 1px;
+  }
+
+  .termgroup { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+  .termgroup > header {
+    padding: 8px 13px; background: var(--sunken); border-bottom: 1px solid var(--line);
+    font-weight: 700; font-size: 13px; display: flex; align-items: baseline; gap: 9px;
+  }
+  .termgroup > header .n { font-weight: 400; color: var(--ink-faint); font-size: 12px; }
+
+  /* ---- C: rail ----------------------------------------------------------- */
+
+  .c-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 34px; align-items: start; margin-top: 14px; }
+  @media (max-width: 900px) { .c-grid { grid-template-columns: minmax(0, 1fr); } }
+  .c-rail { position: sticky; top: 118px; display: flex; flex-direction: column; gap: 18px; }
+  .railbox { border: 1px solid var(--line); border-radius: 11px; background: var(--raised); padding: 14px 15px; }
+  .railbox > h3 {
+    margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--ink-faint); font-weight: 700;
+  }
+  .c-head h1 { margin: 4px 0 0; font-size: 25px; letter-spacing: -.02em; }
+  .c-head .number { font-family: var(--mono); font-size: 14px; color: var(--ink-soft); }
+
+  .feed { display: flex; flex-direction: column; gap: 11px; font-size: 12.5px; }
+  .feed .f { display: flex; flex-direction: column; gap: 2px; }
+  .feed .f .l1 { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .feed .f .who { font-weight: 600; }
+  .feed .f .mv {
+    font-family: var(--mono); font-size: 11px; background: var(--sunken); color: var(--ink-soft);
+    border-radius: 5px; padding: 0 5px;
+  }
+  .feed .f .arrow { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+  .feed .f .when { color: var(--ink-faint); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .feed .f .rsn { color: var(--ink-soft); font-style: italic; }
+  .feed .f.derived .who { font-weight: 400; color: var(--ink-soft); }
+  .feed .more { font-size: 12px; color: var(--accent); cursor: pointer; background: none; border: 0; padding: 0; text-align: left; }
+
+  /* ---- variant switcher -------------------------------------------------- */
+
+  .switcher {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 80;
+    display: flex; align-items: center; gap: 4px; padding: 5px 6px;
+    background: var(--ink); color: var(--ground); border-radius: 999px; box-shadow: var(--shadow-lg);
+    font-size: 13px;
+  }
+  .switcher button {
+    background: transparent; border: 0; color: var(--ground); cursor: pointer;
+    width: 28px; height: 28px; border-radius: 999px; font-size: 15px; line-height: 1;
+  }
+  .switcher button:hover { background: rgb(255 255 255 / .18); }
+  .switcher .label { padding: 0 6px; white-space: nowrap; }
+  .switcher .key { font-weight: 700; background: rgb(255 255 255 / .18); border-radius: 6px; padding: 1px 7px; margin-right: 7px; }
+  .switcher .hint { opacity: .5; font-size: 11px; padding-right: 6px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .vbtn, .tabs button, .openbtn { transition: background-color .12s, color .12s, border-color .12s; }
+  }
+</style>
+
+<div class="appbar">
+  <div class="wrap">
+    <div class="brand">Lineup<span>.</span></div>
+    <nav class="nav">
+      <a href="#" id="nav-catalog">Catalog</a>
+      <a href="#" id="nav-lineup">Lineup</a>
+      <a href="#">Roles</a>
+    </nav>
+    <div class="whoami">
+      <span>Viewing as</span>
+      <select id="actor"></select>
+    </div>
+  </div>
+</div>
+
+<div class="picker">
+  <div class="wrap">
+    <label for="record">Record</label>
+    <select id="record"></select>
+    <span class="note" id="note"></span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="view"></div>
+</div>
+
+<div class="switcher" role="group" aria-label="Prototype variant">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span class="label"><span class="key" id="vkey">A</span><span id="vname"></span></span>
+  <button id="next" aria-label="Next variant">→</button>
+  <span class="hint">← → to cycle</span>
+</div>
+
+<script>
+/* ==========================================================================
+   Fixtures — hand-written, shaped to docs/schema/classes.sql + people.sql, and
+   continuous with the cast in catalog-lineup-views.html and roles-page.html.
+
+   Deliberately exercises, because #41 asks about each:
+
+     · a course with a dense approval history and an edition of 3
+     · a course with nothing at all — no area, no offerings, no log rows
+     · an offering whose lead answered (PComp §1, Running, seven log rows)
+     · an offering that was deferred, withdrawn from, re-staffed and declined
+       (PComp §3) — two different people held position 0 in one term, which is
+       what breaks any history line that claims to name the person an `offer`
+       went to
+     · a LowRes offering whose lead has no `people` row, and whose meetings are
+       `dates` and `async` rather than `weekly`
+     · seat-sharing tags with a granter from another program
+     · a person with `pronouns` and a person without
+   ========================================================================== */
+
+const PEOPLE = {
+  na2481: { name: "Nora Applebaum", pronouns: "she/her" },
+  tv1067: { name: "Theo Vance",     pronouns: "he/him" },
+  pr3390: { name: "Priya Raman",    pronouns: "she/her" },
+  mo5512: { name: "Marcus Ola",     pronouns: "he/him" },
+  ab9034: { name: "Amina Bello",    pronouns: "she/her" },
+  rc1129: { name: "Rui Chen",       pronouns: "they/them" },
+  jl8802: { name: "Jae Lin",        pronouns: null },      // stored, none given
+  // xq7742 deliberately absent — on a roster, and in a log, with no person row
+};
+
+const ACTORS = [
+  { netid: "pr3390", roles: ["coordinator", "program_director"], programs: ["ITP"],
+    label: "Priya Raman — coordinator + ITP director" },
+  { netid: "na2481", roles: ["instructor", "area_head"], programs: [],
+    label: "Nora Applebaum — instructor + area head" },
+  { netid: "ab9034", roles: ["program_director"], programs: ["IMA"],
+    label: "Amina Bello — IMA director" },
+  { netid: "mo5512", roles: ["student"], programs: [],
+    label: "Marcus Ola — student" },
+  { netid: "tv1067", roles: ["chair", "instructor"], programs: [],
+    label: "Theo Vance — chair (+ instructor)" },
+];
+
+const TERMS = { "20253": "Fall 2025", "20261": "Spring 2026" };
+
+const COMMITTED = ["Accepted","Scheduled","Published","Listed","Running","Evaluating","Concluded","Canceled"];
+
+const TONE = {
+  Slated:"idle", Staffed:"wait", Offered:"wait", Deferred:"wait", Declined:"stop", Dead:"stop",
+  Accepted:"live", Scheduled:"live", Published:"live", Listed:"live", Running:"live",
+  Evaluating:"idle", Concluded:"idle", Canceled:"stop",
+  Approved:"live", Revising:"wait", Retired:"idle",
+};
+
+/* --- courses ------------------------------------------------------------ */
+
+const COURSES = [
+  { id:1, prog:"ITP", number:"ITPG-GT 2233", title:"Physical Computing", credits:4, edition:3,
+    state:"Approved", areaHead:"na2481",
+    description:"Physical Computing takes a hands-on approach to the way people and computers meet. Students build interactive devices from sensors, actuators and microcontrollers, working from the assumption that a computer is something you can touch, stand in front of, or wear.",
+    url:"https://itp.nyu.edu/physcomp/",
+    areas:[{p:"ITP",n:"Physical Interaction"}], cats:[{p:"ITP",n:"Core"}],
+    createdBy:"tv1067", createdAt:"2019-04-08T11:20", updatedBy:"pr3390", updatedAt:"2025-03-02T15:41" },
+
+  { id:3, prog:"ITP", number:"ITPG-GT 3011", title:"Speculative Objects", credits:2, edition:1,
+    state:"Approved", areaHead:null,
+    description:"A studio in design fiction: objects from futures that have not arrived, made well enough to be believed.",
+    url:null,
+    areas:[], cats:[{p:"ITP",n:"Elective"}],
+    createdBy:"pr3390", createdAt:"2026-01-15T09:02", updatedBy:null, updatedAt:null },
+
+  { id:6, prog:"LOWRES", number:"IMLR-GT 1500", title:"Machine Vision Intensive", credits:4, edition:1,
+    state:"Approved", areaHead:"jl8802",
+    description:"Two weeks in residence on cameras as instruments: what a machine sees, what it cannot, and what it makes up.",
+    url:null,
+    areas:[{p:"LOWRES",n:"Computer Vision"}], cats:[{p:"LOWRES",n:"Residency Intensive"}],
+    createdBy:"rc1129", createdAt:"2024-09-30T14:00", updatedBy:null, updatedAt:null },
+];
+
+/* --- offerings ---------------------------------------------------------- */
+/* `foreignAreas` / `foreignCats` are seat-sharing grants: another program's tag
+   on this program's offering, written by that program's director (#25, #30),
+   each carrying `granted_by` / `granted_at`. */
+
+const OFFERINGS = [
+  { id:101, course:1, term:"20253", section:"1", state:"Running",
+    roster:["na2481","rc1129"], cap:24, mode:"In person",
+    call:"18441", sis:9032, url:null,
+    meetings:[
+      { kind:"weekly", day:"Mon", start:"18:30", end:"21:00", room:"370J-447" },
+      { kind:"weekly", day:"Wed", start:"15:20", end:"16:20", room:"370J-410" },
+    ],
+    foreignAreas:[{p:"IMA",n:"Code & Media",by:"ab9034",at:"2025-05-10T10:14"}],
+    foreignCats:[{p:"IMA",n:"Foundations",by:"ab9034",at:"2025-05-10T10:14"}],
+    createdBy:"pr3390", createdAt:"2025-03-04T12:58", updatedBy:"pr3390", updatedAt:"2025-08-28T16:12" },
+
+  { id:102, course:1, term:"20253", section:"2", state:"Slated",
+    roster:[], cap:24, mode:"In person", call:null, sis:null, url:null,
+    meetings:[{ kind:"weekly", day:"Tue", start:"18:30", end:"21:00", room:"370J-447" }],
+    foreignAreas:[], foreignCats:[],
+    createdBy:"pr3390", createdAt:"2025-03-04T13:00", updatedBy:null, updatedAt:null },
+
+  { id:103, course:1, term:"20253", section:"3", state:"Declined",
+    roster:[], cap:24, mode:"In person", call:null, sis:null, url:null,
+    meetings:[{ kind:"weekly", day:"Thu", start:"18:30", end:"21:00", room:"370J-447" }],
+    foreignAreas:[], foreignCats:[],
+    createdBy:"pr3390", createdAt:"2025-03-04T13:04", updatedBy:null, updatedAt:null },
+
+  { id:201, course:1, term:"20261", section:"1", state:"Slated",
+    roster:[], cap:24, mode:"In person", call:null, sis:null, url:null,
+    meetings:[{ kind:"weekly", day:"Mon", start:"18:30", end:"21:00", room:"370J-447" }],
+    foreignAreas:[], foreignCats:[],
+    createdBy:"pr3390", createdAt:"2026-01-09T10:30", updatedBy:null, updatedAt:null },
+
+  { id:108, course:6, term:"20261", section:"1", state:"Accepted",
+    roster:["xq7742"], cap:14, mode:"Low residency",
+    call:"20117", sis:11840, url:"https://lowres.nyu.edu/mvi",
+    meetings:[
+      { kind:"dates", from:"2026-01-05", to:"2026-01-16", start:"10:00", end:"16:00", room:"370J-Commons" },
+      { kind:"async" },
+    ],
+    foreignAreas:[{p:"ITP",n:"Physical Interaction",by:"pr3390",at:"2025-11-02T09:41"}],
+    foreignCats:[],
+    createdBy:"rc1129", createdAt:"2025-06-02T10:55", updatedBy:"rc1129", updatedAt:"2025-06-20T13:00" },
+];
+
+/* --- transition logs ---------------------------------------------------- */
+/* Exactly the seven stored columns. **No genesis row** (#13): creation is
+   `created_at` / `created_by` on the entity row, so every one of these lists
+   begins mid-story. What each variant does about that is one of the questions. */
+
+const LOG = {
+  "course:1": [
+    { event:"revise",  from:"Approved", to:"Revising", actor:"pr3390", subject:null, reason:"Adding a sensors unit for 2024", at:"2023-11-02T10:12" },
+    { event:"approve", from:"Revising", to:"Approved", actor:"na2481", subject:null, reason:null, at:"2023-11-20T16:40" },
+    { event:"revise",  from:"Approved", to:"Revising", actor:"pr3390", subject:null, reason:"Credits corrected, 2 to 4", at:"2025-01-14T09:05" },
+    { event:"approve", from:"Revising", to:"Approved", actor:"pr3390", subject:null, reason:null, at:"2025-01-28T11:30" },
+  ],
+  "course:3": [],
+  "course:6": [],
+
+  "offering:101": [
+    { event:"staff",    from:"Slated",    to:"Staffed",   actor:"pr3390", subject:"na2481", reason:null, at:"2025-03-04T13:02" },
+    { event:"offer",    from:"Staffed",   to:"Offered",   actor:"pr3390", subject:null, reason:null, at:"2025-03-04T13:03" },
+    { event:"accept",   from:"Offered",   to:"Accepted",  actor:"na2481", subject:null, reason:null, at:"2025-03-06T08:47" },
+    { event:"schedule", from:"Accepted",  to:"Scheduled", actor:"pr3390", subject:null, reason:null, at:"2025-04-11T10:20" },
+    { event:"publish",  from:"Scheduled", to:"Published", actor:"pr3390", subject:null, reason:null, at:"2025-05-02T09:00" },
+    { event:"list",     from:"Published", to:"Listed",    actor:"pr3390", subject:null, reason:null, at:"2025-07-15T14:30" },
+    { event:"run",      from:"Listed",    to:"Running",   actor:"pr3390", subject:null, reason:null, at:"2025-09-02T09:00" },
+  ],
+  "offering:102": [],
+  "offering:103": [
+    { event:"staff",    from:"Slated",   to:"Staffed",  actor:"pr3390", subject:"tv1067", reason:null, at:"2025-03-04T13:05" },
+    { event:"offer",    from:"Staffed",  to:"Offered",  actor:"pr3390", subject:null, reason:null, at:"2025-03-04T13:06" },
+    { event:"defer",    from:"Offered",  to:"Deferred", actor:"tv1067", subject:null, reason:"Waiting on the sabbatical decision", at:"2025-03-10T11:15" },
+    { event:"withdraw", from:"Deferred", to:"Slated",   actor:"pr3390", subject:"tv1067", reason:"The section had to be confirmed by 1 April", at:"2025-04-01T09:30" },
+    { event:"staff",    from:"Slated",   to:"Staffed",  actor:"pr3390", subject:"ab9034", reason:null, at:"2025-04-03T10:00" },
+    { event:"offer",    from:"Staffed",  to:"Offered",  actor:"pr3390", subject:null, reason:null, at:"2025-04-03T10:01" },
+    { event:"decline",  from:"Offered",  to:"Declined", actor:"pr3390", subject:"ab9034", reason:"Clash with her IMA teaching load", at:"2025-04-09T17:22" },
+  ],
+  "offering:201": [],
+  "offering:108": [
+    { event:"staff",  from:"Slated",  to:"Staffed",  actor:"rc1129", subject:"xq7742", reason:null, at:"2025-06-02T11:00" },
+    { event:"offer",  from:"Staffed", to:"Offered",  actor:"rc1129", subject:null, reason:null, at:"2025-06-02T11:01" },
+    { event:"accept", from:"Offered", to:"Accepted", actor:"xq7742", subject:null, reason:null, at:"2025-06-05T07:12" },
+  ],
+};
+
+/* --- the records this prototype can open -------------------------------- */
+
+const RECORDS = [
+  { key:"c1",  kind:"course",   id:1,   label:"Course · ITPG-GT 2233 Physical Computing — dense history, edition 3",
+    note:"Four sections across two terms, two approved revisions, and a field edit the log is forbidden to record." },
+  { key:"o101",kind:"offering", id:101, label:"Class · Physical Computing §1, Fall 2025 — Running",
+    note:"The full forward path, two co-instructors, two meeting rows in two rooms, seat shared with IMA." },
+  { key:"o103",kind:"offering", id:103, label:"Class · Physical Computing §3, Fall 2025 — Declined",
+    note:"Deferred, withdrawn, re-staffed, declined. Two people held position 0; nobody holds it now." },
+  { key:"o108",kind:"offering", id:108, label:"Class · Machine Vision Intensive §1, Spring 2026 — Accepted",
+    note:"LowRes: `dates` and `async` meetings, and a lead with no row in `people`." },
+  { key:"c3",  kind:"course",   id:3,   label:"Course · ITPG-GT 3011 Speculative Objects — nothing yet",
+    note:"No area, no head, no offerings, no history. Every empty state on one page." },
+];
+
+/* ==========================================================================
+   Read model — assembled here the way `getCoursePage` / `getOfferingPage`
+   would assemble it server-side, per #9's view-shaped read modules.
+   ========================================================================== */
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const courseOf = id => COURSES.find(c => c.id === id);
+const offeringOf = id => OFFERINGS.find(o => o.id === id);
+const offeringsOfCourse = id => OFFERINGS.filter(o => o.course === id);
+
+const isChair = a => a.roles.includes("chair");
+const isDirectorOf = (a, p) => a.roles.includes("program_director") && a.programs.includes(p);
+const canAct = a => a.roles.some(r => ["instructor","coordinator","program_director","area_head","chair"].includes(r));
+
+/* #9: displayName is nullable, and a roster entry is never dropped for want of
+   a name. The fallback is the netid — a real identifier at NYU. */
+const nameOf = n => PEOPLE[n]?.name ?? n;
+const named = n => PEOPLE[n]
+  ? `<span>${esc(PEOPLE[n].name)}</span>`
+  : `<span class="netid-fallback">${esc(n)}</span>`;
+
+/* `pronouns` show where a person is presented as a person — the roster — and
+   never on a history line, where they are the subject of a timestamp (#40). */
+function person(n, { lead = false, pronouns = false } = {}) {
+  const p = PEOPLE[n];
+  const pr = pronouns && p?.pronouns ? `<span class="pronouns">${esc(p.pronouns)}</span>` : "";
+  const mark = lead ? `<span class="lead-mark">lead</span>` : "";
+  return `${named(n)}${pr}${mark}`;
+}
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmt(iso, { time = true } = {}) {
+  if (!iso) return "—";
+  const [d, t] = iso.split("T");
+  const [y, m, day] = d.split("-");
+  const date = `${+day} ${MONTHS[+m - 1]} ${y}`;
+  if (!time || !t) return date;
+  let [hh, mm] = t.split(":").map(Number);
+  const ap = hh < 12 ? "am" : "pm";
+  hh = hh % 12 || 12;
+  return `${date}, ${hh}:${String(mm).padStart(2, "0")} ${ap}`;
+}
+const fmtDate = iso => fmt(iso, { time: false });
+
+/* One row per slot, three declared kinds (#10). The display string is gone: the
+   view composes from rows, which is why an offering can meet in two rooms. */
+function meetingText(m) {
+  if (m.kind === "async") return "Asynchronous — no scheduled meeting";
+  if (m.kind === "weekly") return `${m.day} ${m.start}–${m.end}`;
+  return `${fmtDate(m.from)} – ${fmtDate(m.to)}, ${m.start}–${m.end}`;
+}
+
+function notOfferable(c) {
+  const missing = [];
+  if (!c.areas.length) missing.push("an area");
+  if (!c.areaHead) missing.push("an area head");
+  return missing.length ? `Needs ${missing.join(" and ")} before it can be offered` : null;
+}
+
+/* Per-row permitted-action set: machine legality ∩ invariants ∩ permissions,
+   already intersected server-side (#28). A refusal ships with its reason
+   attached — #14's rule that the rule and the explanation are one object. */
+const OFFERING_EVENTS = {
+  Slated:["staff","kill"], Staffed:["offer","unstaff","kill"],
+  Offered:["accept","decline","withdraw","defer"], Deferred:["accept","decline","withdraw"],
+  Accepted:["schedule","decline","cancel"], Declined:["retry","kill"],
+  Scheduled:["publish","decline","cancel"], Published:["list","decline","cancel"],
+  Listed:["run","cancel"], Running:["evaluate","cancel"],
+  Evaluating:["conclude"], Canceled:["retry","kill"], Concluded:[], Dead:[],
+};
+const LEAD_ONLY = ["accept","decline","defer"];
+
+function offeringActions(actor, o) {
+  const c = courseOf(o.course);
+  const lead = o.roster[0] ?? null;
+  return (OFFERING_EVENTS[o.state] ?? []).map(ev => {
+    if (LEAD_ONLY.includes(ev)) {
+      if (lead === actor.netid) return { ev, ok:true };
+      if (!lead) return { ev, ok:false, why:"No lead instructor to answer for this section" };
+      return { ev, ok:false, why:`Only ${nameOf(lead)}, the lead instructor, can ${ev} this` };
+    }
+    if (ev === "retry" && !lead && o.state === "Canceled")
+      return { ev, ok:false, why:"Nothing to reinstate — this section has no instructor" };
+    if (isChair(actor)) return { ev, ok:true };
+    if (isDirectorOf(actor, c.prog) || (actor.roles.includes("coordinator") && c.prog === "ITP"))
+      return { ev, ok:true };
+    if (actor.roles.includes("area_head") && c.areaHead === actor.netid)
+      return { ev, ok:false, why:"Heading an area lets you approve the course, not run its sections" };
+    return { ev, ok:false, why:`${c.prog} sections are the ${c.prog} director's to move` };
+  });
+}
+
+function courseActions(actor, c) {
+  const evs = c.state === "Revising" ? ["approve","retire"]
+            : c.state === "Retired"  ? []
+            : ["revise","retire"];
+  const live = offeringsOfCourse(c.id).filter(o =>
+    ["Slated","Staffed","Offered","Accepted","Deferred","Scheduled","Published","Listed","Running"].includes(o.state));
+  return evs.map(ev => {
+    if (ev === "retire" && live.length) {
+      const list = live.map(o => `§${o.section} ${TERMS[o.term]}`).join(", ");
+      return { ev, ok:false, why:`${live.length} section${live.length > 1 ? "s are" : " is"} still live — ${list}` };
+    }
+    if (isChair(actor)) return { ev, ok:true };
+    if (isDirectorOf(actor, c.prog)) return { ev, ok:true };
+    if (ev === "approve" && c.areaHead === actor.netid) return { ev, ok:true };
+    if (c.areaHead === actor.netid)
+      return { ev, ok:false, why:"An area head signs off on a revision but does not open one" };
+    return { ev, ok:false, why:`${c.prog} courses are the ${c.prog} director's to change` };
+  });
+}
+
+/* The log is Tier 2: any *acting* role. `student` and `advisor` get no history
+   section at all — absent, not empty (#28, #40). */
+const seesHistory = actor => canAct(actor);
+
+/* Tier 1 vs Tier 2 on the record itself. A `student` may read an offering only
+   in `COMMITTED_STATES` (#28) — in a *list* the row is simply absent, but a page
+   has a URL, so the page has to say something. #37's rule that a hidden row must
+   not announce itself applies here too: the refusal names no state. */
+const seesOffering = (actor, o) => canAct(actor) || COMMITTED.includes(o.state);
+
+function logFor(rec) { return LOG[`${rec.kind}:${rec.id}`] ?? []; }
+
+/* ==========================================================================
+   Shared fragments
+   ========================================================================== */
+
+function chip(p, n, foreign, by, at) {
+  const cls = p.toLowerCase();
+  const label = foreign ? `${p} · ${n}` : n;
+  const grant = foreign && by ? `<span class="grant">granted by ${nameOf(by)}, ${fmtDate(at)}</span>` : "";
+  return `<span class="chip ${cls}${foreign ? " foreign" : ""}">${esc(label)}</span>${grant}`;
+}
+
+const stateChip = s => `<span class="state ${TONE[s]}">${esc(s)}</span>`;
+
+/* The offering page's link up to its course. Only a live link where this
+   prototype actually holds that course — a dead control teaches nothing. */
+function courseLink(courseId, text) {
+  const key = RECORDS.find(r => r.kind === "course" && r.id === courseId)?.key;
+  return key ? `<a href="#" data-open="${key}">${esc(text)}</a>`
+             : `<span class="none">${esc(text)} — not in this prototype</span>`;
+}
+
+function actionBlock(actions, { primary = true } = {}) {
+  if (!actions.length) return `<span class="none">No moves from here.</span>`;
+  const allowed = actions.filter(a => a.ok);
+  const refused = actions.filter(a => !a.ok);
+  const btns = actions.map((a, i) => a.ok
+    ? `<button class="vbtn${primary && i === 0 ? " primary" : ""}" type="button">${esc(a.ev)}</button>`
+    : `<button class="vbtn" type="button" disabled>${esc(a.ev)}</button>`).join("");
+  const why = refused.map(a =>
+    `<span class="refusal"><b>${esc(a.ev)}</b><span class="why">${esc(a.why)}</span></span>`).join("");
+  const none = allowed.length ? "" :
+    `<div class="refusal" style="margin-bottom:8px"><span class="why" style="margin-left:0">Nothing here is yours to do.</span></div>`;
+  return `${none}<div class="actbar">${btns}</div>${why ? `<div class="refusals">${why}</div>` : ""}`;
+}
+
+function rosterList(o) {
+  if (!o.roster.length) return `<div class="empty"><b>No instructor yet</b>Position 0 is empty, so this section cannot be offered to anyone.</div>`;
+  return `<table><thead><tr><th>Position</th><th>Instructor</th></tr></thead><tbody>${
+    o.roster.map((n, i) => `<tr>
+      <td class="num">${i}</td>
+      <td>${person(n, { lead: i === 0, pronouns: true })}</td>
+    </tr>`).join("")}</tbody></table>`;
+}
+
+function meetingsTable(o) {
+  if (!o.meetings.length) return `<div class="empty"><b>No meeting pattern</b>Nothing has been scheduled for this section.</div>`;
+  return `<table><thead><tr><th>Kind</th><th>When</th><th>Room</th></tr></thead><tbody>${
+    o.meetings.map(m => `<tr>
+      <td><span class="mono">${esc(m.kind)}</span></td>
+      <td>${esc(meetingText(m))}</td>
+      <td>${m.room ? esc(m.room) : `<span class="none">—</span>`}</td>
+    </tr>`).join("")}</tbody></table>`;
+}
+
+function provLine(r) {
+  const changed = r.updatedBy
+    ? `<span><b>Last changed</b> ${nameOf(r.updatedBy)}, ${fmt(r.updatedAt)}</span>`
+    : `<span><b>Last changed</b> never</span>`;
+  return `<div class="prov"><span><b>Created</b> ${nameOf(r.createdBy)}, ${fmt(r.createdAt)}</span>${changed}</div>`;
+}
+
+/* --- history, three ways ------------------------------------------------- */
+
+/* A: the seven stored columns, verbatim. Nothing is composed. */
+function historyTable(rows) {
+  return `<div class="tablewrap"><table class="logtable">
+    <thead><tr>
+      <th>event</th><th>from_state</th><th>to_state</th>
+      <th>actor_netid</th><th>subject_netid</th><th>reason</th><th>at</th>
+    </tr></thead><tbody>${rows.map(r => `<tr>
+      <td class="ev">${esc(r.event)}</td>
+      <td class="st">${esc(r.from)}</td>
+      <td class="st">${esc(r.to)}</td>
+      <td>${named(r.actor)}</td>
+      <td>${r.subject ? named(r.subject) : `<span class="none">—</span>`}</td>
+      <td class="rsn">${r.reason ? esc(r.reason) : `<span class="none">—</span>`}</td>
+      <td class="at">${fmt(r.at)}</td>
+    </tr>`).join("")}</tbody></table></div>`;
+}
+
+/* B: a sentence per row. Readable, and it invents wording the machine never
+   said — including, on `offer` and `accept`, a person it cannot name, because
+   #19 gave neither event a `subject_netid`. Those two are flagged here so the
+   cost is visible rather than argued about. */
+const PHRASE = {
+  staff:    r => [`named ${nameOf(r.subject)} as lead instructor`, false],
+  unstaff:  r => [`vacated the lead position`, false],
+  offer:    r => [`sent the offer out`, true],
+  accept:   r => [`recorded an acceptance`, true],
+  decline:  r => [`recorded ${nameOf(r.subject)}'s refusal`, false],
+  defer:    r => [`recorded a request for more time`, false],
+  withdraw: r => [`withdrew the offer to ${nameOf(r.subject)}`, false],
+  schedule: r => [`scheduled it`, false],
+  publish:  r => [`published it`, false],
+  list:     r => [`listed it in the catalog`, false],
+  run:      r => [`marked it running`, false],
+  evaluate: r => [`sent it to evaluation`, false],
+  conclude: r => [`concluded it`, false],
+  cancel:   r => [`cancelled the class`, false],
+  retry:    r => [`reinstated it`, false],
+  kill:     r => [`discarded it`, false],
+  revise:   r => [`opened it for revision`, false],
+  approve:  r => [`approved the revision`, false],
+  retire:   r => [`retired it`, false],
+};
+
+function historyTimeline(rows, rec) {
+  const first = `<div class="tl derived">
+    <div class="dotcol"><span class="dot"></span><span class="stem"></span></div>
+    <div><div class="said">${named(rec.createdBy)} created it</div>
+      <div class="when">${fmt(rec.createdAt)} · derived from <span class="mono">created_by</span>, not a log row</div></div>
+  </div>`;
+  const body = rows.map((r, i) => {
+    const [said, guessy] = (PHRASE[r.event] ?? (x => [x.event, false]))(r);
+    const flag = guessy ? `<span class="flag">no name on this row</span>` : "";
+    const quote = r.reason ? ` — <span class="quote">“${esc(r.reason)}”</span>` : "";
+    return `<div class="tl">
+      <div class="dotcol"><span class="dot ${TONE[r.to]}"></span><span class="stem"></span></div>
+      <div>
+        <div class="said"><b>${named(r.actor)}</b> ${said}${quote}${flag}</div>
+        <div class="when">${fmt(r.at)}</div>
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="timeline">${first}${body}</div>`;
+}
+
+/* C: one line per row that reads, with the machine's own values kept visible
+   beside it in mono — so nothing is composed that the log did not say. */
+function historyFeed(rows, rec, { limit = null } = {}) {
+  const shown = limit ? rows.slice(-limit) : rows;
+  const hidden = rows.length - shown.length;
+  const items = [...shown].reverse().map(r => `<div class="f">
+    <div class="l1">
+      <span class="who">${named(r.actor)}</span>
+      <span class="mv">${esc(r.event)}</span>
+      <span class="arrow">${esc(r.from)} → ${esc(r.to)}</span>
+    </div>
+    ${r.subject ? `<div class="when">on ${nameOf(r.subject)}</div>` : ""}
+    ${r.reason ? `<div class="rsn">“${esc(r.reason)}”</div>` : ""}
+    <div class="when">${fmt(r.at)}</div>
+  </div>`).join("");
+  const more = hidden > 0
+    ? `<button class="more" type="button" data-feed="all">Show ${hidden} earlier ${hidden === 1 ? "move" : "moves"}</button>`
+    : (limit && rows.length > 4 ? "" : "");
+  const created = `<div class="f derived">
+    <div class="l1"><span class="who">${named(rec.createdBy)} created it</span></div>
+    <div class="when">${fmt(rec.createdAt)}</div>
+  </div>`;
+  return `<div class="feed">${items}${more}${created}</div>`;
+}
+
+const emptyHistory = what => `<div class="empty"><b>Nothing has happened to this ${what} yet</b>It was created and has not moved since. Creating is not a transition, so the log has no row for it.</div>`;
+
+/* A page has a URL, so a hidden record has to answer for itself. The wording
+   deliberately says nothing about the state it is in — "this section is
+   Declined and you may not see it" leaks exactly what hiding it is for. */
+function notForYou(o) {
+  const c = courseOf(o.course);
+  return `<div class="crumbs"><a href="#">Lineup</a><span class="sep">/</span><span>${esc(TERMS[o.term])}</span></div>
+    <div class="empty" style="margin-top:22px">
+      <b>There is no section here</b>
+      ${esc(c.number)} has no section ${esc(o.section)} in ${esc(TERMS[o.term])} that you can see.
+      Try the ${esc(TERMS[o.term])} Lineup.
+    </div>`;
+}
+
+/* ==========================================================================
+   The "reached from" strip — how a page is reached, which is question one.
+   Each variant offers a different affordance on the same list row.
+   ========================================================================== */
+
+function reachStrip(rec) {
+  const v = state.variant;
+  const how = {
+    A: ["A linked identifier", "The number is a link. Clicking the row still expands it — the link is a smaller target inside the bigger one."],
+    B: ["An item in the ⋯ menu", "“Open class page” sits above the transitions in the menu #37 already built. No new control on the row."],
+    C: ["A dedicated ↗ control", "A separate control at the row's right edge, outside the expand target."],
+  }[v];
+
+  if (rec.kind === "course") {
+    const c = courseOf(rec.id);
+    return `<div class="reach">
+      <header>From the Catalog <em>${esc(how[0])} — ${esc(how[1])}</em></header>
+      <div class="rows">
+        <div class="grouphead here">
+          ${v === "A"
+            ? `<button class="openlink" data-open="${rec.key}">${esc(c.number)}</button>`
+            : `<span class="mono">${esc(c.number)}</span>`}
+          <span class="grow">${esc(c.title)}</span>
+          <span class="num">${c.credits} cr</span>
+          ${stateChip(c.state)}
+          ${v === "B" ? `<span class="mono openlink" data-open="${rec.key}">⋯ 2 ▾ Open course page</span>` : ""}
+          ${v === "C" ? `<button class="openbtn" data-open="${rec.key}" title="Open course page">↗</button>` : ""}
+          <span class="expandcue">▾ expands to its program group</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const o = offeringOf(rec.id);
+  const c = courseOf(o.course);
+  /* The list obeys #28's tiers: a section a student may not see is *absent*
+     from the group, never greyed. Which is why this strip thins out for
+     Marcus — and why the page he lands on has to refuse in its own words. */
+  const siblings = OFFERINGS
+    .filter(x => x.course === o.course && x.term === o.term)
+    .filter(x => seesOffering(state.actor, x));
+  return `<div class="reach">
+    <header>From the Lineup, ${esc(TERMS[o.term])} <em>${esc(how[0])} — ${esc(how[1])}</em></header>
+    <div class="rows">
+      <div class="grouphead">
+        <span class="mono">${esc(c.number)}</span>
+        <span class="grow">${esc(c.title)}</span>
+        <span class="expandcue">▾ the group — clicking here expands</span>
+      </div>
+      ${siblings.map(s => {
+        const here = s.id === o.id ? " here" : "";
+        const key = RECORDS.find(r => r.kind === "offering" && r.id === s.id)?.key;
+        const openable = key ? key : null;
+        return `<div class="srow${here}">
+          ${v === "A"
+            ? (openable ? `<button class="openlink" data-open="${openable}">§${esc(s.section)}</button>`
+                        : `<span class="mono">§${esc(s.section)}</span>`)
+            : `<span class="mono">§${esc(s.section)}</span>`}
+          <span class="grow">${s.roster.length ? nameOf(s.roster[0]) : `<span class="none">Needs an instructor</span>`}</span>
+          ${stateChip(s.state)}
+          ${v === "B" ? `<span class="mono ${openable ? "openlink" : "none"}"${openable ? ` data-open="${openable}"` : ""}>⋯ ▾ Open class page</span>` : ""}
+          ${v === "C" && openable ? `<button class="openbtn" data-open="${openable}" title="Open class page">↗</button>` : ""}
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
+/* ==========================================================================
+   Variant A — Dossier
+   One column. Everything on the page at once, in the order it is stated in.
+   History is the raw seven-column table: honest, unreadable, and the baseline
+   the other two are measured against.
+   ========================================================================== */
+
+function courseA(c, rec, actor) {
+  const rows = logFor(rec);
+  const offs = offeringsOfCourse(c.id);
+  const marker = notOfferable(c);
+  return `
+  <div class="crumbs"><a href="#">Catalog</a><span class="sep">/</span><span>${esc(c.number)}</span></div>
+  <div class="a-head">
+    <div class="idline"><span class="number">${esc(c.number)}</span>${stateChip(c.state)}</div>
+    <h1>${esc(c.title)}</h1>
+    <div class="meta">
+      <span class="chip ${c.prog.toLowerCase()}">${esc(c.prog)}</span>
+      <span>${c.credits} credits</span>
+      <span>Edition ${c.edition}</span>
+      ${marker ? `<span class="warn">${esc(marker)}</span>` : ""}
+    </div>
+  </div>
+
+  <div class="sect">
+    <h2>The course</h2>
+    <dl class="facts">
+      <dt>Description</dt><dd>${c.description ? `<p>${esc(c.description)}</p>` : `<span class="none">None recorded</span>`}</dd>
+      <dt>Link</dt><dd>${c.url ? `<a href="${esc(c.url)}">${esc(c.url)}</a>` : `<span class="none">None</span>`}</dd>
+      <dt>Areas</dt><dd>${c.areas.length ? `<div class="chips">${c.areas.map(a => chip(a.p, a.n, false)).join("")}</div>` : `<span class="none">Not yet assigned</span>`}</dd>
+      <dt>Requirements</dt><dd>${c.cats.length ? `<div class="chips">${c.cats.map(a => chip(a.p, a.n, false)).join("")}</div>` : `<span class="none">None</span>`}</dd>
+      <dt>Area head</dt><dd>${c.areaHead ? person(c.areaHead, { pronouns: true }) : `<span class="none">Not yet assigned</span>`}</dd>
+    </dl>
+  </div>
+
+  ${canAct(actor) ? `<div class="sect">
+    <h2>What you can do</h2>
+    ${actionBlock(courseActions(actor, c))}
+  </div>` : ""}
+
+  <div class="sect">
+    <h2>Sections <span class="n">every term</span></h2>
+    ${offs.length ? `<div class="tablewrap"><table>
+      <thead><tr><th>Term</th><th>Section</th><th>Status</th><th>Lead</th><th>Meets</th><th>Cap</th></tr></thead>
+      <tbody>${offs.map(o => `<tr>
+        <td>${esc(TERMS[o.term])}</td>
+        <td class="num">§${esc(o.section)}</td>
+        <td>${stateChip(o.state)}</td>
+        <td>${o.roster.length ? person(o.roster[0]) : `<span class="none">Needs an instructor</span>`}</td>
+        <td>${o.meetings.map(m => esc(meetingText(m))).join("<br>")}</td>
+        <td class="num">${o.cap ?? "—"}</td>
+      </tr>`).join("")}</tbody></table></div>`
+      : `<div class="empty"><b>This course has never been offered</b>No section of it exists in any term.</div>`}
+  </div>
+
+  ${seesHistory(actor) ? `<div class="sect">
+    <h2>History <span class="n">${rows.length} ${rows.length === 1 ? "row" : "rows"} in <code class="mono">course_transition</code></span></h2>
+    ${rows.length ? historyTable(rows) : emptyHistory("course")}
+  </div>` : ""}
+
+  ${provLine(c)}`;
+}
+
+function offeringA(o, rec, actor) {
+  const c = courseOf(o.course);
+  const rows = logFor(rec);
+  return `
+  <div class="crumbs"><a href="#">Lineup</a><span class="sep">/</span><span>${esc(TERMS[o.term])}</span><span class="sep">/</span><span>${esc(c.number)} §${esc(o.section)}</span></div>
+  <div class="a-head">
+    <div class="idline"><span class="number">${esc(c.number)} §${esc(o.section)}</span>${stateChip(o.state)}</div>
+    <h1>${esc(c.title)}</h1>
+    <div class="meta">
+      <span class="chip ${c.prog.toLowerCase()}">${esc(c.prog)}</span>
+      <span>${esc(TERMS[o.term])}</span>
+      <span>${c.credits} credits</span>
+      ${courseLink(o.course, "The course")}
+    </div>
+  </div>
+
+  <div class="sect">
+    <h2>Roster</h2>
+    ${rosterList(o)}
+  </div>
+
+  <div class="sect">
+    <h2>Meets <span class="n">${o.meetings.length} ${o.meetings.length === 1 ? "slot" : "slots"}</span></h2>
+    ${meetingsTable(o)}
+  </div>
+
+  <div class="sect">
+    <h2>The section</h2>
+    <dl class="facts">
+      <dt>Enrollment limit</dt><dd>${o.cap ?? `<span class="none">Not set</span>`}</dd>
+      <dt>Mode</dt><dd>${o.mode ? esc(o.mode) : `<span class="none">Not set</span>`}</dd>
+      <dt>Call number</dt><dd>${o.call ? `<span class="mono">${esc(o.call)}</span>` : `<span class="none">Not assigned</span>`}</dd>
+      <dt>SIS class number</dt><dd>${o.sis ? `<span class="mono">${o.sis}</span>` : `<span class="none">Not assigned</span>`}</dd>
+      <dt>Link</dt><dd>${o.url ? `<a href="${esc(o.url)}">${esc(o.url)}</a>` : `<span class="none">None</span>`}</dd>
+      <dt>Seats shared</dt><dd>${(o.foreignAreas.length || o.foreignCats.length)
+        ? `<div class="chips" style="flex-direction:column;align-items:flex-start;gap:5px">${
+            [...o.foreignAreas, ...o.foreignCats].map(t => `<div>${chip(t.p, t.n, true, t.by, t.at)}</div>`).join("")}</div>`
+        : `<span class="none">Not shared with another program</span>`}</dd>
+    </dl>
+  </div>
+
+  ${canAct(actor) ? `<div class="sect">
+    <h2>What you can do</h2>
+    ${actionBlock(offeringActions(actor, o))}
+  </div>` : ""}
+
+  ${seesHistory(actor) ? `<div class="sect">
+    <h2>History <span class="n">${rows.length} ${rows.length === 1 ? "row" : "rows"} in <code class="mono">offering_transition</code></span></h2>
+    ${rows.length ? historyTable(rows) : emptyHistory("section")}
+  </div>` : ""}
+
+  ${provLine(o)}`;
+}
+
+/* ==========================================================================
+   Variant B — Record
+   A header card carrying identity, status and the actions; the rest behind
+   tabs. History is a sentence per row.
+   ========================================================================== */
+
+function tabBar(tabs) {
+  return `<div class="tabs" role="tablist">${tabs.map(t =>
+    `<button type="button" role="tab" data-tab="${t.key}" class="${state.tab === t.key ? "on" : ""}">${esc(t.name)}${
+      t.count != null ? `<span class="c">${t.count}</span>` : ""}</button>`).join("")}</div>`;
+}
+
+function courseB(c, rec, actor) {
+  const rows = logFor(rec);
+  const offs = offeringsOfCourse(c.id);
+  const marker = notOfferable(c);
+  const tabs = [{ key:"details", name:"Details" }, { key:"offerings", name:"Sections", count: offs.length }];
+  if (seesHistory(actor)) tabs.push({ key:"history", name:"History", count: rows.length });
+  if (!tabs.some(t => t.key === state.tab)) state.tab = "details";
+
+  const byTerm = {};
+  offs.forEach(o => (byTerm[o.term] ??= []).push(o));
+
+  const body =
+    state.tab === "details" ? `<dl class="facts">
+        <dt>Description</dt><dd>${c.description ? `<p>${esc(c.description)}</p>` : `<span class="none">None recorded</span>`}</dd>
+        <dt>Link</dt><dd>${c.url ? `<a href="${esc(c.url)}">${esc(c.url)}</a>` : `<span class="none">None</span>`}</dd>
+        <dt>Areas</dt><dd>${c.areas.length ? `<div class="chips">${c.areas.map(a => chip(a.p, a.n, false)).join("")}</div>` : `<span class="none">Not yet assigned</span>`}</dd>
+        <dt>Requirements</dt><dd>${c.cats.length ? `<div class="chips">${c.cats.map(a => chip(a.p, a.n, false)).join("")}</div>` : `<span class="none">None</span>`}</dd>
+        <dt>Area head</dt><dd>${c.areaHead ? person(c.areaHead, { pronouns: true }) : `<span class="none">Not yet assigned</span>`}</dd>
+        <dt>Edition</dt><dd>${c.edition}</dd>
+      </dl>${provLine(c)}`
+    : state.tab === "offerings" ? (offs.length
+        ? Object.keys(byTerm).sort().map(t => `<div class="termgroup">
+            <header>${esc(TERMS[t])}<span class="n">${byTerm[t].length} section${byTerm[t].length > 1 ? "s" : ""}</span></header>
+            <table><tbody>${byTerm[t].map(o => `<tr>
+              <td class="num" style="width:60px">§${esc(o.section)}</td>
+              <td style="width:110px">${stateChip(o.state)}</td>
+              <td>${o.roster.length ? person(o.roster[0]) : `<span class="none">Needs an instructor</span>`}</td>
+              <td>${o.meetings.map(m => esc(meetingText(m))).join("<br>")}</td>
+            </tr>`).join("")}</tbody></table>
+          </div>`).join("")
+        : `<div class="empty"><b>This course has never been offered</b>No section of it exists in any term.</div>`)
+    : (rows.length ? historyTimeline(rows, c) : emptyHistory("course"));
+
+  return `
+  <div class="crumbs"><a href="#">Catalog</a><span class="sep">/</span><span>${esc(c.number)}</span></div>
+  <div class="b-card">
+    <div class="over">${esc(c.number)}</div>
+    <h1>${esc(c.title)}</h1>
+    <div class="row2">
+      ${stateChip(c.state)}
+      <span class="chip ${c.prog.toLowerCase()}">${esc(c.prog)}</span>
+      <span>${c.credits} credits</span>
+      <span>Edition ${c.edition}</span>
+      ${marker ? `<span class="warn">${esc(marker)}</span>` : ""}
+    </div>
+    ${canAct(actor) ? `<div class="acts">${actionBlock(courseActions(actor, c))}</div>` : ""}
+  </div>
+  ${tabBar(tabs)}
+  <div class="tabbody">${body}</div>`;
+}
+
+function offeringB(o, rec, actor) {
+  const c = courseOf(o.course);
+  const rows = logFor(rec);
+  const tabs = [{ key:"details", name:"Roster & meetings" }, { key:"offerings", name:"The section" }];
+  if (seesHistory(actor)) tabs.push({ key:"history", name:"History", count: rows.length });
+  if (!tabs.some(t => t.key === state.tab)) state.tab = "details";
+
+  const body =
+    state.tab === "details" ? `<div class="sect" style="margin-top:0"><h2>Roster</h2>${rosterList(o)}</div>
+        <div class="sect"><h2>Meets</h2>${meetingsTable(o)}</div>`
+    : state.tab === "offerings" ? `<dl class="facts">
+        <dt>Term</dt><dd>${esc(TERMS[o.term])}</dd>
+        <dt>Enrollment limit</dt><dd>${o.cap ?? `<span class="none">Not set</span>`}</dd>
+        <dt>Mode</dt><dd>${o.mode ? esc(o.mode) : `<span class="none">Not set</span>`}</dd>
+        <dt>Call number</dt><dd>${o.call ? `<span class="mono">${esc(o.call)}</span>` : `<span class="none">Not assigned</span>`}</dd>
+        <dt>SIS class number</dt><dd>${o.sis ? `<span class="mono">${o.sis}</span>` : `<span class="none">Not assigned</span>`}</dd>
+        <dt>Link</dt><dd>${o.url ? `<a href="${esc(o.url)}">${esc(o.url)}</a>` : `<span class="none">None</span>`}</dd>
+        <dt>Seats shared</dt><dd>${(o.foreignAreas.length || o.foreignCats.length)
+          ? [...o.foreignAreas, ...o.foreignCats].map(t => `<div>${chip(t.p, t.n, true, t.by, t.at)}</div>`).join("")
+          : `<span class="none">Not shared with another program</span>`}</dd>
+      </dl>${provLine(o)}`
+    : (rows.length ? historyTimeline(rows, o) : emptyHistory("section"));
+
+  return `
+  <div class="crumbs"><a href="#">Lineup</a><span class="sep">/</span><span>${esc(TERMS[o.term])}</span><span class="sep">/</span><span>${esc(c.number)} §${esc(o.section)}</span></div>
+  <div class="b-card">
+    <div class="over">${esc(c.number)} §${esc(o.section)} · ${esc(TERMS[o.term])}</div>
+    <h1>${esc(c.title)}</h1>
+    <div class="row2">
+      ${stateChip(o.state)}
+      <span class="chip ${c.prog.toLowerCase()}">${esc(c.prog)}</span>
+      <span>${c.credits} credits</span>
+      ${courseLink(o.course, "The course")}
+    </div>
+    ${canAct(actor) ? `<div class="acts">${actionBlock(offeringActions(actor, o))}</div>` : ""}
+  </div>
+  ${tabBar(tabs)}
+  <div class="tabbody">${body}</div>`;
+}
+
+/* ==========================================================================
+   Variant C — Rail
+   Left: what the record is. Right: what has happened to it, and what you may
+   do about it. History is a line that reads with the machine's values beside
+   it, so nothing is composed that the log did not say.
+   ========================================================================== */
+
+function railHistory(rows, rec, what, actor) {
+  if (!seesHistory(actor)) return "";
+  return `<div class="railbox">
+    <h3>History</h3>
+    ${rows.length ? historyFeed(rows, rec, { limit: state.feedFull ? null : 4 }) : `<span class="none">Nothing yet — it was created and has not moved.</span>`}
+  </div>`;
+}
+
+function railProv(r) {
+  return `<div class="railbox">
+    <h3>Provenance</h3>
+    <div class="feed">
+      <div class="f"><div class="l1"><span class="who">${named(r.createdBy)}</span><span class="mv">created</span></div><div class="when">${fmt(r.createdAt)}</div></div>
+      ${r.updatedBy
+        ? `<div class="f"><div class="l1"><span class="who">${named(r.updatedBy)}</span><span class="mv">last changed</span></div><div class="when">${fmt(r.updatedAt)}</div></div>`
+        : `<div class="f"><span class="none">Never changed since.</span></div>`}
+    </div>
+  </div>`;
+}
+
+function courseC(c, rec, actor) {
+  const rows = logFor(rec);
+  const offs = offeringsOfCourse(c.id);
+  const marker = notOfferable(c);
+  const byTerm = {};
+  offs.forEach(o => (byTerm[o.term] ??= []).push(o));
+
+  return `
+  <div class="crumbs"><a href="#">Catalog</a><span class="sep">/</span><span>${esc(c.number)}</span></div>
+  <div class="c-grid">
+    <div>
+      <div class="c-head">
+        <div class="number">${esc(c.number)}</div>
+        <h1>${esc(c.title)}</h1>
+        <div class="meta" style="display:flex;gap:11px;align-items:center;flex-wrap:wrap;margin-top:9px">
+          <span class="chip ${c.prog.toLowerCase()}">${esc(c.prog)}</span>
+          <span>${c.credits} credits</span>
+          <span>Edition ${c.edition}</span>
+          ${marker ? `<span class="warn">${esc(marker)}</span>` : ""}
+        </div>
+      </div>
+
+      ${c.description ? `<div class="sect"><h2>Description</h2><p style="max-width:66ch;margin:0">${esc(c.description)}</p></div>` : ""}
+
+      <div class="sect">
+        <h2>Where it sits</h2>
+        <dl class="facts">
+          <dt>Areas</dt><dd>${c.areas.length ? `<div class="chips">${c.areas.map(a => chip(a.p, a.n, false)).join("")}</div>` : `<span class="none">Not yet assigned</span>`}</dd>
+          <dt>Requirements</dt><dd>${c.cats.length ? `<div class="chips">${c.cats.map(a => chip(a.p, a.n, false)).join("")}</div>` : `<span class="none">None</span>`}</dd>
+          <dt>Area head</dt><dd>${c.areaHead ? person(c.areaHead, { pronouns: true }) : `<span class="none">Not yet assigned</span>`}</dd>
+          <dt>Link</dt><dd>${c.url ? `<a href="${esc(c.url)}">${esc(c.url)}</a>` : `<span class="none">None</span>`}</dd>
+        </dl>
+      </div>
+
+      <div class="sect">
+        <h2>Sections <span class="n">${offs.length} across ${Object.keys(byTerm).length} term${Object.keys(byTerm).length === 1 ? "" : "s"}</span></h2>
+        ${offs.length ? Object.keys(byTerm).sort().map(t => `<div class="termgroup">
+          <header>${esc(TERMS[t])}<span class="n">${byTerm[t].length} section${byTerm[t].length > 1 ? "s" : ""}</span></header>
+          <table><tbody>${byTerm[t].map(o => `<tr>
+            <td class="num" style="width:56px">§${esc(o.section)}</td>
+            <td style="width:110px">${stateChip(o.state)}</td>
+            <td>${o.roster.length ? person(o.roster[0]) : `<span class="none">Needs an instructor</span>`}</td>
+            <td>${o.meetings.map(m => esc(meetingText(m))).join("<br>")}</td>
+          </tr>`).join("")}</tbody></table>
+        </div>`).join("")
+        : `<div class="empty"><b>This course has never been offered</b>No section of it exists in any term.</div>`}
+      </div>
+    </div>
+
+    <aside class="c-rail">
+      <div class="railbox">
+        <h3>Status</h3>
+        <div style="margin-bottom:12px">${stateChip(c.state)}</div>
+        ${canAct(actor) ? actionBlock(courseActions(actor, c)) : ""}
+      </div>
+      ${railHistory(rows, c, "course", actor)}
+      ${railProv(c)}
+    </aside>
+  </div>`;
+}
+
+function offeringC(o, rec, actor) {
+  const c = courseOf(o.course);
+  const rows = logFor(rec);
+  return `
+  <div class="crumbs"><a href="#">Lineup</a><span class="sep">/</span><span>${esc(TERMS[o.term])}</span><span class="sep">/</span><span>${esc(c.number)} §${esc(o.section)}</span></div>
+  <div class="c-grid">
+    <div>
+      <div class="c-head">
+        <div class="number">${esc(c.number)} §${esc(o.section)} · ${esc(TERMS[o.term])}</div>
+        <h1>${esc(c.title)}</h1>
+        <div style="display:flex;gap:11px;align-items:center;flex-wrap:wrap;margin-top:9px">
+          <span class="chip ${c.prog.toLowerCase()}">${esc(c.prog)}</span>
+          <span>${c.credits} credits</span>
+          ${courseLink(o.course, "The course")}
+        </div>
+      </div>
+
+      <div class="sect"><h2>Roster</h2>${rosterList(o)}</div>
+      <div class="sect"><h2>Meets</h2>${meetingsTable(o)}</div>
+
+      <div class="sect">
+        <h2>The section</h2>
+        <dl class="facts">
+          <dt>Enrollment limit</dt><dd>${o.cap ?? `<span class="none">Not set</span>`}</dd>
+          <dt>Mode</dt><dd>${o.mode ? esc(o.mode) : `<span class="none">Not set</span>`}</dd>
+          <dt>Call number</dt><dd>${o.call ? `<span class="mono">${esc(o.call)}</span>` : `<span class="none">Not assigned</span>`}</dd>
+          <dt>SIS class number</dt><dd>${o.sis ? `<span class="mono">${o.sis}</span>` : `<span class="none">Not assigned</span>`}</dd>
+          <dt>Link</dt><dd>${o.url ? `<a href="${esc(o.url)}">${esc(o.url)}</a>` : `<span class="none">None</span>`}</dd>
+        </dl>
+      </div>
+
+      <div class="sect">
+        <h2>Seats shared</h2>
+        ${(o.foreignAreas.length || o.foreignCats.length)
+          ? [...o.foreignAreas, ...o.foreignCats].map(t => `<div style="margin-bottom:6px">${chip(t.p, t.n, true, t.by, t.at)}</div>`).join("")
+          : `<span class="none">Not shared with another program.</span>`}
+      </div>
+    </div>
+
+    <aside class="c-rail">
+      <div class="railbox">
+        <h3>Status</h3>
+        <div style="margin-bottom:12px">${stateChip(o.state)}</div>
+        ${canAct(actor) ? actionBlock(offeringActions(actor, o)) : ""}
+      </div>
+      ${railHistory(rows, o, "section", actor)}
+      ${railProv(o)}
+    </aside>
+  </div>`;
+}
+
+/* ==========================================================================
+   Wiring
+   ========================================================================== */
+
+const state = { variant: "A", record: "c1", actor: ACTORS[0], tab: "details", feedFull: false };
+
+const VARIANTS = [
+  { key:"A", name:"Dossier — one column, raw log table" },
+  { key:"B", name:"Record — header card, tabs, sentences" },
+  { key:"C", name:"Rail — main column plus a status rail" },
+];
+let vi = 0;
+
+const RENDER = {
+  A: { course: courseA, offering: offeringA },
+  B: { course: courseB, offering: offeringB },
+  C: { course: courseC, offering: offeringC },
+};
+
+function currentRecord() { return RECORDS.find(r => r.key === state.record) ?? RECORDS[0]; }
+
+function render() {
+  const rec = currentRecord();
+  const v = VARIANTS[vi];
+  state.variant = v.key;
+
+  document.getElementById("vkey").textContent = v.key;
+  document.getElementById("vname").textContent = v.name;
+  document.getElementById("note").textContent = rec.note;
+  document.getElementById("nav-catalog").className = rec.kind === "course" ? "on" : "";
+  document.getElementById("nav-lineup").className = rec.kind === "offering" ? "on" : "";
+
+  const entity = rec.kind === "course" ? courseOf(rec.id) : offeringOf(rec.id);
+  const page = (rec.kind === "offering" && !seesOffering(state.actor, entity))
+    ? notForYou(entity)
+    : RENDER[v.key][rec.kind](entity, rec, state.actor);
+
+  document.getElementById("view").innerHTML = reachStrip(rec) + page;
+}
+
+/* --- controls ----------------------------------------------------------- */
+
+const actorSel = document.getElementById("actor");
+ACTORS.forEach((a, i) => {
+  const o = document.createElement("option");
+  o.value = String(i); o.textContent = a.label;
+  actorSel.appendChild(o);
+});
+actorSel.addEventListener("change", e => { state.actor = ACTORS[+e.target.value]; render(); });
+
+const recSel = document.getElementById("record");
+RECORDS.forEach(r => {
+  const o = document.createElement("option");
+  o.value = r.key; o.textContent = r.label;
+  recSel.appendChild(o);
+});
+recSel.addEventListener("change", e => { state.record = e.target.value; state.tab = "details"; state.feedFull = false; render(); });
+
+document.getElementById("view").addEventListener("click", e => {
+  const open = e.target.closest("[data-open]");
+  if (open) {
+    e.preventDefault();
+    state.record = open.dataset.open;
+    state.tab = "details"; state.feedFull = false;
+    recSel.value = state.record;
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  const tab = e.target.closest("[data-tab]");
+  if (tab) { state.tab = tab.dataset.tab; render(); return; }
+  if (e.target.closest("[data-feed]")) { state.feedFull = true; render(); }
+});
+
+function step(d) {
+  vi = (vi + d + VARIANTS.length) % VARIANTS.length;
+  const u = new URL(location);
+  u.searchParams.set("variant", VARIANTS[vi].key);
+  history.replaceState(null, "", u);
+  render();
+}
+document.getElementById("prev").addEventListener("click", () => step(-1));
+document.getElementById("next").addEventListener("click", () => step(1));
+document.addEventListener("keydown", e => {
+  if (e.target.matches("select, input")) return;
+  if (e.key === "ArrowLeft")  step(-1);
+  if (e.key === "ArrowRight") step(1);
+});
+
+const start = new URL(location).searchParams.get("variant");
+if (start) {
+  const i = VARIANTS.findIndex(v => v.key === start.toUpperCase());
+  if (i >= 0) vi = i;
+}
+render();
+</script>
