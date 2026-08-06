@@ -152,6 +152,20 @@ export const machine = setup({
       // counted against them (Art. VI(B)). A limbo state between those two
       // obscures which one happened, and money turns on the difference.
       | { type: "defer" }
+      // Carries no payload, like every event here — but the Server Action puts
+      // the lead's netid on the transition log's `subject_netid`, as it does
+      // for `accept` below. That is new:
+      // https://github.com/nopivnick/lineup-prototype-03/issues/41 overturned
+      // https://github.com/nopivnick/lineup-prototype-03/issues/19's ruling that
+      // these two events need no subject because the roster row survives them.
+      //
+      // It survives the *event*. It does not survive the offering. `withdraw`
+      // and `decline` both DELETE position 0, and `staff` may then seat someone
+      // else — so a log read after any of that has `offer` attributable to
+      // nobody and `accept` attributable to whoever holds the roster now. Ticket
+      // 41's detail page is the first thing that reads the log, and PComp §3 in
+      // its prototype is the case: offered to one person, withdrawn, offered to
+      // a second, declined, position 0 empty.
       | { type: "offer" }
       | { type: "retry" }
       // `staff` / `unstaff` carry no payload. They record that position 0
@@ -160,6 +174,12 @@ export const machine = setup({
       // holds the netid and puts it on the transition log's `subject_netid`.
       // https://github.com/nopivnick/lineup-prototype-03/issues/15
       | { type: "staff" }
+      // Carries `subject_netid` on its log row since
+      // https://github.com/nopivnick/lineup-prototype-03/issues/41 — see the
+      // `offer` comment above. `actor_netid` is who clicked, which for an
+      // acceptance arriving by email is an admin exactly as it is for a refusal;
+      // ticket 8 extended `decline`'s reasoning to all three answers, and this
+      // extends the column with it.
       | { type: "accept" }
       // The department pulling a class it has committed to running. Available
       // **exactly downstream of `accept`** — `Accepted`, `Scheduled`,

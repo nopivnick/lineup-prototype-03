@@ -746,8 +746,15 @@ CREATE TABLE offering_transition (
   -- Who it was done to. issues/15 added it because a decline is routinely
   -- recorded by an admin and the roster row is deleted in the same transaction,
   -- so "who said no" would otherwise survive nowhere. Forced on `decline`,
-  -- `withdraw` and `staff`; deliberately absent on `offer` and `accept`, where
-  -- the roster row survives and answers "who is the lead" directly.
+  -- `withdraw` and `staff`.
+  --
+  -- Forced on `offer` and `accept` too, since issues/41. Those two were the
+  -- stated exception: issues/19 held that the roster row survives them and
+  -- answers "who is the lead" directly. It does — but it answers who the lead
+  -- is *now*, and a log is read later. An offering whose lead is withdrawn from
+  -- and re-staffed has its roster rewritten under the log, so `offer` becomes
+  -- unattributable and `accept` names whoever holds position 0 today. The
+  -- writer already holds the netid at both events, so this costs one assignment.
   subject_netid           text,
 
   -- Free text, optional. issues/19 parked this here and issues/10 settled it:
