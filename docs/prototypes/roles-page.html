@@ -11,6 +11,9 @@
     A — Grid       everyone in `people` × the seven roles; a cell is a grant
     B — Roster     one section per role, listing its holders; grant by search
     C — Records    one person at a time, all seven roles stated in the open
+    D — Settled    the shape the requester assembled from the three — see the
+                   resolution on #38. D is the answer; A/B/C are the primary
+                   source it was assembled from, kept beside it deliberately.
 
   Every **rule** here was settled by #34 — chair-only writes, Tier 1 reads, two
   writes to appoint a director, revoke refused while a live dependency exists, the
@@ -390,6 +393,41 @@
   .progpick button { cursor: pointer; }
   .progpick button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 
+  /* ---- D: the settled page ----------------------------------------------- */
+
+  .progstrip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 760px) { .progstrip { grid-template-columns: 1fr; } }
+  .progcard { padding: 11px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--raised); }
+  .progcard .code { font-weight: 700; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
+  .progcard .pname { font-size: 11.5px; color: var(--ink-faint); margin-bottom: 5px; }
+  .progcard .dir { font-size: 13.5px; }
+  .progcard.vacant { border-color: var(--wait); background: var(--wait-bg); }
+  .progcard.vacant .dir { color: var(--wait); font-weight: 600; }
+  .progcard.ITP  .code { color: var(--itp); }
+  .progcard.IMA  .code { color: var(--ima); }
+  .progcard.LowRes .code { color: var(--lowres); }
+
+  .viewbar {
+    display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+    padding: 8px 12px; margin-bottom: 14px; border-radius: 9px;
+    border: 1px dashed var(--line-strong); background: var(--sunken);
+    font-size: 12.5px; color: var(--ink-soft);
+  }
+  .viewbar .lab { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); }
+
+  .dsearch { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .dsearch input { width: 100%; }
+  .listlabel {
+    padding: 7px 13px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+    font-weight: 700; color: var(--ink-faint); background: var(--sunken);
+    border-bottom: 1px solid var(--line); border-top: 1px solid var(--line);
+  }
+  .noaccess {
+    padding: 46px 30px; text-align: center; color: var(--ink-soft);
+  }
+  .noaccess h2 { margin: 0 0 7px; font-size: 18px; color: var(--ink); }
+  .noaccess p { margin: 0 auto; max-width: 48ch; font-size: 13px; }
+
   /* ---- writes ledger ----------------------------------------------------- */
 
   .ledger {
@@ -437,12 +475,12 @@
     <nav class="nav">
       <a href="#">Catalog</a>
       <a href="#">Lineup</a>
-      <a href="#" class="on">Roles</a>
+      <a href="#" class="on" id="nav-roles">Roles</a>
     </nav>
     <div class="whoami">
       <span>Signed in as</span>
-      <span class="who">Theo Vance</span>
-      <span class="chip chair">chair</span>
+      <span class="who" id="who-name">Theo Vance</span>
+      <span class="chip chair" id="who-role">chair</span>
     </div>
   </div>
 </div>
@@ -1080,6 +1118,172 @@ function renderC() {
 }
 
 /* ==========================================================================
+   Variant D — the settled page
+
+   Assembled by the requester from all three, one answer at a time:
+
+     Q1 holders only, search reaches all of `people`      (B/C)
+     Q2 every refusal stated in the open                  (C — the shape #37 rejected)
+     Q3 appointing is one control on the person           (C)
+     Q4 all seven roles shown, the two inert ones marked  (the prototype's own)
+     Q5 own record shown, last-chair lock visible upfront (the prototype's own)
+     Q6 unnamed netids rendered, never minted             (the prototype's own)
+     Q7 visible to anyone holding a role other than `student`, read-only below chair
+     Q8 a three-program strip, because nothing else here is shaped like a program
+     Q9 read-only means controls *and* refusals absent, not greyed
+
+   The "viewing as" bar is a prototype device, not part of the page: it is how
+   Q7 and Q9 are looked at. #11 refuses role-narrowing, so a real actor is
+   always all of their roles at once.
+   ========================================================================== */
+
+const VIEWERS = ["tv1067", "pr3390", "mo5512"];
+let dViewer = "tv1067";
+let dSelected = "na2481";
+let dQuery = "";
+
+function dSetViewer(n) { dViewer = n; render(); }
+function dSelect(n) { dSelected = n; render(); }
+
+/* Q7, sharpened: *holds any role other than `student`*, never *does not hold
+   `student`*. ITP is full of grad students who teach, and a student who is also
+   an instructor must not lose the page. */
+const canSeeRoles = netid => rolesOf(netid).some(r => r !== "student");
+const canWriteRoles = netid => holds(netid, "chair");
+
+function renderD() {
+  const viewer = dViewer;
+  const mayWrite = canWriteRoles(viewer);
+
+  const bar = `
+    <div class="viewbar">
+      <span class="lab">Prototype — viewing as</span>
+      ${VIEWERS.map(n => `<button class="btn ${n === viewer ? "primary" : ""}" onclick="dSetViewer('${n}')">
+        ${nameOf(n)} <span class="muted tiny">${rolesOf(n).map(r => ROLE[r].short.toLowerCase()).join(", ") || "no roles"}</span>
+      </button>`).join("")}
+      <span class="muted tiny">Q7 and Q9 are what this bar is for. It is not part of the page.</span>
+    </div>`;
+
+  if (!canSeeRoles(viewer)) {
+    return bar + `<div class="card noaccess">
+      <h2>There is no Roles page here</h2>
+      <p>${nameOf(viewer)} holds only <b>student</b>, so the nav item is gone and the route refuses —
+      <b>absent rather than empty</b>, which is
+      <a href="https://github.com/nopivnick/lineup-prototype-03/issues/37">#37</a>'s rule for a control
+      nobody can ever use, applied to a whole page.</p>
+      <p style="margin-top:10px" class="muted">Grant them any other role from the chair's view and the page
+      appears — the predicate is <i>holds any role other than <code>student</code></i>, not <i>does not hold
+      <code>student</code></i>, so a student who teaches keeps it.</p>
+    </div>`;
+  }
+
+  /* --- Q8: the program strip ------------------------------------------- */
+  const strip = `<div class="progstrip">${PROGRAMS.map(p => {
+    const ds = directorOf.filter(d => d.program === p.code).map(d => d.netid);
+    return `<div class="progcard ${p.code} ${ds.length ? "" : "vacant"}">
+      <div class="code">${p.code}</div>
+      <div class="pname">${p.name}</div>
+      <div class="dir">${ds.length ? ds.map(nameOf).join(", ") : "No director"}</div>
+    </div>`;
+  }).join("")}</div>`;
+
+  /* --- Q1: holders listed, search reaches everyone ---------------------- */
+  const holders = HELD_NETIDS().filter(n => matches(n, dQuery))
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const others = mayWrite && dQuery
+    ? ALL_NETIDS.filter(n => !holds(n, "student") && !HELD_NETIDS().includes(n) && matches(n, dQuery))
+        .sort((a, b) => sortKey(a).localeCompare(sortKey(b))).slice(0, 6)
+    : [];
+
+  const entry = n => `
+    <button class="${n === dSelected ? "on" : ""}" onclick="dSelect('${n}')">
+      <span>${PEOPLE[n] ? nameOf(n) : `<span class="noname">${n}</span>`}${n === viewer ? '<span class="youtag">you</span>' : ""}</span>
+      <span class="rolebits">${rolesOf(n).map(k =>
+        `<span class="chip ${k === "chair" ? "chair" : ""}">${ROLE[k].short}</span>`).join("") || '<span class="muted tiny">no roles yet</span>'}</span>
+    </button>`;
+
+  const side = `
+    <div class="dsearch"><input class="search" id="d-q" placeholder="${mayWrite ? "Search anyone in the directory" : "Search"}" value="${dQuery}"></div>
+    ${holders.length ? `<div class="listlabel">Holds a role · ${holders.length}</div><div class="plist">${holders.map(entry).join("")}</div>`
+                     : `<div class="empty-holder">Nobody here matches.</div>`}
+    ${others.length ? `<div class="listlabel">Not on this list · grant a role to…</div><div class="plist">${others.map(entry).join("")}</div>` : ""}
+    ${mayWrite && dQuery && !others.length && !holders.length
+      ? `<div class="empty-holder">Nobody in <code>people</code> matches. A role can only be granted to someone the directory knows.</div>` : ""}`;
+
+  /* --- the record ------------------------------------------------------- */
+  const n = dSelected;
+  const p = PEOPLE[n];
+
+  const rows = ROLES.map(r => {
+    const held = holds(n, r.key);
+    const ref = held ? refusalToRevoke(n, r.key) : null;
+    const stuck = !!ref?.why;
+    const g = grantOf(n, r.key);
+    const inert = r.key === "advisor" || r.key === "student";
+
+    /* Q3: the two writes are one act — the role row rides along with the
+       program, and the chair never sees a director who directs nothing. */
+    const progs = r.key === "program_director" && mayWrite
+      ? `<div class="progpick">${PROGRAMS.map(pr => {
+           const on = progsOf(n).includes(pr.code);
+           return `<button class="btn ${on ? "on" : ""}" onclick="${on ? `unappoint('${n}','${pr.code}')` : `appoint('${n}','${pr.code}')`}">${on ? "✓ " : "+ "}${pr.code}</button>`;
+         }).join("")}</div>`
+      : r.key === "program_director" && held
+        ? `<div class="progpick">${progsOf(n).map(c => `<span class="chip prog-${c}">${c}</span>`).join("") || '<span class="muted tiny">directs nothing</span>'}</div>`
+        : "";
+
+    /* Q9: for a non-chair the control is absent — and so is the refusal,
+       which exists only to explain a control. */
+    const act = !mayWrite ? ""
+      : held
+        ? (stuck ? `<button class="btn" disabled>Cannot revoke</button>`
+                 : `<button class="btn danger" onclick="revoke('${n}','${r.key}')">Revoke</button>`)
+        : `<button class="btn primary" onclick="grant('${n}','${r.key}')">Grant</button>`;
+
+    const why = mayWrite && stuck
+      ? `<div class="rwhy">${ref.why} ${ref.fix}
+           ${ref.items.length ? `<ul>${ref.items.map(i => `<li>${i}</li>`).join("")}</ul>` : ""}</div>`
+      : "";
+
+    return `<div class="rrow ${held ? (stuck ? "blocked" : "on") : ""} ${!held && inert ? "inert" : ""}">
+      <div class="mark">${held ? (stuck ? '<span class="refuse-mark">🔒</span>' : "✓") : "○"}</div>
+      <div class="body">
+        <div class="rname">${r.name}
+          ${inert ? `<span class="kindtag">gates nothing yet</span>` : `<span class="kindtag">${r.kind}</span>`}</div>
+        <div class="rblurb">${r.blurb}</div>
+        ${progs}
+        ${why}
+        ${held && g ? `<div class="rprov">Granted by ${nameOf(g.by)} · ${g.at}</div>` : ""}
+      </div>
+      <div class="act">${act}</div>
+    </div>`;
+  }).join("");
+
+  return bar + strip + `
+    <div class="split">
+      <div class="card">${side}</div>
+      <div class="card record">
+        <header>
+          <h2>${p ? `${p.first} ${p.last}` : `<span class="noname">${n}<i>no name on file</i></span>`}
+            ${n === viewer ? '<span class="youtag">you</span>' : ""}</h2>
+          <div class="meta"><span class="person-sub">${n}</span>${p?.pronouns ? " · " + p.pronouns : ""}</div>
+        </header>
+        ${mayWrite ? "" : `<div class="summary">Read-only. ${nameOf(viewer)} is not the chair, so every control is
+          <b>absent rather than greyed</b> — and so is every refusal, which exists only to explain a control.</div>`}
+        ${rows}
+      </div>
+    </div>
+    <p class="footnote">
+      The read drives from <code>classes</code> and stitches names in from <code>people</code> — the second
+      consumer of <a href="https://github.com/nopivnick/lineup-prototype-03/issues/9">#9</a>'s cross-project
+      stitch, after <a href="https://github.com/nopivnick/lineup-prototype-03/issues/37">#37</a> made the
+      Catalog single-database. Stating every refusal without being asked costs three further
+      <code>classes</code>-side queries — live roster rows, non-retired headed courses, director rows — all
+      set-based over the holder set, and all skipped entirely for a non-chair.
+    </p>`;
+}
+
+/* ==========================================================================
    Switcher
    ========================================================================== */
 
@@ -1105,13 +1309,30 @@ const VARIANTS = [
       ["Refusals", "Always visible, never behind a click"],
       ["Appointing", "One checklist row, programs ticked beneath it"],
     ] },
+  { key: "D", name: "Settled", render: renderD,
+    lede: "The shape assembled from the three, one answer at a time. This is what #38 settles.",
+    stance: [
+      ["Lists", "Holders; the search reaches all of <code>people</code> to grant"],
+      ["Refusals", "Always in the open — and absent, with the controls, for a non-chair"],
+      ["Appointing", "One control on the person; the program strip carries the empty seat"],
+    ] },
 ];
 
-let vi = 0;
+let vi = VARIANTS.findIndex(v => v.key === "D");   // open on the settled shape
 
 function render() {
   const v = VARIANTS[vi];
   document.getElementById("view").innerHTML = v.render();
+
+  /* The app chrome follows whoever is viewing — only D has a viewer other
+     than the chair, and only D can lose the nav item altogether. */
+  const viewer = v.key === "D" ? dViewer : ACTOR;
+  const top = rolesOf(viewer)[0] ?? "student";
+  document.getElementById("who-name").textContent = nameOf(viewer);
+  document.getElementById("who-role").textContent = ROLE[top].short.toLowerCase();
+  document.getElementById("who-role").className = "chip" + (top === "chair" ? " chair" : "");
+  document.getElementById("nav-roles").style.display = canSeeRoles(viewer) ? "" : "none";
+
   document.getElementById("lede").textContent = v.lede;
   document.getElementById("stance").innerHTML = v.stance
     .map(([k, s]) => `<div><b>${k}</b>${s}</div>`).join("");
@@ -1131,6 +1352,7 @@ function wireInputs() {
   bind("a-q", v => aQuery = v);
   bind("b-add", v => bAddQuery = v);
   bind("c-q", v => cQuery = v);
+  bind("d-q", v => dQuery = v);
 }
 
 function go(d) {
