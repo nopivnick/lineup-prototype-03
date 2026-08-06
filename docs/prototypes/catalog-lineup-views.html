@@ -558,9 +558,18 @@ function visibleOfferings(actor, term) {
     .filter(o => canAct(actor) ? true : COMMITTED.includes(o.state));
 }
 
-/* The Catalog's row set: a Course eligible to be offered, now or in future. */
-function visibleCourses() {
-  return COURSES.filter(c => c.state !== "Retired");
+/* The Catalog's row set: every Course. `Retired` is excluded by the status
+   filter's *default*, not by the query — one click widens it. */
+function visibleCourses() { return COURSES; }
+
+/* A course cannot become an offering without both an area and an area head
+   (#32). Both are `classes`-side facts, so this marker costs no extra read —
+   which is what lets the Catalog stay a single-database query. */
+function notOfferable(c) {
+  const missing = [];
+  if (!c.areas.length) missing.push("an area");
+  if (!c.areaHead)     missing.push("an area head");
+  return missing.length ? `Needs ${missing.join(" and ")} before it can be offered` : null;
 }
 
 /* Per-row permitted-action set: machine legality ∩ invariants ∩ permissions,
@@ -635,16 +644,17 @@ function personCell(netid, lead) {
    ========================================================================== */
 
 const state = {
-  variant: "A",
+  variant: "D",
   view: "lineup",
   actor: ACTORS[0],
   term: "20253",
   prog: "",
-  status: "",
+  status: "",      // "offerable" once the Catalog tab is opened
   q: "",
 };
 
 const VARIANTS = {
+  D: "As decided",
   A: "Flat table",
   B: "Grouped by course",
   C: "Listing rows",
@@ -700,7 +710,8 @@ function matches(text) { return !state.q || text.toLowerCase().includes(state.q.
 function catalogRows() {
   return visibleCourses()
     .filter(c => !state.prog || c.prog === state.prog)
-    .filter(c => !state.status || c.state === state.status)
+    .filter(c => state.status === "offerable" ? c.state !== "Retired"
+               : state.status ? c.state === state.status : true)
     .filter(c => matches(`${c.number} ${c.title} ${nameOf(c.areaHead ?? "")}`));
 }
 
@@ -921,6 +932,97 @@ function lineupC(rows) {
     </div>`; }).join("")}</div>`;
 }
 
+/* --- variant D: as decided ----------------------------------------------
+   B's grouping, A's action menus, foreign chips marked and named in the tag
+   column, no paging, no Actions column for anyone who can never act, and no
+   empty groups — a course whose every section is invisible to you is absent
+   entirely, since an empty group announces the thing the tiers hide.
+   -------------------------------------------------------------------------- */
+
+function catalogD(rows) {
+  if (!rows.length) return emptyCatalog();
+  const acts = canAct(state.actor);
+  const cols = acts ? 7 : 6;
+  const groups = groupBy(rows, c => c.prog);
+  const PROG_NAME = { ITP: "Interactive Telecommunications", IMA: "Interactive Media Arts",
+                      LOWRES: "IMA Low Residency" };
+
+  let html = `<div class="tablewrap"><table>
+    <thead><tr>
+      <th class="sortable sorted">Number</th>
+      <th class="sortable">Title</th>
+      <th class="sortable rt">Cr</th>
+      <th class="nosort">Areas</th>
+      <th class="nosort">Requirements</th>
+      <th class="sortable">Status</th>
+      ${acts ? `<th class="nosort rt">Actions</th>` : ""}
+    </tr></thead><tbody>`;
+
+  for (const [prog, cs] of groups) {
+    html += `<tr class="group-head"><td colspan="${cols}"><div class="group-line">
+      ${chipInline(prog)}<span class="title">${PROG_NAME[prog]}</span>
+      <span class="group-meta"><span class="group-count">${cs.length} course${cs.length===1?"":"s"}</span></span>
+    </div></td></tr>`;
+    html += cs.map(c => {
+      const blocked = notOfferable(c);
+      return `<tr>
+        <td class="num indent">${c.number}</td>
+        <td class="title">${esc(c.title)}</td>
+        <td class="rt">${c.credits}</td>
+        <td>${tagCell(c.areas, [])}</td>
+        <td>${tagCell(c.cats, [])}</td>
+        <td>${stateChip(c.state)}${blocked
+              ? ` <span class="chip" title="${esc(blocked)}">not offerable yet</span>` : ""}</td>
+        ${acts ? `<td class="rt">${actionMenu(courseActions(state.actor, c))}</td>` : ""}
+      </tr>`;
+    }).join("");
+  }
+  return html + `</tbody></table></div>`;
+}
+
+function lineupD(rows) {
+  if (!rows.length) return emptyLineup();
+  const acts = canAct(state.actor);
+  const cols = acts ? 7 : 6;
+  const groups = groupBy(rows, o => o.course);
+
+  let html = `<div class="tablewrap"><table>
+    <thead><tr>
+      <th class="nosort rt">Sec</th>
+      <th class="nosort">Status</th>
+      <th class="nosort">Instructors</th>
+      <th class="nosort">Meets</th>
+      <th class="nosort rt">Cap</th>
+      <th class="nosort">Also counts toward</th>
+      ${acts ? `<th class="nosort rt">Actions</th>` : ""}
+    </tr></thead><tbody>`;
+
+  for (const [cid, os] of groups) {
+    const c = course(cid);
+    html += `<tr class="group-head"><td colspan="${cols}"><div class="group-line">
+      <span class="num">${c.number}</span>
+      <span class="title">${esc(c.title)}</span>
+      <span class="sub">${c.credits} cr</span>
+      <span class="group-meta">
+        ${tagCell([...c.areas, ...c.cats], [])}
+        <span class="group-count">${os.length} section${os.length===1?"":"s"}</span>
+      </span>
+    </div></td></tr>`;
+    html += os.map(o => `<tr>
+      <td class="rt num indent">${o.section}</td>
+      <td>${stateChip(o.state)}</td>
+      <td>${rosterCell(o.roster)}</td>
+      <td><span class="num">${esc(o.meets.text)}</span>${
+        o.meets.room ? `<div class="sub">${o.meets.room} · ${o.mode}</div>`
+                     : `<div class="sub">${o.mode}</div>`}</td>
+      <td class="rt">${o.cap}</td>
+      <td>${tagCell([], [...o.foreignAreas, ...o.foreignCats])}</td>
+      ${acts ? `<td class="rt">${actionMenu(offeringActions(state.actor, o))}</td>` : ""}
+    </tr>`).join("");
+  }
+  return html + `</tbody></table></div>`;
+}
+
 /* --- empty states ------------------------------------------------------- */
 
 function emptyLineup() {
@@ -946,6 +1048,7 @@ function emptyCatalog() {
 /* --- shell -------------------------------------------------------------- */
 
 const NOTES = {
+  D: "<b>D — As decided.</b> The hybrid the grilling actually produced, and no single variant above shows it: B's grouping, A's action menus with their reasons inside, foreign tags marked and named in the tag column, no pager, and no Actions column at all for anyone who can never act. Switch to <i>Marcus Ola — student</i> and Physical Computing disappears rather than showing an empty group — an empty group would announce the sections the tiers exist to hide.",
   A: "<b>A — Flat table.</b> One row per offering, every fact its own column, sortable where the database can sort it. Closest to legacy <code>lineup_official</code> and to a spreadsheet. Three sections of Physical Computing read as three unrelated rows.",
   B: "<b>B — Grouped by course.</b> The Lineup groups on <code>(course_id, term_code)</code>; the Catalog groups by program. Course-level facts sit on the header, section-level facts on the rows beneath. A group that is empty for you but populated for a coordinator still appears, so a term reads honestly.",
   C: "<b>C — Listing rows.</b> Two lines per record, like a printed course bulletin. Actions are visible buttons and every refusal states its reason in the open rather than hiding it behind a hover.",
@@ -956,23 +1059,30 @@ function render() {
   const rows = isCat ? catalogRows() : lineupRows();
 
   const body =
+    state.variant === "D" ? (isCat ? catalogD(rows) : lineupD(rows)) :
     state.variant === "A" ? (isCat ? catalogA(rows) : lineupA(rows)) :
     state.variant === "B" ? (isCat ? catalogB(rows) : lineupB(rows)) :
                             (isCat ? catalogC(rows) : lineupC(rows));
 
   document.getElementById("app").innerHTML = `<p class="note">${NOTES[state.variant]}</p>` + body;
 
-  document.getElementById("count").textContent =
-    `${rows.length} ${isCat ? (rows.length === 1 ? "course" : "courses")
-                            : (rows.length === 1 ? "section" : "sections")}`;
+  /* no pager on either view — the count is the whole result set */
+  const courseCount = isCat ? rows.length : new Set(rows.map(o => o.course)).size;
+  document.getElementById("count").textContent = isCat
+    ? `${rows.length} course${rows.length === 1 ? "" : "s"}`
+    : `${rows.length} section${rows.length === 1 ? "" : "s"} across ${courseCount} course${
+        courseCount === 1 ? "" : "s"}`;
 
   document.getElementById("term").hidden = isCat;
   document.querySelectorAll(".tab").forEach(t =>
     t.setAttribute("aria-selected", String(t.dataset.view === state.view)));
 
   const st = document.getElementById("status");
-  const opts = isCat ? ["Approved","Revising"] : Object.keys(TONE).slice(0, 14);
-  st.innerHTML = `<option value="">Any status</option>` +
+  const opts = isCat ? ["Approved","Revising","Retired"] : Object.keys(TONE).slice(0, 14);
+  st.innerHTML =
+    (isCat ? `<option value="offerable"${state.status === "offerable" ? " selected" : ""
+              }>Approved &amp; Revising</option>` : "") +
+    `<option value=""${state.status === "" ? " selected" : ""}>Any status</option>` +
     opts.map(s => `<option${s === state.status ? " selected" : ""}>${s}</option>`).join("");
 
   document.getElementById("vkey").textContent = state.variant;
@@ -1001,8 +1111,14 @@ progSel.onchange = e => { state.prog = e.target.value; render(); };
 document.getElementById("status").onchange = e => { state.status = e.target.value; render(); };
 document.getElementById("q").oninput = e => { state.q = e.target.value; render(); };
 
+/* the two views have disjoint status vocabularies, so the filter resets on the
+   way across — the Catalog lands on its default, the Lineup on "any" */
 document.querySelectorAll(".tab").forEach(t =>
-  t.onclick = () => { state.view = t.dataset.view; render(); });
+  t.onclick = () => {
+    state.view = t.dataset.view;
+    state.status = state.view === "catalog" ? "offerable" : "";
+    render();
+  });
 
 const keys = Object.keys(VARIANTS);
 function cycle(d) {
