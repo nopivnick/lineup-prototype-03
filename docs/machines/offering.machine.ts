@@ -176,10 +176,10 @@ export const machine = setup({
       | { type: "staff" }
       // Carries `subject_netid` on its log row since
       // https://github.com/nopivnick/lineup-prototype-03/issues/41 — see the
-      // `offer` comment above. `actor_netid` is who clicked, which for an
-      // acceptance arriving by email is an admin exactly as it is for a refusal;
-      // ticket 8 extended `decline`'s reasoning to all three answers, and this
-      // extends the column with it.
+      // `offer` comment above. `actor_netid` is who clicked; for an acceptance
+      // arriving by email, that click is often an admin (just as it is for a refusal).
+      // Ticket 8 extended `decline`'s reasoning to all three answers, and this extends
+      // the column with it.
       | { type: "accept" }
       // The department pulling a class it has committed to running. Available
       // **exactly downstream of `accept`** — `Accepted`, `Scheduled`,
