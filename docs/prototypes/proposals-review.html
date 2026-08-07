@@ -1,0 +1,1366 @@
+<title>Proposals list and review detail — three variants</title>
+
+<!--
+  PROTOTYPE — throwaway. Answers issue #42, "What do the proposals list and the
+  review detail page show?"
+
+  Three structurally different takes, switchable with the floating bar or the
+  ← → keys. Hand-written fixtures, no data layer, no framework — a static
+  approximation of Next.js + Mantine, built to be reacted to, not promoted.
+
+    D — Settled      the shape the requester assembled in the grilling: B's
+                     grouping with C's verdict chips on the group header. D is
+                     the answer; A/B/C are the primary source it came from and
+                     are kept beside it deliberately. See the resolution on #42.
+    A — Reviews      one row per review, flat. The row *is* the request (#10),
+                     so a proposal to three programs is three rows. Siblings
+                     render as a table under the body.
+    B — Proposals    #37's grouping device: the proposal is a group header
+                     carrying the shared body, its reviews nested beneath.
+                     Siblings *are* the group you came from.
+    C — Verdicts     one row per proposal, flat, the reviews collapsed into a
+                     verdict strip (ITP ✓ · IMA ◐ · LOW ✗). The strip is the
+                     primary affordance, and on the detail page it is promoted
+                     into the rail beside the actions.
+
+  What is already settled and NOT re-decided here — #41 set the page
+  conventions and this file inherits them wholesale: two columns with a sticky
+  rail, refusals stated in the open, history as a sentence per row at the foot
+  of the main column, a derived creation line opening the history, *last
+  changed* alone in the rail, names with #37's `no name on file` fallback,
+  reached from a list by a dedicated ↗ control. What varies between A/B/C is
+  the LIST's grain and how a review's siblings are shown.
+
+                            | A Reviews        | B Proposals      | C Verdicts
+      list grain            | review           | proposal + rows  | proposal
+      shared body sits      | on every row     | on group header  | on the row
+      a proposal's state is | n/a (per row)    | n/a (per row)    | derived strip
+      siblings render as    | table under body | the group header | rail strip
+
+  Six things this file made visible that were hard to see on paper, and how
+  each was settled. In A/B/C they are flagged inline with a dotted amber
+  underline and a ⚑, which is how they looked before the grilling; D renders
+  the settled answers instead.
+
+    1 dissolved  per-programme chips mean nothing derives an overall status
+    2 widened    every verdict shows; foreign reviews open read-only
+    3 stated     on the review page AND the course page (amends #41)
+    4 fixed      `course.minted_from_review_id` added (amends the schema)
+    5 out        the rule stands; the page states the coincidence
+    6 confirmed  the chair's bypass reaches curriculum, both read and act
+
+  1. **A proposal has no state (#7), so a proposal-grained list has no status
+     column** — B and C must derive one, and the derivation is *viewer
+     dependent*, which is worse than merely absent. P1 is the fixture: Rui
+     Chen, who wrote it, sees Split (ITP approved, IMA developing, LowRes
+     rejected); Priya, who directs only ITP, sees Approved — same proposal,
+     same day, two different verdicts, neither wrong. A never faces this.
+
+  2. **Tier 3's three arms are not the same shape, and siblings sit outside
+     them.** #28/#32 make the tier `program_director` OR `created_by` OR
+     `review.area_head`. Viewing as Priya (ITP director) and opening P1 shows
+     IMA's and LowRes's verdicts — neither of which is in Priya's tier by any
+     arm. The ticket says the siblings are the whole point of the split; the
+     read rule says they are not hers to see. Both cannot hold.
+
+  3. **The shared body can change after a program has already approved it.**
+     P1's body was edited 2026-03-05, thirteen days *after* ITP approved and
+     minted ITPG-GT 2245 — and the mint COPIES (#7), so the course and the
+     proposal now disagree with nothing anywhere saying so.
+
+  4. **Nothing links an approved review to the course it minted.** #8 ruled
+     there is no link back from a course to its proposal; the forward direction
+     was never decided, and `course` carries no proposal column
+     (docs/schema/classes.sql:360). The ↗ on an approved review in this file is
+     drawn against a column that does not exist.
+
+  5. **The area-head route lets a proposer approve their own proposal.**
+     `created_by` gates body edits (#8), `review.area_head` gates approve (#32),
+     and nothing forbids one person holding both. P2 is that fixture: Nora
+     Applebaum proposed it and is its ITP area head.
+
+  6. **The chair's bypass reaches curriculum approval.** #34 put the chair one
+     OR-clause ahead of the whole matrix, bypassing permissions but never
+     machine legality or invariants. Taken literally that reaches this page, so
+     the chair can approve any programme's curriculum single-handed — and can
+     read every proposal in the department, which is a fourth arm on a tier
+     #28 wrote with three. View as Theo Vance to see it.
+
+  The "Viewing as" control is a prototype device for looking at what varies by
+  role, not part of the page. It re-filters the row set through Tier 3 the way
+  #28 does, and swaps the per-review permitted-action sets.
+-->
+
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:        #ffffff;
+    --raised:        #f8f8fa;
+    --sunken:        #f1f1f4;
+    --line:          #e3e2e8;
+    --line-strong:   #c9c7d2;
+    --ink:           #1f1d26;
+    --ink-soft:      #63606f;
+    --ink-faint:     #8b8898;
+
+    --accent:        #57068c;
+    --accent-soft:   #f2e9f8;
+    --accent-line:   #ddc7ec;
+    --on-accent:     #ffffff;
+
+    --itp:           #7048a8;
+    --itp-bg:        #f3eefb;
+    --ima:           #0b7285;
+    --ima-bg:        #e3f4f7;
+    --lowres:        #a1651a;
+    --lowres-bg:     #fbf0de;
+
+    --live:          #2b8a3e;
+    --live-bg:       #e8f6ea;
+    --wait:          #b8600a;
+    --wait-bg:       #fdf1e2;
+    --stop:          #c92a2a;
+    --stop-bg:       #fceceb;
+    --idle:          #6b6878;
+    --idle-bg:       #eeedf1;
+
+    --flag:          #b8600a;
+    --flag-bg:       #fdf1e2;
+
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+    --shadow-lg: 0 2px 6px rgb(31 29 38 / .10), 0 12px 32px rgb(31 29 38 / .16);
+
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #1a1b1e;
+      --raised:      #212226;
+      --sunken:      #26272c;
+      --line:        #34353b;
+      --line-strong: #4a4b53;
+      --ink:         #e6e5ea;
+      --ink-soft:    #a5a3af;
+      --ink-faint:   #7b7987;
+
+      --accent:      #b197fc;
+      --accent-soft: #2b2440;
+      --accent-line: #453a63;
+      --on-accent:   #1a1b1e;
+
+      --itp:         #b197fc;
+      --itp-bg:      #2b2440;
+      --ima:         #4dc4d9;
+      --ima-bg:      #17343a;
+      --lowres:      #dfa441;
+      --lowres-bg:   #3a2e17;
+
+      --live:        #63d67e;
+      --live-bg:     #16301d;
+      --wait:        #f0a45c;
+      --wait-bg:     #35240f;
+      --stop:        #ff8785;
+      --stop-bg:     #3a1c1c;
+      --idle:        #9b98a6;
+      --idle-bg:     #2c2d33;
+
+      --flag:        #f0a45c;
+      --flag-bg:     #35240f;
+
+      --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+      --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:#1a1b1e; --raised:#212226; --sunken:#26272c; --line:#34353b; --line-strong:#4a4b53;
+    --ink:#e6e5ea; --ink-soft:#a5a3af; --ink-faint:#7b7987;
+    --accent:#b197fc; --accent-soft:#2b2440; --accent-line:#453a63; --on-accent:#1a1b1e;
+    --itp:#b197fc; --itp-bg:#2b2440; --ima:#4dc4d9; --ima-bg:#17343a; --lowres:#dfa441; --lowres-bg:#3a2e17;
+    --live:#63d67e; --live-bg:#16301d; --wait:#f0a45c; --wait-bg:#35240f;
+    --stop:#ff8785; --stop-bg:#3a1c1c; --idle:#9b98a6; --idle-bg:#2c2d33;
+    --flag:#f0a45c; --flag-bg:#35240f;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+    --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--ground);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0 0 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * { box-sizing: border-box; }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- app chrome -------------------------------------------------------- */
+
+  .appbar { border-bottom: 1px solid var(--line); background: var(--raised); position: sticky; top: 0; z-index: 40; }
+  .appbar .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
+  .brand { font-weight: 700; letter-spacing: -.01em; }
+  .brand span { color: var(--accent); }
+  .nav { display: flex; gap: 4px; margin-left: 8px; }
+  .nav a { padding: 5px 11px; border-radius: 7px; text-decoration: none; color: var(--ink-soft); font-size: 13.5px; }
+  .nav a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .nav a.gone { opacity: .3; text-decoration: line-through; }
+  .whoami { margin-left: auto; display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-soft); }
+  .whoami select {
+    padding: 5px 9px; border: 1px solid var(--line-strong); border-radius: 7px;
+    background: var(--ground); font-size: 13px; max-width: 320px;
+  }
+
+  .picker { border-bottom: 1px solid var(--line); background: var(--ground); }
+  .picker .wrap { display: flex; align-items: center; gap: 10px; min-height: 48px; flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; }
+  .picker label { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); font-weight: 700; }
+  .picker select { padding: 5px 9px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--ground); font-size: 13px; max-width: 340px; }
+  .picker .note { margin-left: auto; font-size: 12px; color: var(--ink-faint); }
+  .picker .crumb { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: 13px; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+
+  /* ---- the notes bar: what this screen is for ---------------------------- */
+
+  .notes {
+    margin: 18px 0 6px; border: 1px dashed var(--line-strong); border-radius: 10px;
+    background: var(--sunken); padding: 10px 14px; font-size: 12.5px; color: var(--ink-soft);
+    display: flex; gap: 10px; align-items: baseline;
+  }
+  .notes b { color: var(--ink); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; font-size: 11px; white-space: nowrap; }
+  .notes p { margin: 0; }
+
+  /* ---- shared bits ------------------------------------------------------- */
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; background: var(--sunken); color: var(--ink-soft);
+  }
+  .chip.itp    { background: var(--itp-bg);    color: var(--itp); }
+  .chip.ima    { background: var(--ima-bg);    color: var(--ima); }
+  .chip.lowres { background: var(--lowres-bg); color: var(--lowres); }
+
+  .state { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .state.Proposed   { background: var(--idle-bg); color: var(--idle); }
+  .state.Developing { background: var(--wait-bg); color: var(--wait); }
+  .state.Approved   { background: var(--live-bg); color: var(--live); }
+  .state.Rejected   { background: var(--stop-bg); color: var(--stop); }
+  .state.mixed      { background: var(--sunken);  color: var(--ink-soft); border: 1px dashed var(--line-strong); }
+
+  .netid { font-family: var(--mono); font-size: 12.5px; }
+  .noname { font-size: 11.5px; color: var(--ink-faint); font-style: italic; }
+
+  .flag {
+    border-bottom: 2px dotted var(--flag); cursor: help;
+  }
+  .flagmark {
+    display: inline-block; color: var(--flag); font-weight: 700; font-size: 11px;
+    background: var(--flag-bg); border-radius: 4px; padding: 0 4px; margin-left: 5px; vertical-align: 1px;
+  }
+
+  .openbtn {
+    border: 1px solid var(--line-strong); background: var(--ground); border-radius: 7px;
+    width: 26px; height: 24px; cursor: pointer; color: var(--ink-soft); line-height: 1;
+  }
+  .openbtn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .menu {
+    border: 1px solid var(--line-strong); background: var(--ground); border-radius: 7px;
+    padding: 2px 9px; cursor: pointer; color: var(--ink-soft); font-size: 12.5px; white-space: nowrap;
+  }
+  .menu:hover { border-color: var(--accent); color: var(--accent); }
+  .menu.zero { opacity: .55; }
+
+  h1 { font-size: 23px; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-faint); margin: 0 0 10px; }
+  h3 { font-size: 15px; margin: 0 0 6px; }
+
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--ink-faint); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--line-strong);
+    white-space: nowrap;
+  }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:hover { background: var(--raised); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---- list: variant A --------------------------------------------------- */
+
+  .listhead { display: flex; align-items: baseline; gap: 14px; margin: 18px 0 12px; flex-wrap: wrap; }
+  .listhead .count { color: var(--ink-faint); font-size: 13px; }
+  .listhead .why {
+    margin-left: auto; font-size: 12px; color: var(--ink-soft); background: var(--sunken);
+    border-radius: 7px; padding: 4px 10px;
+  }
+  .filters { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; flex-wrap: wrap; }
+  .filters .f {
+    border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 11px; font-size: 12.5px;
+    background: var(--ground); color: var(--ink-soft); cursor: pointer;
+  }
+  .filters .f.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 600; }
+  .filters .spacer { flex: 1; }
+  .filters .search {
+    border: 1px solid var(--line-strong); border-radius: 7px; padding: 4px 10px; font-size: 12.5px;
+    background: var(--ground); min-width: 190px;
+  }
+
+  /* ---- list: variant B, grouping ----------------------------------------- */
+
+  .group { border: 1px solid var(--line); border-radius: 11px; margin-bottom: 12px; overflow: hidden; background: var(--ground); }
+  .group > header {
+    display: flex; align-items: baseline; gap: 12px; padding: 11px 14px; background: var(--raised);
+    border-bottom: 1px solid var(--line); flex-wrap: wrap;
+  }
+  .group > header .t { font-weight: 700; font-size: 15px; }
+  .group > header .meta { color: var(--ink-soft); font-size: 12.5px; }
+  .group > header .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .group .rrow {
+    display: grid; grid-template-columns: 92px 108px 1fr auto auto; gap: 12px; align-items: center;
+    padding: 9px 14px 9px 26px; border-bottom: 1px solid var(--line); font-size: 13.5px;
+  }
+  .group .rrow:last-child { border-bottom: 0; }
+  .group .rrow .area { color: var(--ink-soft); font-size: 12.5px; }
+
+  /* ---- list: variant C, verdict strip ------------------------------------ */
+
+  .verdicts { display: flex; gap: 5px; flex-wrap: wrap; }
+  .verdict {
+    display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 7px;
+    font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid transparent;
+  }
+  .verdict .g { font-size: 12px; }
+  .verdict.Proposed   { background: var(--idle-bg); color: var(--idle); }
+  .verdict.Developing { background: var(--wait-bg); color: var(--wait); }
+  .verdict.Approved   { background: var(--live-bg); color: var(--live); }
+  .verdict.Rejected   { background: var(--stop-bg); color: var(--stop); }
+  .verdict:hover { border-color: currentColor; }
+  .verdict.mine { box-shadow: inset 0 0 0 2px var(--accent-line); }
+
+  /* ---- detail page: #41's two columns ------------------------------------ */
+
+  .page { display: grid; grid-template-columns: 1fr 320px; gap: 28px; align-items: start; margin-top: 18px; }
+  @media (max-width: 900px) { .page { grid-template-columns: 1fr; } }
+
+  .pagehead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .pagehead .sub { color: var(--ink-soft); font-size: 13px; }
+
+  .sec { margin-top: 26px; }
+  .sec:first-child { margin-top: 14px; }
+
+  .body { font-size: 14.5px; line-height: 1.65; max-width: 62ch; }
+  .body p { margin: 0 0 10px; }
+
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 13.5px; align-items: baseline; }
+  .kv dt { color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; padding-top: 2px; }
+  .kv dd { margin: 0; }
+
+  .rail { position: sticky; top: 72px; display: flex; flex-direction: column; gap: 14px; }
+  .card { border: 1px solid var(--line); border-radius: 11px; background: var(--raised); padding: 13px 14px; }
+  .card h2 { margin-bottom: 8px; }
+  .card .bigstate { font-size: 15px; font-weight: 700; }
+
+  .act { display: flex; flex-direction: column; gap: 9px; }
+  .act .a { display: flex; flex-direction: column; gap: 2px; }
+  .act button.go {
+    background: var(--accent); color: var(--on-accent); border: 0; border-radius: 8px;
+    padding: 7px 12px; font-weight: 600; font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .act button.no {
+    background: var(--sunken); color: var(--ink-faint); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 12px; font-size: 13.5px; text-align: left; cursor: not-allowed;
+  }
+  .act .why { font-size: 12px; color: var(--ink-soft); padding-left: 2px; line-height: 1.45; }
+
+  .prov { font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
+
+  /* ---- history ----------------------------------------------------------- */
+
+  .hist { display: flex; flex-direction: column; gap: 0; }
+  .hline {
+    display: grid; grid-template-columns: 18px 1fr auto; gap: 12px; align-items: baseline;
+    padding: 10px 0; border-bottom: 1px solid var(--line);
+  }
+  .hline:last-child { border-bottom: 0; }
+  .hline .dot { color: var(--accent); font-size: 11px; line-height: 1.6; }
+  .hline .dot.hollow { color: var(--ink-faint); }
+  .hline .s { font-size: 14px; }
+  .hline .s .reason { display: block; color: var(--ink-soft); font-size: 13px; margin-top: 3px; font-style: italic; }
+  .hline .when { color: var(--ink-faint); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* ---- siblings ---------------------------------------------------------- */
+
+  .sibs { display: flex; flex-direction: column; gap: 0; }
+  .sib {
+    display: grid; grid-template-columns: 92px 1fr auto auto; gap: 12px; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13.5px;
+  }
+  .sib:last-child { border-bottom: 0; }
+  .sib.self { background: var(--accent-soft); border-radius: 7px; padding-left: 8px; padding-right: 8px; }
+  .sib .n { color: var(--ink-soft); font-size: 12.5px; }
+
+  .empty {
+    border: 1px dashed var(--line-strong); border-radius: 11px; padding: 22px; text-align: center;
+    color: var(--ink-soft); background: var(--raised);
+  }
+  .empty strong { display: block; color: var(--ink); font-size: 15px; margin-bottom: 5px; }
+
+  .refusal { max-width: 60ch; margin: 60px auto; text-align: center; }
+  .refusal h1 { margin-bottom: 10px; }
+  .refusal p { color: var(--ink-soft); }
+
+  /* ---- variant switcher -------------------------------------------------- */
+
+  .switcher {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 90;
+    display: flex; align-items: center; gap: 2px; background: #24222c; color: #fff;
+    border-radius: 999px; padding: 5px 7px; box-shadow: var(--shadow-lg); font-size: 13px;
+  }
+  .switcher button {
+    background: none; border: 0; color: inherit; cursor: pointer; width: 28px; height: 28px;
+    border-radius: 999px; font-size: 15px; line-height: 1;
+  }
+  .switcher button:hover { background: rgb(255 255 255 / .18); }
+  .switcher .label { padding: 0 6px; white-space: nowrap; }
+  .switcher .key { font-weight: 700; background: rgb(255 255 255 / .18); border-radius: 6px; padding: 1px 7px; margin-right: 7px; }
+  .switcher .hint { opacity: .5; font-size: 11px; padding-right: 6px; }
+
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="appbar">
+  <div class="wrap">
+    <div class="brand">Line<span>up</span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="whoami">
+      <label for="actor">Viewing as</label>
+      <select id="actor"></select>
+    </div>
+  </div>
+</div>
+
+<div class="picker">
+  <div class="wrap" id="pickerbar"></div>
+</div>
+
+<div class="wrap" id="view"></div>
+
+<div class="switcher" role="group" aria-label="Prototype variant">
+  <button id="prev" title="Previous variant" aria-label="Previous variant">‹</button>
+  <span class="label"><span class="key" id="vkey">A</span><span id="vname">Reviews</span></span>
+  <button id="next" title="Next variant" aria-label="Next variant">›</button>
+  <span class="hint">← →</span>
+</div>
+
+<script>
+/* =========================================================================
+   Fixtures. Hand-written, deliberately awkward. The cast is the one #37/#38/#41
+   established, plus a LowRes director the proposal corner needs.
+   ========================================================================= */
+
+const PEOPLE = {
+  pr3390: { name: "Priya Raman",    pronouns: "she/her" },
+  na2481: { name: "Nora Applebaum", pronouns: "she/her" },
+  tv1067: { name: "Theo Vance",     pronouns: "he/him" },
+  ab9034: { name: "Amina Bello",    pronouns: "she/her" },
+  rc1129: { name: "Rui Chen",       pronouns: "they/them" },
+  jl8802: { name: "Jae Lin",        pronouns: null },
+  hs5540: { name: "Hana Sørensen",  pronouns: "she/her" },
+  mo5512: { name: "Marcus Ola",     pronouns: "he/him" },
+  // xq7742 deliberately absent — proposes P3, and appears in a history line
+};
+
+const PROGRAMS = {
+  ITP:    { name: "Interactive Telecommunications", cls: "itp",    short: "ITP" },
+  IMA:    { name: "Interactive Media Arts",         cls: "ima",    short: "IMA" },
+  LOWRES: { name: "IMA Low Residency",              cls: "lowres", short: "LOW" },
+};
+
+const ACTORS = [
+  { netid:"pr3390", label:"Priya Raman — ITP director, coordinator", roles:["program_director","coordinator"], programs:["ITP"] },
+  { netid:"ab9034", label:"Amina Bello — IMA director",              roles:["program_director"],               programs:["IMA"] },
+  { netid:"hs5540", label:"Hana Sørensen — LowRes director",         roles:["program_director"],               programs:["LOWRES"] },
+  { netid:"na2481", label:"Nora Applebaum — instructor, area head",  roles:["instructor","area_head"],         programs:[] },
+  { netid:"rc1129", label:"Rui Chen — instructor",                   roles:["instructor"],                     programs:[] },
+  { netid:"tv1067", label:"Theo Vance — chair, instructor",          roles:["chair","instructor"],             programs:[] },
+  { netid:"mo5512", label:"Marcus Ola — student",                    roles:["student"],                        programs:[] },
+];
+
+// A proposal carries NO state (#7). Everything below is body + provenance.
+const PROPOSALS = [
+  {
+    key: "P1", title: "Physical Computing II", credits: 4,
+    description: "A second semester of physical computing. Students move from breadboard prototypes to enclosed, powered objects that survive being handled: power budgets, PCB layout, fabrication tolerances, and the failure modes that only appear once something leaves the bench.",
+    createdBy: "rc1129", createdAt: "2026-01-12T09:15",
+    updatedBy: "rc1129", updatedAt: "2026-03-05T11:40",
+    // ⚑3 — edited 13 days AFTER ITP approved and minted from it
+  },
+  {
+    key: "P2", title: "Critical Data Practice", credits: 4,
+    description: "Working with datasets as material and as argument. Collection, cleaning and the politics of both; what a model inherits from its training set; and how to read a benchmark. Students build one artefact and one written critique of it.",
+    createdBy: "na2481", createdAt: "2026-02-02T13:00",
+    updatedBy: null, updatedAt: null,
+  },
+  {
+    key: "P3", title: "Sound as Material", credits: 2,
+    description: "Sound treated as a physical medium rather than a recording. Room response, transducers, resonance and feedback, built toward one sited installation.",
+    createdBy: "xq7742", createdAt: "2026-01-28T08:45",
+    updatedBy: null, updatedAt: null,
+  },
+  {
+    key: "P4", title: "Speculative Futures Studio", credits: 4,
+    description: "Design fiction as a research method. Students build artefacts from a future they have argued for, then test whether the argument survives contact with an audience.",
+    createdBy: "tv1067", createdAt: "2025-10-03T15:20",
+    updatedBy: "tv1067", updatedAt: "2025-10-29T09:05",
+  },
+  {
+    key: "P5", title: "Interactive Narrative", credits: 4,
+    description: "Branching and emergent story structures across text, audio and installation. Reading week alternates with build weeks; the final is a playable draft.",
+    createdBy: "rc1129", createdAt: "2025-03-11T10:00",
+    updatedBy: null, updatedAt: null,
+  },
+];
+
+// A review row IS the request (#10). One per (proposal, program).
+const REVIEWS = [
+  { key:"R1-ITP", proposal:"P1", program:"ITP", state:"Approved",
+    areaHead:"na2481", areas:["Physical Computing"],
+    createdBy:"rc1129", createdAt:"2026-01-12T09:15",
+    minted:{ number:"ITPG-GT 2245", at:"2026-02-20T14:05" },   // ⚑4 — no column links to it
+    log:[
+      { event:"approve", from:"Proposed", to:"Approved", actor:"pr3390", at:"2026-02-20T14:05", reason:null },
+    ]},
+  { key:"R1-IMA", proposal:"P1", program:"IMA", state:"Developing",
+    areaHead:null, areas:[],
+    createdBy:"rc1129", createdAt:"2026-01-12T09:15", minted:null,
+    log:[
+      { event:"develop", from:"Proposed", to:"Developing", actor:"ab9034", at:"2026-02-14T10:30",
+        reason:"Needs a clearer prerequisite story for sophomores — as written it assumes ITP's first semester." },
+    ]},
+  { key:"R1-LOWRES", proposal:"P1", program:"LOWRES", state:"Rejected",
+    areaHead:null, areas:[],
+    createdBy:"rc1129", createdAt:"2026-01-12T09:15", minted:null,
+    log:[
+      { event:"reject", from:"Proposed", to:"Rejected", actor:"hs5540", at:"2026-03-02T16:20",
+        reason:"Overlaps with Making Things Interactive, which we already run as a January intensive." },
+    ]},
+
+  { key:"R2-ITP", proposal:"P2", program:"ITP", state:"Proposed",
+    areaHead:"na2481", areas:["Code & Media"],   // ⚑5 — na2481 also proposed it
+    createdBy:"na2481", createdAt:"2026-02-02T13:00", minted:null,
+    log:[]},
+
+  { key:"R3-IMA", proposal:"P3", program:"IMA", state:"Developing",
+    areaHead:null, areas:[],
+    createdBy:"xq7742", createdAt:"2026-01-28T08:45", minted:null,
+    log:[
+      { event:"develop", from:"Proposed", to:"Developing", actor:"ab9034", at:"2026-02-05T09:10",
+        reason:"Two credits is right, but scope it to one sited piece rather than three." },
+    ]},
+
+  { key:"R4-ITP", proposal:"P4", program:"ITP", state:"Approved",
+    areaHead:"na2481", areas:["Design & Futures"],
+    createdBy:"tv1067", createdAt:"2025-10-03T15:20",
+    minted:{ number:"ITPG-GT 3011", at:"2025-11-08T10:00" },
+    log:[
+      { event:"approve", from:"Proposed", to:"Approved", actor:"pr3390", at:"2025-11-08T10:00", reason:null },
+    ]},
+  { key:"R4-IMA", proposal:"P4", program:"IMA", state:"Approved",
+    areaHead:"jl8802", areas:["Media Art"],
+    createdBy:"tv1067", createdAt:"2025-10-03T15:20",
+    minted:{ number:"IMNY-UT 240", at:"2025-12-15T09:45" },
+    log:[
+      { event:"develop", from:"Proposed", to:"Developing", actor:"ab9034", at:"2025-11-02T14:30",
+        reason:"We want it at the sophomore level, so the reading list needs to come down a notch." },
+      { event:"approve", from:"Developing", to:"Approved", actor:"ab9034", at:"2025-12-15T09:45", reason:null },
+    ]},
+
+  { key:"R5-LOWRES", proposal:"P5", program:"LOWRES", state:"Approved",
+    areaHead:"jl8802", areas:["Practice"],
+    createdBy:"rc1129", createdAt:"2025-03-11T10:00",
+    minted:{ number:"IMLR-GT 1500", at:"2025-04-02T11:15" },
+    log:[
+      { event:"approve", from:"Proposed", to:"Approved", actor:"xq7742", at:"2025-04-02T11:15", reason:null },
+      // actor with no `person` row — #37's fallback, on a history line (#41)
+    ]},
+];
+
+/* =========================================================================
+   Helpers
+   ========================================================================= */
+
+const prop = k => PROPOSALS.find(p => p.key === k);
+const reviewsOf = k => REVIEWS.filter(r => r.proposal === k);
+const review = k => REVIEWS.find(r => r.key === k);
+
+function person(netid, opts = {}) {
+  const p = PEOPLE[netid];
+  if (!p) return `<span class="netid">${netid}</span> <span class="noname">no name on file</span>`;
+  const pr = opts.pronouns && p.pronouns ? ` <span class="noname">${p.pronouns}</span>` : "";
+  return `${p.name}${pr}`;
+}
+const nameOnly = netid => (PEOPLE[netid] ? PEOPLE[netid].name : netid);
+
+function when(iso, opts = {}) {
+  const normalized = /[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`;
+  const d = new Date(normalized);
+  const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  if (opts.short) return date;
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return `${date}, ${time}`;
+}
+
+function pchip(code) {
+  const p = PROGRAMS[code];
+  return `<span class="chip ${p.cls}">${code}</span>`;
+}
+
+function flag(n, text, inner) {
+  const t = String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  return `<span class="flag" title="${t}">${inner}</span><span class="flagmark" title="${t}">⚑${n}</span>`;
+}
+
+/* ---- Tier 3 (#28, widened by #32): program_director OR created_by OR
+        review.area_head. The three arms are genuinely different shapes, so the
+        row set differs per person rather than merely shrinking. ------------ */
+
+function tierArm(rev, actor) {
+  const arms = [];
+  if (actor.roles.includes("program_director") && actor.programs.includes(rev.program)) arms.push("director");
+  if (prop(rev.proposal).createdBy === actor.netid) arms.push("author");
+  if (actor.roles.includes("area_head") && rev.areaHead === actor.netid) arms.push("areahead");
+  // The chair (#34) bypasses *permissions*, and #28 keeps the read tiers in the
+  // same module as the matrix — so whether that bypass reaches reads is
+  // genuinely undecided. Modelled here as "yes" so the case is visible.
+  if (actor.roles.includes("chair")) arms.push("chair");
+  return arms;
+}
+const canSee = (rev, actor) => tierArm(rev, actor).length > 0;
+const visibleReviews = actor => REVIEWS.filter(r => canSee(r, actor));
+
+function armSentence(actor) {
+  if (actor.roles.includes("chair")) return "Showing every proposal in the department, as chair.";
+  const arms = new Set();
+  visibleReviews(actor).forEach(r => tierArm(r, actor).forEach(a => arms.add(a)));
+  const bits = [];
+  if (arms.has("director")) bits.push(`reviews for ${actor.programs.join(" and ")}`);
+  if (arms.has("author"))   bits.push("proposals you wrote");
+  if (arms.has("areahead")) bits.push("reviews you are area head of");
+  if (!bits.length) return "Nothing — none of Tier 3's three arms reaches you.";
+  return "Showing " + bits.join(", plus ") + ".";
+}
+
+/* ---- the permitted-action set (#28), computed server-side and shipped per
+        record. Machine legality ∩ permissions. --------------------------- */
+
+const LEGAL = {
+  Proposed:   ["develop", "approve", "reject"],
+  Developing: ["approve", "reject"],
+  Approved:   [],
+  Rejected:   [],
+};
+
+const VERB = { develop: "Send back for development", approve: "Approve", reject: "Reject" };
+
+function actionsFor(rev, actor) {
+  const legal = LEGAL[rev.state];
+  const p = prop(rev.proposal);
+
+  if (!legal.length) {
+    const w = rev.state === "Approved"
+      ? `${PROGRAMS[rev.program].short} approved this on ${when(rev.log[rev.log.length - 1].at, { short: true })}. An approved review is final.`
+      : `${PROGRAMS[rev.program].short} rejected this on ${when(rev.log[rev.log.length - 1].at, { short: true })}. A rejected review is final.`;
+    return { moves: [], closed: w };
+  }
+
+  // #32: the review's approve / reject / develop are the director of *that
+  // review's program*, or the review's own area head.
+  const isDirector = actor.roles.includes("program_director") && actor.programs.includes(rev.program);
+  const isHead     = actor.roles.includes("area_head") && rev.areaHead === actor.netid;
+  // #34 puts the chair one OR-clause ahead of the whole matrix, bypassing
+  // permissions (never machine legality, never invariants). Taken literally that
+  // reaches here, and the consequence is ⚑6: the chair can approve any
+  // programme's curriculum single-handed.
+  const isChair    = actor.roles.includes("chair");
+  const ok = isDirector || isHead || isChair;
+
+  // A refusal names the person or the role, never the rule (#37).
+  let why;
+  if (!ok) {
+    if (rev.areaHead) {
+      why = `Only ${PROGRAMS[rev.program].short}'s director or ${nameOnly(rev.areaHead)}, its area head, can move this review.`;
+    } else {
+      why = `${PROGRAMS[rev.program].short} reviews are ${PROGRAMS[rev.program].short}'s director's to move. No area head has been assigned who could do it instead.`;
+    }
+  }
+
+  return {
+    moves: legal.map(e => ({ event: e, label: VERB[e], ok, why })),
+    closed: null,
+  };
+}
+
+// Non-transition writes the page also has to offer or refuse.
+function writesFor(rev, actor) {
+  const p = prop(rev.proposal);
+  const out = [];
+
+  // Body edits: the proposal's own created_by, confined to `Developing` (#8).
+  // But the body is SHARED and the states are per-program, so "in Developing"
+  // has no single answer. Modelled as: any review developing.
+  const anyDeveloping = reviewsOf(p.key).some(r => r.state === "Developing");
+  const isAuthor = p.createdBy === actor.netid;
+  out.push({
+    label: "Edit the shared body",
+    ok: isAuthor && anyDeveloping,
+    why: !isAuthor
+      ? `Only ${nameOnly(p.createdBy)}, who proposed this, can edit it.`
+      : (!anyDeveloping ? "The body can only be edited while a programme has sent it back for development." : null),
+    shared: isAuthor && anyDeveloping,
+  });
+
+  // The area assignment: the director of that programme only (#32), writable in
+  // Proposed and Developing only.
+  const isDirector = actor.roles.includes("program_director") && actor.programs.includes(rev.program);
+  const assignable = rev.state === "Proposed" || rev.state === "Developing";
+  out.push({
+    label: rev.areaHead ? "Change the area and area head" : "Assign an area and area head",
+    ok: isDirector && assignable,
+    why: !isDirector
+      ? `The assignment is ${PROGRAMS[rev.program].short}'s director's to make.`
+      : (!assignable ? "This review is final; the assignment now lives on the course it minted." : null),
+  });
+
+  return out;
+}
+
+/* ---- history as a sentence per row (#41) ------------------------------- */
+
+function sentence(row, rev) {
+  const who = person(row.actor);
+  const pg  = PROGRAMS[rev.program].short;
+  let s;
+  if (row.event === "develop") s = `${who} sent it back to ${nameOnly(prop(rev.proposal).createdBy)} for development on ${pg}'s behalf.`;
+  else if (row.event === "reject") s = `${who} rejected it for ${pg}. This is final.`;
+  else if (row.event === "approve") {
+    s = rev.minted
+      ? `${who} approved it for ${pg}, minting ${rev.minted.number}.`
+      : `${who} approved it for ${pg}.`;
+  } else s = `${who} fired ${row.event}.`;
+  const reasonText = row.reason
+    ? String(row.reason).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]))
+    : "";
+  const reason = row.reason ? `<span class="reason">“${reasonText}”</span>` : "";
+  return s + reason;
+}
+
+function historyBlock(rev, actor) {
+  // Tier 2 governs log rows, and a review's log is Tier 3 (#28): child rows
+  // inherit their parent's visibility. `student` and `advisor` get no history
+  // section at all — but they cannot reach this page in the first place.
+  const p = prop(rev.proposal);
+  const lines = [];
+
+  // The derived creation line (#41). Not a log row — #13 refused a genesis row.
+  lines.push(`
+    <div class="hline">
+      <span class="dot hollow">○</span>
+      <span class="s">${person(p.createdBy)} proposed this and asked ${PROGRAMS[rev.program].short} to review it.</span>
+      <span class="when">${when(rev.createdAt, { short: true })}</span>
+    </div>`);
+
+  rev.log.forEach(row => {
+    lines.push(`
+      <div class="hline">
+        <span class="dot">●</span>
+        <span class="s">${sentence(row, rev)}</span>
+        <span class="when">${when(row.at, { short: true })}</span>
+      </div>`);
+  });
+
+  const heading = rev.log.length ? "History" : "History <span style='text-transform:none;letter-spacing:0;font-weight:400'>— no moves yet</span>";
+  return `<div class="sec"><h2>${heading}</h2><div class="hist">${lines.join("")}</div></div>`;
+}
+
+/* ---- the shared-body warning (⚑3) --------------------------------------- */
+
+function bodyDrift(rev) {
+  const p = prop(rev.proposal);
+  if (!p.updatedAt || !rev.minted) return null;
+  if (new Date(p.updatedAt) <= new Date(rev.minted.at)) return null;
+  return `The shared body was edited on ${when(p.updatedAt, { short: true })}, after ${rev.minted.number} was minted from it. The mint copies rather than references (#7), so the course and this proposal now differ, and nothing records that.`;
+}
+
+function sharedBodyNote(rev) {
+  const p = prop(rev.proposal);
+  const sibs = reviewsOf(p.key).filter(r => r.key !== rev.key);
+  if (!sibs.length) return "";
+  const developing = reviewsOf(p.key).filter(r => r.state === "Developing");
+  let s = `One body, ${reviewsOf(p.key).length} reviews. An edit changes what every programme is reading.`;
+  if (developing.length) {
+    const names = developing.map(r => PROGRAMS[r.program].short).join(" and ");
+    s += ` ${names} ${developing.length > 1 ? "have" : "has"} sent it back, so it can change under you.`;
+  }
+  return s;
+}
+
+/* =========================================================================
+   Screens
+   ========================================================================= */
+
+const state = { actor: ACTORS[0], view: "list", reviewKey: null, filter: "open" };
+
+const FILTERS = [
+  { key: "open",   label: "In play",   test: r => r.state === "Proposed" || r.state === "Developing" },
+  { key: "mine",   label: "Needs me",  test: (r, a) => actionsFor(r, a).moves.some(m => m.ok) },
+  { key: "rej",    label: "Rejected",  test: r => r.state === "Rejected" },
+  { key: "all",    label: "Any state", test: () => true },
+];
+
+/* ---- reachability, as settled in the #42 grilling -----------------------
+   Three levels, not two. Full standing is Tier 3's own arms. A proposal you
+   reach by ANY arm shows you EVERY programme's verdict on its group header —
+   a deliberate widening — and the reviews outside your arms open read-only:
+   body, assignment, siblings and history, no actions and no refusals. --- */
+
+const canReachProposal = (key, actor) => reviewsOf(key).some(r => canSee(r, actor));
+const isReadOnly = (rev, actor) => !canSee(rev, actor) && canReachProposal(rev.proposal, actor);
+const mayPropose = actor => actor.roles.includes("instructor");
+
+function filterBar() {
+  return `<div class="filters">
+    ${FILTERS.map(f => `<button class="f ${state.filter === f.key ? "on" : ""}" data-filter="${f.key}">${f.label}</button>`).join("")}
+    <span class="spacer"></span>
+    <input class="search" placeholder="Search title or proposer" aria-label="Search proposals" />
+  </div>`;
+}
+
+function rowsFor(actor) {
+  const f = FILTERS.find(x => x.key === state.filter);
+  return visibleReviews(actor).filter(r => f.test(r, actor));
+}
+
+function actionCell(rev, actor) {
+  const a = actionsFor(rev, actor);
+  const n = a.moves.filter(m => m.ok).length;
+  if (!actor.roles.some(r => ["program_director", "area_head", "coordinator", "chair"].includes(r))) return "";
+  return `<button class="menu ${n === 0 ? "zero" : ""}" title="${a.closed || "Every move from this state, permitted ones clickable"}">⋯ ${n}</button>`;
+}
+
+/* ---- A: reviews, flat --------------------------------------------------- */
+
+function listA(actor) {
+  const rows = rowsFor(actor);
+  if (!rows.length) return filterBar() + emptyList(actor);
+  return `
+    ${filterBar()}
+    <div class="tablewrap"><table>
+      <thead><tr>
+        <th>Programme</th><th>Proposal</th><th class="num">Cr</th><th>Proposed by</th>
+        <th>Area · head</th><th>Review state</th><th></th><th></th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => {
+          const p = prop(r.proposal);
+          const sibs = reviewsOf(p.key).length;
+          return `<tr>
+            <td>${pchip(r.program)}</td>
+            <td><strong>${p.title}</strong>${sibs > 1 ? `<div class="noname" style="font-style:normal">one of ${sibs} reviews of this proposal</div>` : ""}</td>
+            <td class="num">${p.credits}</td>
+            <td>${person(p.createdBy)}</td>
+            <td>${r.areas.length ? r.areas.join(", ") : "<span class='noname'>none yet</span>"}${r.areaHead ? ` · ${nameOnly(r.areaHead)}` : ""}</td>
+            <td><span class="state ${r.state}">${r.state}</span></td>
+            <td>${actionCell(r, actor)}</td>
+            <td><button class="openbtn" data-open="${r.key}" title="Open this review" aria-label="Open ${p.title}, ${r.program}">↗</button></td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table></div>`;
+}
+
+/* ---- B: proposals, grouped (#37's device) ------------------------------- */
+
+function listB(actor) {
+  const rows = rowsFor(actor);
+  if (!rows.length) return filterBar() + emptyList(actor);
+  const keys = [...new Set(rows.map(r => r.proposal))];
+  return `
+    ${filterBar()}
+    ${keys.map(k => {
+      const p = prop(k);
+      const all = reviewsOf(k);
+      const shown = rows.filter(r => r.proposal === k);
+      const hidden = all.length - all.filter(r => canSee(r, actor)).length;
+      return `<div class="group">
+        <header>
+          <span class="t">${p.title}</span>
+          <span class="meta">${p.credits} credits · proposed by ${person(p.createdBy)} · ${when(p.createdAt, { short: true })}</span>
+          <span class="right">
+            <span class="meta">${all.length === 1 ? "1 programme" : `${all.length} programmes`}${hidden ? ` · ${hidden} not shown to you` : ""}</span>
+          </span>
+        </header>
+        ${shown.map(r => `
+          <div class="rrow">
+            <span>${pchip(r.program)}</span>
+            <span><span class="state ${r.state}">${r.state}</span></span>
+            <span class="area">${r.areas.length ? r.areas.join(", ") : "no area yet"}${r.areaHead ? ` · ${nameOnly(r.areaHead)}` : " · no head yet"}</span>
+            <span>${actionCell(r, actor)}</span>
+            <span><button class="openbtn" data-open="${r.key}" title="Open this review" aria-label="Open ${p.title}, ${r.program}">↗</button></span>
+          </div>`).join("")}
+      </div>`;
+    }).join("")}`;
+}
+
+/* ---- C: proposals, flat, verdict strip ---------------------------------- */
+
+const GLYPH = { Proposed: "○", Developing: "◐", Approved: "✓", Rejected: "✗" };
+
+function derivedState(k, actor) {
+  const seen = reviewsOf(k).filter(r => canSee(r, actor));
+  const set = [...new Set(seen.map(r => r.state))];
+  if (set.length === 1) return { label: set[0], cls: set[0] };
+  return { label: "Split", cls: "mixed" };
+}
+
+function listC(actor) {
+  const rows = rowsFor(actor);
+  if (!rows.length) return filterBar() + emptyList(actor);
+  const keys = [...new Set(rows.map(r => r.proposal))];
+  return `
+    ${filterBar()}
+    <div class="tablewrap"><table>
+      <thead><tr>
+        <th>Proposal</th><th class="num">Cr</th><th>Proposed by</th><th>Proposed</th>
+        <th>Verdicts</th><th>Overall</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${keys.map(k => {
+          const p = prop(k);
+          const seen = reviewsOf(k).filter(r => canSee(r, actor));
+          const d = derivedState(k, actor);
+          const overall = d.cls === "mixed"
+            ? flag(1, "A proposal has no state (#7), so this cell is derived from its reviews — and derived from the reviews YOU can see. Rui Chen, who wrote this, sees Split; Priya, who directs only ITP, sees Approved for the same proposal on the same day. The column is viewer-dependent, and variant A never has to render it at all.", `<span class="state mixed">Split</span>`)
+            : (reviewsOf(k).length > seen.length
+                ? flag(1, "A proposal has no state (#7), so this cell is derived — from the reviews YOU can see. " + (reviewsOf(k).length - seen.length) + " of this proposal's reviews are outside your tier, so this verdict is drawn from a subset and would read differently to someone else. Variant A never has to render it at all.", `<span class="state ${d.cls}">${d.label}</span>`)
+                : `<span class="state ${d.cls}">${d.label}</span>`);
+          return `<tr>
+            <td><strong>${p.title}</strong></td>
+            <td class="num">${p.credits}</td>
+            <td>${person(p.createdBy)}</td>
+            <td class="num">${when(p.createdAt, { short: true })}</td>
+            <td><div class="verdicts">${seen.map(r => `
+              <button class="verdict ${r.state} ${tierArm(r, actor).includes("director") ? "mine" : ""}"
+                      data-open="${r.key}" title="${PROGRAMS[r.program].name} — ${r.state}. Open this review.">
+                <span>${PROGRAMS[r.program].short}</span><span class="g">${GLYPH[r.state]}</span>
+              </button>`).join("")}</div></td>
+            <td>${overall}</td>
+            <td><button class="openbtn" data-open="${seen[0].key}" title="Open the first review" aria-label="Open ${p.title}">↗</button></td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table></div>`;
+}
+
+/* ---- D: the settled shape — B's grouping, C's chips on the header ------- */
+
+function listD(actor) {
+  const rows = rowsFor(actor);
+  const keys = [...new Set(rows.map(r => r.proposal))];
+  if (!keys.length) return filterBar() + emptyList(actor);
+  return `
+    ${filterBar()}
+    ${keys.map(k => {
+      const p = prop(k);
+      const all = reviewsOf(k);                       // every review — chips show all
+      const shown = rows.filter(r => r.proposal === k); // rows you have standing on
+      return `<div class="group">
+        <header>
+          <span class="t">${p.title}</span>
+          <span class="meta">${p.credits} credits · ${person(p.createdBy)} · ${when(p.createdAt, { short: true })}</span>
+          <span class="right">
+            <div class="verdicts">${all.map(r => `
+              <button class="verdict ${r.state} ${canSee(r, actor) ? "mine" : ""}" data-open="${r.key}"
+                      title="${PROGRAMS[r.program].name} — ${r.state}.${canSee(r, actor) ? "" : " Opens read-only."}">
+                <span>${PROGRAMS[r.program].short}</span><span class="g">${GLYPH[r.state]}</span>
+              </button>`).join("")}</div>
+          </span>
+        </header>
+        ${shown.map(r => `
+          <div class="rrow">
+            <span>${pchip(r.program)}</span>
+            <span><span class="state ${r.state}">${r.state}</span></span>
+            <span class="area">${r.areas.length ? r.areas.join(", ") : "no area yet"}${r.areaHead ? ` · ${nameOnly(r.areaHead)}` : " · no head yet"}${r.minted ? ` · minted ${r.minted.number}` : ""}</span>
+            <span>${actionCell(r, actor)}</span>
+            <span><button class="openbtn" data-open="${r.key}" title="Open this review" aria-label="Open ${p.title}, ${r.program}">↗</button></span>
+          </div>`).join("")}
+      </div>`;
+    }).join("")}`;
+}
+
+function proposeBar(actor) {
+  if (!mayPropose(actor)) return "";
+  return `<button class="go" style="background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer">Propose a course</button>`;
+}
+
+function emptyList(actor) {
+  const any = visibleReviews(actor).length;
+  // The empty state doubles as the invitation — an instructor who has never
+  // proposed anything sees a screen whose entire content is this.
+  const invite = !any && mayPropose(actor);
+  return `<div class="empty">
+    <strong>${any ? "Nothing matches those filters" : (invite ? "You haven't proposed a course yet" : "No proposals to show you")}</strong>
+    ${any
+      ? `Clear the state filter to see all ${any} review${any === 1 ? "" : "s"} you can reach.`
+      : (invite
+        ? `<p style="margin:0 0 14px">A proposal is one description sent to whichever programmes you want to teach it. Each decides for itself, and any that approves mints its own course.</p>${proposeBar(actor)}`
+        : `Proposals reach you three ways: you direct a programme one was sent to, you wrote it, or you are the area head on a review of it. None applies right now.`)}
+  </div>`;
+}
+
+/* ---- the review detail page — #41's conventions, three sibling treatments */
+
+function railFor(rev, actor, extra = "") {
+  const a = actionsFor(rev, actor);
+  const w = writesFor(rev, actor);
+  const p = prop(rev.proposal);
+  const acting = actor.roles.some(r => ["program_director", "area_head", "coordinator", "chair"].includes(r));
+
+  const actionCard = !acting ? "" : `
+    <div class="card">
+      <h2>What you may do</h2>
+      ${a.closed ? `<p class="why" style="margin:0">${a.closed}</p>` : `
+        <div class="act">
+          ${a.moves.map(m => m.ok
+            ? `<div class="a"><button class="go">${m.label}</button></div>`
+            : `<div class="a"><button class="no" disabled>${m.label}</button><span class="why">${m.why}</span></div>`).join("")}
+        </div>
+        ${actor.roles.includes("chair") && !(actor.roles.includes("program_director") && actor.programs.includes(rev.program))
+          ? `<p class="why" style="margin:8px 0 0">${flag(6, "#34 puts the chair one OR-clause ahead of the whole matrix, bypassing permissions but never machine legality or invariants. Taken literally that reaches this page, so the chair can approve any programme's curriculum single-handed — a power no closed ticket examined in this context.", "You can do this as chair, not as this programme's director.")}</p>`
+          : ""}`}
+      <div class="act" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+        ${w.map(x => x.ok
+          ? `<div class="a"><button class="go">${x.label}</button>${x.shared ? `<span class="why">${flag(3, "The body is shared across every review of this proposal. Editing it changes what the other programmes are reading, and nothing notifies them.", "Shared with every programme reviewing this.")}</span>` : ""}</div>`
+          : `<div class="a"><button class="no" disabled>${x.label}</button><span class="why">${x.why}</span></div>`).join("")}
+      </div>
+    </div>`;
+
+  const drift = bodyDrift(rev);
+
+  return `<aside class="rail">
+    ${extra}
+    <div class="card">
+      <h2>${PROGRAMS[rev.program].short}'s verdict</h2>
+      <div class="bigstate"><span class="state ${rev.state}">${rev.state}</span></div>
+      ${rev.minted ? `<p class="prov" style="margin:9px 0 0">Minted <a href="#" style="color:var(--accent)"><strong>${rev.minted.number}</strong></a> on ${when(rev.minted.at, { short: true })}.
+        <span class="noname" style="display:block">#42 added <code>course.minted_from_review_id</code> so this link exists.</span></p>` : ""}
+      ${drift ? `<p class="prov" style="margin:9px 0 0;color:var(--flag)"><strong>The body has changed since.</strong> ${drift.replace(/^The shared body was/, "It was")} The course page says so too.</p>` : ""}
+    </div>
+    ${actionCard}
+    <div class="card">
+      <h2>Last changed</h2>
+      <p class="prov" style="margin:0">${p.updatedAt
+        ? `${person(p.updatedBy)} · ${when(p.updatedAt)}`
+        : "Never changed since it was created."}</p>
+    </div>
+  </aside>`;
+}
+
+function mainFor(rev, actor, siblingBlock) {
+  const p = prop(rev.proposal);
+  const note = sharedBodyNote(rev);
+  return `<div>
+    <div class="pagehead">
+      <h1>${p.title}</h1>
+      ${pchip(rev.program)}
+      <span class="state ${rev.state}">${rev.state}</span>
+    </div>
+    <div class="pagehead"><span class="sub">${p.credits} credits · proposed by ${person(p.createdBy, { pronouns: true })} on ${when(p.createdAt, { short: true })}</span></div>
+
+    <div class="sec">
+      <h2>The proposal</h2>
+      ${note ? `<p class="prov" style="margin:0 0 10px">${note}</p>` : ""}
+      <div class="body"><p>${p.description}</p></div>
+    </div>
+
+    <div class="sec">
+      <h2>${PROGRAMS[rev.program].short}'s assignment</h2>
+      <dl class="kv">
+        <dt>Areas</dt><dd>${rev.areas.length ? rev.areas.join(", ") : "<span class='noname'>Not assigned yet</span>"}</dd>
+        <dt>Area head</dt><dd>${rev.areaHead ? person(rev.areaHead, { pronouns: true }) : "<span class='noname'>Not assigned yet</span>"}</dd>
+      </dl>
+      ${rev.areaHead && rev.areaHead === p.createdBy
+        ? `<p class="prov" style="margin:8px 0 0">${flag(5, "`created_by` gates body edits (#8) and `review.area_head` gates approve (#32). Nothing forbids one person holding both, so the proposer can approve their own proposal with no second pair of eyes.", "This proposal's author is also this review's area head.")}</p>` : ""}
+      ${!rev.areas.length || !rev.areaHead
+        ? `<p class="prov" style="margin:8px 0 0">A course minted from this review would carry ${!rev.areas.length && !rev.areaHead ? "neither an area nor a head" : (!rev.areas.length ? "no area" : "no area head")}, and could not be offered until one was assigned.</p>` : ""}
+    </div>
+
+    ${siblingBlock}
+    ${historyBlock(rev, actor)}
+  </div>`;
+}
+
+// The three sibling treatments — the thing the variants actually disagree about.
+function sibsTable(rev, actor) {
+  const sibs = reviewsOf(rev.proposal).filter(r => r.key !== rev.key);
+  if (!sibs.length) return `<div class="sec"><h2>The other reviews</h2>
+    <p class="prov" style="margin:0">This proposal was sent to ${PROGRAMS[rev.program].short} only.</p></div>`;
+  const unseen = sibs.filter(r => !canSee(r, actor)).length;
+  return `<div class="sec">
+    <h2>The other reviews</h2>
+    <div class="sibs">
+      ${sibs.map(r => `<div class="sib">
+        <span>${pchip(r.program)}</span>
+        <span class="n">${r.log.length ? sentenceShort(r) : "No moves yet."}</span>
+        <span><span class="state ${r.state}">${r.state}</span></span>
+        <span>${canSee(r, actor)
+          ? `<button class="openbtn" data-open="${r.key}" title="Open">↗</button>`
+          : `<span class="noname">not yours</span>`}</span>
+      </div>`).join("")}
+    </div>
+    ${unseen ? `<p class="prov" style="margin:10px 0 0">${flag(2, "Tier 3 reaches you by programme, authorship or area-headship. These reviews match none of those arms, yet their verdicts are shown — the ticket calls the siblings the whole point of the split, and the read rule says they are not yours. Both cannot hold.", `${unseen} of these ${unseen === 1 ? "is" : "are"} outside what Tier 3 grants you.`)}</p>` : ""}
+  </div>`;
+}
+
+function sentenceShort(r) {
+  const last = r.log[r.log.length - 1];
+  const verb = { develop: "sent back", approve: "approved", reject: "rejected" }[last.event] || last.event;
+  return `${nameOnly(last.actor)} ${verb} it, ${when(last.at, { short: true })}.`;
+}
+
+function sibsHeader(rev, actor) {
+  // B and D: the siblings ARE the group you came from — restated above the
+  // record, chips and all. Every programme's verdict shows; the ones outside
+  // your arms open read-only rather than refusing.
+  const all = reviewsOf(rev.proposal);
+  const unseen = all.filter(r => !canSee(r, actor) && r.key !== rev.key).length;
+  return `<div class="group" style="margin:0 0 4px">
+    <header>
+      <span class="t">${prop(rev.proposal).title}</span>
+      <span class="meta">${all.length === 1 ? "one programme" : `${all.length} programmes reviewing`}</span>
+      <span class="right"><div class="verdicts">${all.map(r => `
+        <button class="verdict ${r.state} ${r.key === rev.key ? "mine" : ""}" data-open="${r.key}"
+                title="${PROGRAMS[r.program].name} — ${r.state}">
+          <span>${PROGRAMS[r.program].short}</span><span class="g">${GLYPH[r.state]}</span>
+        </button>`).join("")}</div></span>
+    </header>
+    ${all.map(r => `<div class="rrow" ${r.key === rev.key ? 'style="background:var(--accent-soft)"' : ""}>
+      <span>${pchip(r.program)}</span>
+      <span><span class="state ${r.state}">${r.state}</span></span>
+      <span class="area">${r.key === rev.key ? "you are here" : (r.log.length ? sentenceShort(r) : "no moves yet")}</span>
+      <span>${r.key === rev.key || canSee(r, actor) ? "" : `<span class="noname">read only</span>`}</span>
+      <span>${r.key === rev.key ? "" : `<button class="openbtn" data-open="${r.key}" title="Open">↗</button>`}</span>
+    </div>`).join("")}
+    ${unseen ? `<div class="rrow"><span></span><span></span><span class="area noname" style="font-style:normal">${unseen} of these ${unseen === 1 ? "is" : "are"} outside what Tier 3 grants you — a deliberate widening, settled on #42.</span><span></span><span></span></div>` : ""}
+  </div>`;
+}
+
+function sibsRail(rev, actor) {
+  // C: the verdict strip promoted into the rail, beside the actions.
+  const all = reviewsOf(rev.proposal);
+  const unseen = all.filter(r => !canSee(r, actor) && r.key !== rev.key).length;
+  return `<div class="card">
+    <h2>All ${all.length} verdict${all.length === 1 ? "" : "s"}</h2>
+    <div class="verdicts">
+      ${all.map(r => `<button class="verdict ${r.state} ${r.key === rev.key ? "mine" : ""}" data-open="${r.key}"
+        title="${PROGRAMS[r.program].name} — ${r.state}">
+        <span>${PROGRAMS[r.program].short}</span><span class="g">${GLYPH[r.state]}</span></button>`).join("")}
+    </div>
+    ${unseen ? `<p class="prov" style="margin:9px 0 0">${flag(2, "Tier 3 reaches you by programme, authorship or area-headship. These reviews match none of those arms, yet their verdicts are shown here — in the rail, which is the most prominent place on the page.", `${unseen} outside your tier`)}</p>` : ""}
+  </div>`;
+}
+
+// D: B's group header restated above the record, chips and all; the rail keeps
+// #41's shape. A review outside your arms but inside a proposal you can reach
+// opens read-only — no actions, no refusals, history and reasons intact, which
+// was the entire justification for opening it rather than greying the chip.
+function detailD(rev, actor) {
+  const ro = isReadOnly(rev, actor);
+  const banner = ro ? `<div class="notes" style="margin-top:14px"><b>Read only</b><p>You can read
+    ${PROGRAMS[rev.program].short}'s review because you have standing on this proposal, not on this review.
+    ${PROGRAMS[rev.program].short}'s director and its area head are the ones who can move it.</p></div>` : "";
+  return `${sibsHeader(rev, actor)}${banner}<div class="page">${mainFor(rev, actor, "")}${ro ? railReadOnly(rev) : railFor(rev, actor)}</div>`;
+}
+
+function railReadOnly(rev) {
+  const p = prop(rev.proposal);
+  const drift = bodyDrift(rev);
+  return `<aside class="rail">
+    <div class="card">
+      <h2>${PROGRAMS[rev.program].short}'s verdict</h2>
+      <div class="bigstate"><span class="state ${rev.state}">${rev.state}</span></div>
+      ${rev.minted ? `<p class="prov" style="margin:9px 0 0">Minted <strong>${rev.minted.number}</strong> on ${when(rev.minted.at, { short: true })}.</p>` : ""}
+      ${drift ? `<p class="prov" style="margin:9px 0 0;color:var(--flag)">The body has changed since.</p>` : ""}
+    </div>
+    <div class="card">
+      <h2>Last changed</h2>
+      <p class="prov" style="margin:0">${p.updatedAt ? `${person(p.updatedBy)} · ${when(p.updatedAt)}` : "Never changed since it was created."}</p>
+    </div>
+  </aside>`;
+}
+
+function detail(rev, actor, variant) {
+  if (variant === "D") {
+    if (!canSee(rev, actor) && !isReadOnly(rev, actor)) return refusedRecord(rev);
+    return detailD(rev, actor);
+  }
+  if (!canSee(rev, actor)) return refusedRecord(rev);
+  if (variant === "A") return `<div class="page">${mainFor(rev, actor, sibsTable(rev, actor))}${railFor(rev, actor)}</div>`;
+  if (variant === "B") return `${sibsHeader(rev, actor)}<div class="page">${mainFor(rev, actor, "")}${railFor(rev, actor)}</div>`;
+  return `<div class="page">${mainFor(rev, actor, "")}${railFor(rev, actor, sibsRail(rev, actor))}</div>`;
+}
+
+// #41: a page has a URL and has to answer, and the refusal names no state.
+function refusedRecord(rev) {
+  return `<div class="refusal">
+    <h1>There is no review here</h1>
+    <p>Nothing you can see has been proposed to ${PROGRAMS[rev.program].name} under that reference.</p>
+  </div>`;
+}
+
+// Tier 3 has no student or advisor arm at all, so the whole screen is refused —
+// and the nav item is absent rather than disabled (#37's absent-not-empty).
+function refusedScreen(actor) {
+  return `<div class="refusal">
+    <h1>There is nothing here for you</h1>
+    <p>Course proposals are read by the programme directors they were sent to, by whoever
+       wrote them, and by the area heads assigned to review them. The Catalog lists every
+       course that made it through.</p>
+  </div>`;
+}
+
+/* =========================================================================
+   Render
+   ========================================================================= */
+
+const VARIANTS = [
+  { key: "D", name: "Settled",   list: listD },
+  { key: "A", name: "Reviews",   list: listA },
+  { key: "B", name: "Proposals", list: listB },
+  { key: "C", name: "Verdicts",  list: listC },
+];
+let vi = 0;
+
+const NOTES = {
+  D: "<strong>The settled shape</strong> — B's grouping with C's verdict chips on the group header, assembled in the #42 grilling. The chips show <em>every</em> programme's verdict whether or not Tier 3 reaches you, which is a deliberate widening; the nested rows are only the reviews you have standing on. A chip outside your arms opens the review <em>read-only</em>. Because the chips are per-programme, nothing has to derive an overall status — the problem C had disappears rather than being solved.",
+  A: "One row per review — the row <em>is</em> the request (#10). A proposal to three programmes is three rows, and the shared title repeats. Nothing is ever derived, which is the point: compare the <strong>Overall</strong> column variant C has to invent.",
+  B: "#37's grouping device, reused. The shared body sits on the group header where it is stated once; the reviews nest beneath it carrying only what differs. Look at <em>Physical Computing II</em> as Priya — the group tells you IMA and LowRes exist before you open anything.",
+  C: "One row per proposal, the reviews collapsed into a verdict strip. Densest of the three, and the only one that has to answer <em>what state is this proposal in</em> — which #7 deliberately left with no stored answer. See the <strong>Split</strong> cell.",
+};
+
+function nav(actor) {
+  const canReach = visibleReviews(actor).length > 0 || actor.roles.some(r => r !== "student");
+  const items = [
+    ["Catalog", false], ["Lineup", false],
+    ["Proposals", true], ["Roles", false],
+  ];
+  return items.map(([label, on]) => {
+    if (label === "Proposals" && !canReach) return `<a class="gone" title="Tier 3 reaches this actor by no arm, so the item is absent rather than disabled">${label}</a>`;
+    return `<a class="${on ? "on" : ""}">${label}</a>`;
+  }).join("");
+}
+
+function pickerbar() {
+  const actor = state.actor;
+  if (state.view === "review") {
+    const rev = review(state.reviewKey);
+    return `<button class="crumb" data-back="1">← Proposals</button>
+      <span style="color:var(--ink-faint)">/</span>
+      <span>${prop(rev.proposal).title} · ${PROGRAMS[rev.program].short}</span>
+      <span class="note">Review detail — conventions inherited from #41</span>`;
+  }
+  return `<label>Proposals</label>
+    <span style="font-size:13px;color:var(--ink-soft)">${armSentence(actor)}</span>
+    <span class="note">${visibleReviews(actor).length} review${visibleReviews(actor).length === 1 ? "" : "s"} reachable · Tier 3</span>`;
+}
+
+function render() {
+  const v = VARIANTS[vi];
+  const actor = state.actor;
+
+  document.getElementById("vkey").textContent = v.key;
+  document.getElementById("vname").textContent = v.name;
+  document.getElementById("nav").innerHTML = nav(actor);
+  document.getElementById("pickerbar").innerHTML = pickerbar();
+
+  const isReader = actor.roles.some(r => r !== "student");
+  let html;
+
+  if (!isReader && visibleReviews(actor).length === 0) {
+    html = refusedScreen(actor);
+  } else if (state.view === "review") {
+    html = detail(review(state.reviewKey), actor, v.key);
+  } else {
+    html = `<div class="notes"><b>Variant ${v.key}</b><p>${NOTES[v.key]}</p></div>
+      <div class="listhead">
+        <h1>Course proposals</h1>
+        <span class="count">${rowsFor(actor).length} shown</span>
+        <span class="why">${armSentence(actor)}</span>
+        ${v.key === "D" && rowsFor(actor).length ? proposeBar(actor) : ""}
+      </div>
+      ${v.list(actor)}`;
+  }
+
+  document.getElementById("view").innerHTML = html;
+}
+
+/* --- controls ----------------------------------------------------------- */
+
+const actorSel = document.getElementById("actor");
+ACTORS.forEach((a, i) => {
+  const o = document.createElement("option");
+  o.value = String(i); o.textContent = a.label;
+  actorSel.appendChild(o);
+});
+actorSel.addEventListener("change", e => {
+  state.actor = ACTORS[+e.target.value];
+  state.view = "list"; state.reviewKey = null;
+  render();
+});
+
+document.addEventListener("click", e => {
+  const open = e.target.closest("[data-open]");
+  if (open) {
+    state.view = "review"; state.reviewKey = open.dataset.open;
+    render(); window.scrollTo({ top: 0, behavior: "smooth" }); return;
+  }
+  const back = e.target.closest("[data-back]");
+  if (back) { state.view = "list"; state.reviewKey = null; render(); return; }
+  const f = e.target.closest("[data-filter]");
+  if (f) { state.filter = f.dataset.filter; render(); return; }
+});
+
+function step(d) {
+  vi = (vi + d + VARIANTS.length) % VARIANTS.length;
+  const u = new URL(location);
+  u.searchParams.set("variant", VARIANTS[vi].key);
+  history.replaceState(null, "", u);
+  render();
+}
+document.getElementById("prev").addEventListener("click", () => step(-1));
+document.getElementById("next").addEventListener("click", () => step(1));
+document.addEventListener("keydown", e => {
+  if (e.target.matches("select, input, textarea")) return;
+  if (e.key === "ArrowLeft")  step(-1);
+  if (e.key === "ArrowRight") step(1);
+});
+
+const start = new URL(location).searchParams.get("variant");
+if (start) {
+  const i = VARIANTS.findIndex(v => v.key === start.toUpperCase());
+  if (i >= 0) vi = i;
+}
+render();
+</script>
