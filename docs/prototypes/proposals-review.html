@@ -8,6 +8,10 @@
   ← → keys. Hand-written fixtures, no data layer, no framework — a static
   approximation of Next.js + Mantine, built to be reacted to, not promoted.
 
+    D — Settled      the shape the requester assembled in the grilling: B's
+                     grouping with C's verdict chips on the group header. D is
+                     the answer; A/B/C are the primary source it came from and
+                     are kept beside it deliberately. See the resolution on #42.
     A — Reviews      one row per review, flat. The row *is* the request (#10),
                      so a proposal to three programs is three rows. Siblings
                      render as a table under the body.
@@ -33,9 +37,17 @@
       a proposal's state is | n/a (per row)    | n/a (per row)    | derived strip
       siblings render as    | table under body | the group header | rail strip
 
-  Six things this file made visible that were hard to see on paper. All six
-  are flagged inline with a dotted amber underline and a ⚑; the notes bar at
-  the top of each screen names the one that screen exercises.
+  Six things this file made visible that were hard to see on paper, and how
+  each was settled. In A/B/C they are flagged inline with a dotted amber
+  underline and a ⚑, which is how they looked before the grilling; D renders
+  the settled answers instead.
+
+    1 dissolved  per-programme chips mean nothing derives an overall status
+    2 widened    every verdict shows; foreign reviews open read-only
+    3 stated     on the review page AND the course page (amends #41)
+    4 fixed      `course.minted_from_review_id` added (amends the schema)
+    5 out        the rule stands; the page states the coincidence
+    6 confirmed  the chair's bypass reaches curriculum, both read and act
 
   1. **A proposal has no state (#7), so a proposal-grained list has no status
      column** — B and C must derive one, and the derivation is *viewer
@@ -803,10 +815,21 @@ function sharedBodyNote(rev) {
 const state = { actor: ACTORS[0], view: "list", reviewKey: null, filter: "open" };
 
 const FILTERS = [
-  { key: "open",   label: "In play",  test: r => r.state === "Proposed" || r.state === "Developing" },
-  { key: "all",    label: "Any state", test: () => true },
+  { key: "open",   label: "In play",   test: r => r.state === "Proposed" || r.state === "Developing" },
   { key: "mine",   label: "Needs me",  test: (r, a) => actionsFor(r, a).moves.some(m => m.ok) },
+  { key: "rej",    label: "Rejected",  test: r => r.state === "Rejected" },
+  { key: "all",    label: "Any state", test: () => true },
 ];
+
+/* ---- reachability, as settled in the #42 grilling -----------------------
+   Three levels, not two. Full standing is Tier 3's own arms. A proposal you
+   reach by ANY arm shows you EVERY programme's verdict on its group header —
+   a deliberate widening — and the reviews outside your arms open read-only:
+   body, assignment, siblings and history, no actions and no refusals. --- */
+
+const canReachProposal = (key, actor) => reviewsOf(key).some(r => canSee(r, actor));
+const isReadOnly = (rev, actor) => !canSee(rev, actor) && canReachProposal(rev.proposal, actor);
+const mayPropose = actor => actor.roles.includes("instructor");
 
 function filterBar() {
   return `<div class="filters">
@@ -832,7 +855,7 @@ function actionCell(rev, actor) {
 
 function listA(actor) {
   const rows = rowsFor(actor);
-  if (!rows.length) return emptyList(actor);
+  if (!rows.length) return filterBar() + emptyList(actor);
   return `
     ${filterBar()}
     <div class="tablewrap"><table>
@@ -863,7 +886,7 @@ function listA(actor) {
 
 function listB(actor) {
   const rows = rowsFor(actor);
-  if (!rows.length) return emptyList(actor);
+  if (!rows.length) return filterBar() + emptyList(actor);
   const keys = [...new Set(rows.map(r => r.proposal))];
   return `
     ${filterBar()}
@@ -905,7 +928,7 @@ function derivedState(k, actor) {
 
 function listC(actor) {
   const rows = rowsFor(actor);
-  if (!rows.length) return emptyList(actor);
+  if (!rows.length) return filterBar() + emptyList(actor);
   const keys = [...new Set(rows.map(r => r.proposal))];
   return `
     ${filterBar()}
@@ -942,13 +965,59 @@ function listC(actor) {
     </table></div>`;
 }
 
+/* ---- D: the settled shape — B's grouping, C's chips on the header ------- */
+
+function listD(actor) {
+  const rows = rowsFor(actor);
+  const keys = [...new Set(rows.map(r => r.proposal))];
+  if (!keys.length) return filterBar() + emptyList(actor);
+  return `
+    ${filterBar()}
+    ${keys.map(k => {
+      const p = prop(k);
+      const all = reviewsOf(k);                       // every review — chips show all
+      const shown = rows.filter(r => r.proposal === k); // rows you have standing on
+      return `<div class="group">
+        <header>
+          <span class="t">${p.title}</span>
+          <span class="meta">${p.credits} credits · ${person(p.createdBy)} · ${when(p.createdAt, { short: true })}</span>
+          <span class="right">
+            <div class="verdicts">${all.map(r => `
+              <button class="verdict ${r.state} ${canSee(r, actor) ? "mine" : ""}" data-open="${r.key}"
+                      title="${PROGRAMS[r.program].name} — ${r.state}.${canSee(r, actor) ? "" : " Opens read-only."}">
+                <span>${PROGRAMS[r.program].short}</span><span class="g">${GLYPH[r.state]}</span>
+              </button>`).join("")}</div>
+          </span>
+        </header>
+        ${shown.map(r => `
+          <div class="rrow">
+            <span>${pchip(r.program)}</span>
+            <span><span class="state ${r.state}">${r.state}</span></span>
+            <span class="area">${r.areas.length ? r.areas.join(", ") : "no area yet"}${r.areaHead ? ` · ${nameOnly(r.areaHead)}` : " · no head yet"}${r.minted ? ` · minted ${r.minted.number}` : ""}</span>
+            <span>${actionCell(r, actor)}</span>
+            <span><button class="openbtn" data-open="${r.key}" title="Open this review" aria-label="Open ${p.title}, ${r.program}">↗</button></span>
+          </div>`).join("")}
+      </div>`;
+    }).join("")}`;
+}
+
+function proposeBar(actor) {
+  if (!mayPropose(actor)) return "";
+  return `<button class="go" style="background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer">Propose a course</button>`;
+}
+
 function emptyList(actor) {
   const any = visibleReviews(actor).length;
-  return `${filterBar()}<div class="empty">
-    <strong>${any ? "Nothing matches those filters" : "No proposals to show you"}</strong>
+  // The empty state doubles as the invitation — an instructor who has never
+  // proposed anything sees a screen whose entire content is this.
+  const invite = !any && mayPropose(actor);
+  return `<div class="empty">
+    <strong>${any ? "Nothing matches those filters" : (invite ? "You haven't proposed a course yet" : "No proposals to show you")}</strong>
     ${any
       ? `Clear the state filter to see all ${any} review${any === 1 ? "" : "s"} you can reach.`
-      : `Proposals reach you three ways: you direct a programme one was sent to, you wrote it, or you are the area head on a review of it. None applies right now.`}
+      : (invite
+        ? `<p style="margin:0 0 14px">A proposal is one description sent to whichever programmes you want to teach it. Each decides for itself, and any that approves mints its own course.</p>${proposeBar(actor)}`
+        : `Proposals reach you three ways: you direct a programme one was sent to, you wrote it, or you are the area head on a review of it. None applies right now.`)}
   </div>`;
 }
 
@@ -986,8 +1055,9 @@ function railFor(rev, actor, extra = "") {
     <div class="card">
       <h2>${PROGRAMS[rev.program].short}'s verdict</h2>
       <div class="bigstate"><span class="state ${rev.state}">${rev.state}</span></div>
-      ${rev.minted ? `<p class="prov" style="margin:9px 0 0">Minted ${flag(4, "Nothing links a review to the course it minted. #8 ruled there is no link back from a course to its proposal; the forward direction was never decided, and `course` carries no proposal column. This control is drawn against a column that does not exist.", `<strong>${rev.minted.number}</strong>`)} on ${when(rev.minted.at, { short: true })}.</p>` : ""}
-      ${drift ? `<p class="prov" style="margin:9px 0 0;color:var(--flag)">${flag(3, drift, "The body has changed since.")}</p>` : ""}
+      ${rev.minted ? `<p class="prov" style="margin:9px 0 0">Minted <a href="#" style="color:var(--accent)"><strong>${rev.minted.number}</strong></a> on ${when(rev.minted.at, { short: true })}.
+        <span class="noname" style="display:block">#42 added <code>course.minted_from_review_id</code> so this link exists.</span></p>` : ""}
+      ${drift ? `<p class="prov" style="margin:9px 0 0;color:var(--flag)"><strong>The body has changed since.</strong> ${drift.replace(/^The shared body was/, "It was")} The course page says so too.</p>` : ""}
     </div>
     ${actionCard}
     <div class="card">
@@ -1062,24 +1132,29 @@ function sentenceShort(r) {
 }
 
 function sibsHeader(rev, actor) {
-  // B: the siblings ARE the group you came from — restated above the record.
+  // B and D: the siblings ARE the group you came from — restated above the
+  // record, chips and all. Every programme's verdict shows; the ones outside
+  // your arms open read-only rather than refusing.
   const all = reviewsOf(rev.proposal);
   const unseen = all.filter(r => !canSee(r, actor) && r.key !== rev.key).length;
   return `<div class="group" style="margin:0 0 4px">
     <header>
       <span class="t">${prop(rev.proposal).title}</span>
       <span class="meta">${all.length === 1 ? "one programme" : `${all.length} programmes reviewing`}</span>
+      <span class="right"><div class="verdicts">${all.map(r => `
+        <button class="verdict ${r.state} ${r.key === rev.key ? "mine" : ""}" data-open="${r.key}"
+                title="${PROGRAMS[r.program].name} — ${r.state}">
+          <span>${PROGRAMS[r.program].short}</span><span class="g">${GLYPH[r.state]}</span>
+        </button>`).join("")}</div></span>
     </header>
     ${all.map(r => `<div class="rrow" ${r.key === rev.key ? 'style="background:var(--accent-soft)"' : ""}>
       <span>${pchip(r.program)}</span>
       <span><span class="state ${r.state}">${r.state}</span></span>
       <span class="area">${r.key === rev.key ? "you are here" : (r.log.length ? sentenceShort(r) : "no moves yet")}</span>
-      <span></span>
-      <span>${r.key === rev.key ? "" : (canSee(r, actor)
-        ? `<button class="openbtn" data-open="${r.key}" title="Open">↗</button>`
-        : `<span class="noname">not yours</span>`)}</span>
+      <span>${r.key === rev.key || canSee(r, actor) ? "" : `<span class="noname">read only</span>`}</span>
+      <span>${r.key === rev.key ? "" : `<button class="openbtn" data-open="${r.key}" title="Open">↗</button>`}</span>
     </div>`).join("")}
-    ${unseen ? `<div class="rrow"><span></span><span></span><span class="area">${flag(2, "Tier 3 reaches you by programme, authorship or area-headship. These reviews match none of those arms, yet their verdicts are shown.", `${unseen} outside your tier`)}</span><span></span><span></span></div>` : ""}
+    ${unseen ? `<div class="rrow"><span></span><span></span><span class="area noname" style="font-style:normal">${unseen} of these ${unseen === 1 ? "is" : "are"} outside what Tier 3 grants you — a deliberate widening, settled on #42.</span><span></span><span></span></div>` : ""}
   </div>`;
 }
 
@@ -1098,7 +1173,40 @@ function sibsRail(rev, actor) {
   </div>`;
 }
 
+// D: B's group header restated above the record, chips and all; the rail keeps
+// #41's shape. A review outside your arms but inside a proposal you can reach
+// opens read-only — no actions, no refusals, history and reasons intact, which
+// was the entire justification for opening it rather than greying the chip.
+function detailD(rev, actor) {
+  const ro = isReadOnly(rev, actor);
+  const banner = ro ? `<div class="notes" style="margin-top:14px"><b>Read only</b><p>You can read
+    ${PROGRAMS[rev.program].short}'s review because you have standing on this proposal, not on this review.
+    ${PROGRAMS[rev.program].short}'s director and its area head are the ones who can move it.</p></div>` : "";
+  return `${sibsHeader(rev, actor)}${banner}<div class="page">${mainFor(rev, actor, "")}${ro ? railReadOnly(rev) : railFor(rev, actor)}</div>`;
+}
+
+function railReadOnly(rev) {
+  const p = prop(rev.proposal);
+  const drift = bodyDrift(rev);
+  return `<aside class="rail">
+    <div class="card">
+      <h2>${PROGRAMS[rev.program].short}'s verdict</h2>
+      <div class="bigstate"><span class="state ${rev.state}">${rev.state}</span></div>
+      ${rev.minted ? `<p class="prov" style="margin:9px 0 0">Minted <strong>${rev.minted.number}</strong> on ${when(rev.minted.at, { short: true })}.</p>` : ""}
+      ${drift ? `<p class="prov" style="margin:9px 0 0;color:var(--flag)">The body has changed since.</p>` : ""}
+    </div>
+    <div class="card">
+      <h2>Last changed</h2>
+      <p class="prov" style="margin:0">${p.updatedAt ? `${person(p.updatedBy)} · ${when(p.updatedAt)}` : "Never changed since it was created."}</p>
+    </div>
+  </aside>`;
+}
+
 function detail(rev, actor, variant) {
+  if (variant === "D") {
+    if (!canSee(rev, actor) && !isReadOnly(rev, actor)) return refusedRecord(rev);
+    return detailD(rev, actor);
+  }
   if (!canSee(rev, actor)) return refusedRecord(rev);
   if (variant === "A") return `<div class="page">${mainFor(rev, actor, sibsTable(rev, actor))}${railFor(rev, actor)}</div>`;
   if (variant === "B") return `${sibsHeader(rev, actor)}<div class="page">${mainFor(rev, actor, "")}${railFor(rev, actor)}</div>`;
@@ -1129,6 +1237,7 @@ function refusedScreen(actor) {
    ========================================================================= */
 
 const VARIANTS = [
+  { key: "D", name: "Settled",   list: listD },
   { key: "A", name: "Reviews",   list: listA },
   { key: "B", name: "Proposals", list: listB },
   { key: "C", name: "Verdicts",  list: listC },
@@ -1136,6 +1245,7 @@ const VARIANTS = [
 let vi = 0;
 
 const NOTES = {
+  D: "<strong>The settled shape</strong> — B's grouping with C's verdict chips on the group header, assembled in the #42 grilling. The chips show <em>every</em> programme's verdict whether or not Tier 3 reaches you, which is a deliberate widening; the nested rows are only the reviews you have standing on. A chip outside your arms opens the review <em>read-only</em>. Because the chips are per-programme, nothing has to derive an overall status — the problem C had disappears rather than being solved.",
   A: "One row per review — the row <em>is</em> the request (#10). A proposal to three programmes is three rows, and the shared title repeats. Nothing is ever derived, which is the point: compare the <strong>Overall</strong> column variant C has to invent.",
   B: "#37's grouping device, reused. The shared body sits on the group header where it is stated once; the reviews nest beneath it carrying only what differs. Look at <em>Physical Computing II</em> as Priya — the group tells you IMA and LowRes exist before you open anything.",
   C: "One row per proposal, the reviews collapsed into a verdict strip. Densest of the three, and the only one that has to answer <em>what state is this proposal in</em> — which #7 deliberately left with no stored answer. See the <strong>Split</strong> cell.",
@@ -1189,6 +1299,7 @@ function render() {
         <h1>Course proposals</h1>
         <span class="count">${rowsFor(actor).length} shown</span>
         <span class="why">${armSentence(actor)}</span>
+        ${v.key === "D" && rowsFor(actor).length ? proposeBar(actor) : ""}
       </div>
       ${v.list(actor)}`;
   }
