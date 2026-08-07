@@ -16,6 +16,14 @@
     C — Steps      a page in steps that shows the rows it is about to write
                    before it writes them, and states the gate in the open
 
+  **A is the answer** — see the resolution on #43. It won for *both* forms,
+  which none of #37, #41 or #42 managed (each of those was assembled from two or
+  three), and it won with exactly one change: the proposal landing goes to the
+  **proposals list** rather than to a record, because a proposal has no page of
+  its own and three reviews means picking one by sort order. B and C are kept
+  beside it as the primary source it was chosen against — the argument for
+  asking everything at once is only legible next to the two that do not.
+
   Every **rule** here is already settled and none of it is re-decided in this
   file. From #10: `course_proposal` is title, description, credits — no
   `course_number` (#7, each approving program mints its own), no state (#7, all
@@ -40,23 +48,37 @@
     meetings are        | on the form         | added afterwards     | a step of their own
     #32's gate          | pre-empted, greyed  | absent, then stated  | stated in the open first
     section number      | asked, pre-filled   | derived, not shown   | derived, shown, editable
-    after submit        | the new detail page | the page, gaps marked| a receipt naming the rows
+    after submit        | the new record*     | the page, gaps marked| a receipt naming the rows
 
-  Two things this file made visible that were hard to see on paper. Both are
-  flagged in the UI with a ⚑ and are for #43 to rule on, not for this file:
+      * amended on resolution: A's *proposal* landing is the proposals list,
+        not a record. See the note above and `landingA`.
 
-  1. **Nothing in the map forbids slating a Retired course.** #32's gate is
+  Three things this file made visible that were hard to see on paper. The first
+  two were flagged ⚑ for #43 to rule on, and both were ruled — the refusals this
+  file guessed at are now the decided rule:
+
+  1. **Nothing in the map forbade slating a Retired course.** #32's gate is
      areas and heads; #14 asserted the sibling rule (`retry` is blocked when the
      Course is `Retired`) in the Server Action and said nothing about `create`,
      because at the time no screen could create anything. Scenario *Slate ·
-     Interaction Design (Retired)* is the case. All three variants show it
-     refused, which is a guess this file makes visible rather than a decision it
-     takes.
+     Interaction Design (Retired)* is the case. **Ruled: the create path
+     refuses**, completing #14's guard from the other end — `retire` requires no
+     live offerings, and creation was the door that let one back in, silently,
+     since creation is an act and not a transition and so logs nothing.
 
-  2. **The two entry points pre-fill opposite halves of the same form.** From
+  2. **A proposal with no programs checked mints a row nobody will ever
+     review**, since #10 stores no requested-programs list — a review row *is*
+     the request. **Ruled: refused.** Nothing in the skeleton could reach such a
+     proposal again: the list groups by proposal and its rows are reviews, and a
+     proposal carries no state of its own (#7).
+
+  3. **The two entry points pre-fill opposite halves of the same form.** From
      #37's Lineup the term is known and the course is asked; from #41's course
      page the course is known and the term is asked. Scenarios *from the Lineup*
      and *from Physical Computing's page* are the same form reached two ways.
+     Not a question, but the reason the gate has to refuse on the page as well
+     as pre-empt in the picker: arriving from a course's own page, there is no
+     list to omit it from.
 
   The "Viewing as" control is a prototype device, not part of the page. A
   `student` reaches neither form: #38's *absent, not greyed*, so there is no
@@ -1269,19 +1291,29 @@ function slateC() {
 function landingA() {
   const sc = SC();
   if (sc.form === "propose") {
+    /* SETTLED on #43: back to the proposals list, on the new group. A proposal
+       has no page of its own — #40 and #42 built a list and a *per-review*
+       detail page — so landing on a record means picking one review of three
+       by sort order, which nothing justifies. The list is #42's own shape for
+       one body and several verdicts, so the proposer's first sight of what
+       they caused is the fan-out itself. */
     return `
       <div class="page">
-        <div class="crumb"><a href="#">Proposals</a> › ${esc(F.title)}</div>
-        <h1>${esc(F.title)}</h1>
-        <p class="lede">${esc(F.credits)} credits · proposed by ${esc(nameOf(actor().netid))} · today</p>
+        <div class="crumb">Proposals</div>
+        <h1>Proposals</h1>
         <div class="banner live"><span class="ic">✓</span><div>Proposed. ${F.programs.length} review${F.programs.length === 1 ? "" : "s"} opened — ${F.programs.map(p => `<b>${p}</b>`).join(", ")}.</div></div>
-        <div class="card"><div class="bd">
-          <dl class="kv">
-            <dt>Description</dt><dd>${F.description ? esc(F.description) : `<span class="muted">none</span>`}</dd>
-            ${F.programs.map(p => `<dt>${progChip(p)} review</dt><dd>Proposed · <span class="muted">no area assigned</span></dd>`).join("")}
-          </dl>
+        <div class="card"><div class="bd" style="padding:0">
+          <table class="tbl">
+            <thead><tr><th>Proposal</th><th>Program</th><th>State</th><th>Area</th><th></th></tr></thead>
+            <tbody>
+              <tr class="grp"><td colspan="5">${esc(F.title)} — ${esc(F.credits)} credits — ${esc(nameOf(actor().netid))}, today &nbsp;<span class="flag">new</span></td></tr>
+              ${F.programs.map(p => `<tr><td class="muted">↳</td><td>${progChip(p)}</td><td>Proposed</td><td class="muted">—</td><td class="muted">⋯ 2  ↗</td></tr>`).join("")}
+              <tr class="grp"><td colspan="5">Sound and Space — 2 credits — Rui Chen, 3 Mar 2026</td></tr>
+              <tr><td class="muted">↳</td><td>${progChip("LOWRES")}</td><td>Proposed</td><td class="muted">—</td><td class="muted">⋯ 3  ↗</td></tr>
+            </tbody>
+          </table>
         </div></div>
-        <div class="noteline">Variant A lands on the record it just made. The page is #42's review detail, reached with nothing decided yet.</div>
+        <div class="noteline">Each review is reachable by its own <span class="mono">↗</span>, and none of them is the one you were sent to.</div>
       </div>`;
   }
   const c = courseOf(Number(F.course));
