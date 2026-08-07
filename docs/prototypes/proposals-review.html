@@ -611,7 +611,8 @@ function person(netid, opts = {}) {
 const nameOnly = netid => (PEOPLE[netid] ? PEOPLE[netid].name : netid);
 
 function when(iso, opts = {}) {
-  const d = new Date(iso);
+  const normalized = /[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`;
+  const d = new Date(normalized);
   const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   if (opts.short) return date;
   const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -624,7 +625,12 @@ function pchip(code) {
 }
 
 function flag(n, text, inner) {
-  return `<span class="flag" title="${text.replace(/"/g, "&quot;")}">${inner}</span><span class="flagmark" title="${text.replace(/"/g, "&quot;")}">⚑${n}</span>`;
+  const t = String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  return `<span class="flag" title="${t}">${inner}</span><span class="flagmark" title="${t}">⚑${n}</span>`;
 }
 
 /* ---- Tier 3 (#28, widened by #32): program_director OR created_by OR
@@ -754,7 +760,10 @@ function sentence(row, rev) {
       ? `${who} approved it for ${pg}, minting ${rev.minted.number}.`
       : `${who} approved it for ${pg}.`;
   } else s = `${who} fired ${row.event}.`;
-  const reason = row.reason ? `<span class="reason">“${row.reason}”</span>` : "";
+  const reasonText = row.reason
+    ? String(row.reason).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]))
+    : "";
+  const reason = row.reason ? `<span class="reason">“${reasonText}”</span>` : "";
   return s + reason;
 }
 
