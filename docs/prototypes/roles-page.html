@@ -1,0 +1,1383 @@
+<title>Roles page — three variants</title>
+
+<!--
+  PROTOTYPE — throwaway. Answers issue #38, "What does the roles page show?"
+
+  Three structurally different takes on the chair-only roles page, switchable with
+  the floating bar or the ← → keys. Hand-written fixtures, no data layer, no
+  framework — a static approximation of Next.js + Mantine + mantine-datatable,
+  built to be reacted to, not to be promoted.
+
+    A — Grid       everyone in `people` × the seven roles; a cell is a grant
+    B — Roster     one section per role, listing its holders; grant by search
+    C — Records    one person at a time, all seven roles stated in the open
+    D — Settled    the shape the requester assembled from the three — see the
+                   resolution on #38. D is the answer; A/B/C are the primary
+                   source it was assembled from, kept beside it deliberately.
+
+  Every **rule** here was settled by #34 — chair-only writes, Tier 1 reads, two
+  writes to appoint a director, revoke refused while a live dependency exists, the
+  last `chair` unremovable. Nothing in this file re-decides those. What differs
+  between the variants is entirely presentation.
+
+  The three variants disagree on exactly the things #38 asks:
+
+                        | A Grid            | B Roster          | C Records
+    which netids listed | everyone (16)     | holders (9)       | holders, search all
+    how a refusal shows | popover on demand | inline on click   | always in the open
+    appointing reads as | one cell + picker | one row per prog  | one checklist row
+
+  The grants and revokes are **live** — they mutate in-memory state and re-render,
+  so the chain works: remove Priya from ITP, and revoking her `program_director`
+  role becomes possible; grant `chair` to someone, and the lock on Theo's own chair
+  cell lifts. The **Writes** panel at the bottom-left records what each click
+  actually wrote, which is where the two-write appointment becomes visible.
+-->
+
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:        #ffffff;
+    --raised:        #f8f8fa;
+    --sunken:        #f1f1f4;
+    --line:          #e3e2e8;
+    --line-strong:   #c9c7d2;
+    --ink:           #1f1d26;
+    --ink-soft:      #63606f;
+    --ink-faint:     #8b8898;
+
+    --accent:        #57068c;
+    --accent-soft:   #f2e9f8;
+    --accent-line:   #ddc7ec;
+
+    --itp:           #7048a8;
+    --itp-bg:        #f3eefb;
+    --ima:           #0b7285;
+    --ima-bg:        #e3f4f7;
+    --lowres:        #a1651a;
+    --lowres-bg:     #fbf0de;
+
+    --live:          #2b8a3e;
+    --live-bg:       #e8f6ea;
+    --wait:          #b8600a;
+    --wait-bg:       #fdf1e2;
+    --stop:          #c92a2a;
+    --stop-bg:       #fceceb;
+    --idle:          #6b6878;
+    --idle-bg:       #eeedf1;
+
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+    --shadow-lg: 0 2px 6px rgb(31 29 38 / .10), 0 12px 32px rgb(31 29 38 / .16);
+
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #1a1b1e;
+      --raised:      #212226;
+      --sunken:      #26272c;
+      --line:        #34353b;
+      --line-strong: #4a4b53;
+      --ink:         #e6e5ea;
+      --ink-soft:    #a5a3af;
+      --ink-faint:   #7b7987;
+
+      --accent:      #b197fc;
+      --accent-soft: #2b2440;
+      --accent-line: #453a63;
+
+      --itp:         #b197fc;
+      --itp-bg:      #2b2440;
+      --ima:         #4dc4d9;
+      --ima-bg:      #17343a;
+      --lowres:      #dfa441;
+      --lowres-bg:   #3a2e17;
+
+      --live:        #63d67e;
+      --live-bg:     #16301d;
+      --wait:        #f0a45c;
+      --wait-bg:     #35240f;
+      --stop:        #ff8785;
+      --stop-bg:     #3a1c1c;
+      --idle:        #9b98a6;
+      --idle-bg:     #2c2d33;
+
+      --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+      --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+    }
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground:#ffffff; --raised:#f8f8fa; --sunken:#f1f1f4; --line:#e3e2e8; --line-strong:#c9c7d2;
+    --ink:#1f1d26; --ink-soft:#63606f; --ink-faint:#8b8898;
+    --accent:#57068c; --accent-soft:#f2e9f8; --accent-line:#ddc7ec;
+    --itp:#7048a8; --itp-bg:#f3eefb; --ima:#0b7285; --ima-bg:#e3f4f7; --lowres:#a1651a; --lowres-bg:#fbf0de;
+    --live:#2b8a3e; --live-bg:#e8f6ea; --wait:#b8600a; --wait-bg:#fdf1e2;
+    --stop:#c92a2a; --stop-bg:#fceceb; --idle:#6b6878; --idle-bg:#eeedf1;
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+    --shadow-lg: 0 2px 6px rgb(31 29 38 / .10), 0 12px 32px rgb(31 29 38 / .16);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:#1a1b1e; --raised:#212226; --sunken:#26272c; --line:#34353b; --line-strong:#4a4b53;
+    --ink:#e6e5ea; --ink-soft:#a5a3af; --ink-faint:#7b7987;
+    --accent:#b197fc; --accent-soft:#2b2440; --accent-line:#453a63;
+    --itp:#b197fc; --itp-bg:#2b2440; --ima:#4dc4d9; --ima-bg:#17343a; --lowres:#dfa441; --lowres-bg:#3a2e17;
+    --live:#63d67e; --live-bg:#16301d; --wait:#f0a45c; --wait-bg:#35240f;
+    --stop:#ff8785; --stop-bg:#3a1c1c; --idle:#9b98a6; --idle-bg:#2c2d33;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+    --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--ground);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0 0 190px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * { box-sizing: border-box; }
+  button { font: inherit; color: inherit; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- app chrome -------------------------------------------------------- */
+
+  .appbar {
+    border-bottom: 1px solid var(--line);
+    background: var(--raised);
+    position: sticky; top: 0; z-index: 40;
+  }
+  .appbar .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
+  .brand { font-weight: 700; letter-spacing: -.01em; }
+  .brand span { color: var(--accent); }
+  .nav { display: flex; gap: 4px; margin-left: 8px; }
+  .nav a {
+    padding: 5px 11px; border-radius: 7px; text-decoration: none;
+    color: var(--ink-soft); font-size: 13.5px;
+  }
+  .nav a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .whoami { margin-left: auto; display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-soft); }
+  .whoami .who { color: var(--ink); font-weight: 600; }
+
+  /* ---- page head --------------------------------------------------------- */
+
+  .pagehead { padding: 28px 0 4px; }
+  .pagehead h1 { font-size: 25px; margin: 0 0 4px; letter-spacing: -.02em; }
+  .pagehead p { margin: 0; color: var(--ink-soft); max-width: 68ch; }
+
+  .stance {
+    margin: 18px 0 20px; padding: 11px 14px; border-radius: 9px;
+    background: var(--accent-soft); border: 1px solid var(--accent-line);
+    font-size: 13px; color: var(--ink-soft);
+    display: flex; gap: 22px; flex-wrap: wrap;
+  }
+  .stance b { color: var(--accent); font-weight: 700; display: block; font-size: 11px;
+              text-transform: uppercase; letter-spacing: .06em; margin-bottom: 1px; }
+
+  /* ---- controls ---------------------------------------------------------- */
+
+  .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .search {
+    flex: 1 1 260px; max-width: 340px; padding: 7px 11px; font: inherit; font-size: 13.5px;
+    border: 1px solid var(--line-strong); border-radius: 8px;
+    background: var(--ground); color: var(--ink);
+  }
+  .search::placeholder { color: var(--ink-faint); }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    background: var(--ground); border: 0; padding: 7px 12px; font-size: 13px;
+    color: var(--ink-soft); cursor: pointer; border-right: 1px solid var(--line);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .count { margin-left: auto; font-size: 12.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+  /* ---- shared bits ------------------------------------------------------- */
+
+  .card {
+    background: var(--ground); border: 1px solid var(--line);
+    border-radius: 11px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .scroll-x { overflow-x: auto; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+  .person-name { font-weight: 600; }
+  .person-sub { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+  .noname { font-family: var(--mono); font-size: 13px; }
+  .noname i { font-family: var(--sans); font-style: italic; font-size: 11.5px; color: var(--ink-faint); margin-left: 7px; }
+  .youtag {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+    background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 5px;
+    border: 1px solid var(--accent-line); margin-left: 8px; vertical-align: 1px;
+  }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--line-strong); background: var(--sunken); color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .chip.prog-ITP    { color: var(--itp);    background: var(--itp-bg);    border-color: var(--itp); }
+  .chip.prog-IMA    { color: var(--ima);    background: var(--ima-bg);    border-color: var(--ima); }
+  .chip.prog-LowRes { color: var(--lowres); background: var(--lowres-bg); border-color: var(--lowres); }
+  .chip.chair { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-line); font-weight: 600; }
+
+  .muted { color: var(--ink-faint); }
+  .tiny { font-size: 12px; }
+
+  .btn {
+    border: 1px solid var(--line-strong); background: var(--ground);
+    border-radius: 7px; padding: 4px 10px; font-size: 12.5px; cursor: pointer;
+  }
+  .btn:hover { background: var(--sunken); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn.danger { color: var(--stop); border-color: var(--line-strong); }
+  .btn.danger:hover { background: var(--stop-bg); }
+  .btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+  .footnote {
+    margin: 14px 0 0; font-size: 12.5px; color: var(--ink-faint);
+    border-left: 2px solid var(--line-strong); padding-left: 11px;
+  }
+  .footnote code { font-family: var(--mono); font-size: 11.5px; }
+
+  /* ---- A: grid ----------------------------------------------------------- */
+
+  table.grid { width: 100%; min-width: 780px; border-collapse: collapse; font-size: 13.5px; }
+  table.grid th, table.grid td { text-align: left; }
+  table.grid thead th {
+    background: var(--raised); border-bottom: 1px solid var(--line-strong);
+    padding: 7px 8px; font-size: 11px; font-weight: 700; color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: .05em; vertical-align: bottom;
+  }
+  table.grid thead tr.groups th {
+    text-align: center; border-bottom: 1px solid var(--line);
+    color: var(--ink-faint); font-size: 10px; padding-top: 9px; padding-bottom: 3px;
+  }
+  table.grid thead tr.groups th.g { background: var(--sunken); }
+  table.grid thead th.role { text-align: center; width: 96px; }
+  table.grid tbody td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.grid tbody tr:hover td { background: var(--raised); }
+  table.grid tbody tr.self td { background: var(--accent-soft); }
+  table.grid tbody tr.self:hover td { background: var(--accent-soft); }
+  td.person { min-width: 240px; }
+  td.cell { text-align: center; padding: 4px; }
+
+  .swatch {
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line-strong); background: var(--ground);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 1; color: var(--ink-faint);
+  }
+  .swatch:hover { border-color: var(--accent); color: var(--accent); }
+  .swatch.held { background: var(--live-bg); border-color: var(--live); color: var(--live); font-weight: 700; }
+  .swatch.held:hover { background: var(--stop-bg); border-color: var(--stop); color: var(--stop); }
+  .swatch.locked { background: var(--sunken); border-color: var(--line-strong); color: var(--ink-faint); cursor: help; }
+  .swatch.locked.held { background: var(--live-bg); border-color: var(--line-strong); color: var(--ink-soft); }
+  .cellprogs { display: flex; gap: 3px; justify-content: center; margin-top: 3px; flex-wrap: wrap; }
+  .cellprogs .chip { font-size: 9.5px; padding: 0 5px; }
+
+  /* ---- popover ----------------------------------------------------------- */
+
+  #pop {
+    position: absolute; z-index: 90; width: 330px; display: none;
+    background: var(--ground); border: 1px solid var(--line-strong);
+    border-radius: 11px; box-shadow: var(--shadow-lg); padding: 13px 14px;
+    font-size: 13px;
+  }
+  #pop h4 { margin: 0 0 5px; font-size: 13.5px; }
+  #pop .why { color: var(--ink-soft); margin: 0 0 9px; }
+  #pop ul { margin: 0 0 10px; padding-left: 17px; color: var(--ink-soft); font-size: 12.5px; }
+  #pop li { margin-bottom: 2px; }
+  #pop .acts { display: flex; gap: 7px; flex-wrap: wrap; }
+  .refuse-mark { color: var(--stop); }
+
+  /* ---- B: roster --------------------------------------------------------- */
+
+  .rolesec { margin-bottom: 14px; }
+  .rolesec > header {
+    display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap;
+    padding: 11px 15px; background: var(--raised); border-bottom: 1px solid var(--line);
+  }
+  .rolesec h3 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+  .rolesec .blurb { color: var(--ink-soft); font-size: 12.5px; flex: 1 1 320px; }
+  .rolesec .n { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .rolesec.inert { opacity: .72; }
+  .kindtag {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+    padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line-strong);
+    background: var(--sunken); color: var(--ink-faint);
+  }
+  .holder {
+    display: flex; align-items: center; gap: 11px; padding: 8px 15px;
+    border-bottom: 1px solid var(--line);
+  }
+  .holder:last-child { border-bottom: 0; }
+  .holder .prov { margin-left: auto; font-size: 11.5px; color: var(--ink-faint); }
+  .holder.blocked { background: var(--stop-bg); }
+  .reason {
+    padding: 10px 15px 12px 15px; background: var(--stop-bg);
+    border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--ink-soft);
+  }
+  .reason b { color: var(--ink); }
+  .reason ul { margin: 6px 0 9px; padding-left: 17px; }
+  .empty-holder { padding: 10px 15px; color: var(--ink-faint); font-size: 12.5px; }
+  .progsub {
+    padding: 7px 15px 3px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--ink-faint); font-weight: 700;
+    background: var(--sunken); border-bottom: 1px solid var(--line);
+  }
+  .addrow { padding: 9px 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .typeahead { position: relative; }
+  .ta-list {
+    position: absolute; top: 100%; left: 0; margin-top: 4px; width: 290px; z-index: 60;
+    background: var(--ground); border: 1px solid var(--line-strong); border-radius: 9px;
+    box-shadow: var(--shadow-lg); max-height: 220px; overflow: auto;
+  }
+  .ta-list button {
+    display: block; width: 100%; text-align: left; background: none; border: 0;
+    padding: 7px 11px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--line);
+  }
+  .ta-list button:hover { background: var(--accent-soft); }
+  .ta-list .none { padding: 9px 11px; color: var(--ink-faint); font-size: 12.5px; }
+
+  /* ---- C: records -------------------------------------------------------- */
+
+  .split { display: grid; grid-template-columns: 268px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
+  .plist { max-height: 620px; overflow: auto; }
+  .plist button {
+    display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left;
+    background: none; border: 0; border-bottom: 1px solid var(--line);
+    padding: 9px 13px; cursor: pointer;
+  }
+  .plist button:hover { background: var(--raised); }
+  .plist button.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .plist .rolebits { display: flex; gap: 4px; flex-wrap: wrap; }
+  .plist .rolebits .chip { font-size: 10px; padding: 0 6px; }
+
+  .record > header { padding: 16px 18px; border-bottom: 1px solid var(--line); background: var(--raised); }
+  .record h2 { margin: 0 0 2px; font-size: 19px; letter-spacing: -.01em; }
+  .record .meta { color: var(--ink-soft); font-size: 12.5px; }
+  .record .summary {
+    padding: 9px 18px; border-bottom: 1px solid var(--line); font-size: 12.5px;
+    color: var(--ink-soft); background: var(--sunken);
+  }
+  .rrow { display: flex; gap: 13px; padding: 12px 18px; border-bottom: 1px solid var(--line); align-items: flex-start; }
+  .rrow:last-child { border-bottom: 0; }
+  .rrow .mark { width: 20px; text-align: center; font-size: 15px; line-height: 1.35; }
+  .rrow .body { flex: 1; }
+  .rrow .rname { font-weight: 600; }
+  .rrow .rblurb { color: var(--ink-faint); font-size: 12.5px; }
+  .rrow .rwhy { color: var(--stop); font-size: 12.5px; margin-top: 5px; }
+  .rrow .rwhy ul { margin: 4px 0 0; padding-left: 17px; color: var(--ink-soft); }
+  .rrow .rprov { color: var(--ink-faint); font-size: 11.5px; margin-top: 4px; }
+  .rrow .act { flex: 0 0 auto; }
+  .rrow.on { background: var(--live-bg); }
+  .rrow.blocked { background: var(--stop-bg); }
+  .rrow.inert { opacity: .62; }
+  .progpick { display: flex; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
+  .progpick button { cursor: pointer; }
+  .progpick button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+  /* ---- D: the settled page ----------------------------------------------- */
+
+  .progstrip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 760px) { .progstrip { grid-template-columns: 1fr; } }
+  .progcard { padding: 11px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--raised); }
+  .progcard .code { font-weight: 700; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
+  .progcard .pname { font-size: 11.5px; color: var(--ink-faint); margin-bottom: 5px; }
+  .progcard .dir { font-size: 13.5px; }
+  .progcard.vacant { border-color: var(--wait); background: var(--wait-bg); }
+  .progcard.vacant .dir { color: var(--wait); font-weight: 600; }
+  .progcard.ITP  .code { color: var(--itp); }
+  .progcard.IMA  .code { color: var(--ima); }
+  .progcard.LowRes .code { color: var(--lowres); }
+
+  .viewbar {
+    display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+    padding: 8px 12px; margin-bottom: 14px; border-radius: 9px;
+    border: 1px dashed var(--line-strong); background: var(--sunken);
+    font-size: 12.5px; color: var(--ink-soft);
+  }
+  .viewbar .lab { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); }
+
+  .dsearch { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .dsearch input { width: 100%; }
+  .listlabel {
+    padding: 7px 13px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+    font-weight: 700; color: var(--ink-faint); background: var(--sunken);
+    border-bottom: 1px solid var(--line); border-top: 1px solid var(--line);
+  }
+  .noaccess {
+    padding: 46px 30px; text-align: center; color: var(--ink-soft);
+  }
+  .noaccess h2 { margin: 0 0 7px; font-size: 18px; color: var(--ink); }
+  .noaccess p { margin: 0 auto; max-width: 48ch; font-size: 13px; }
+
+  /* ---- writes ledger ----------------------------------------------------- */
+
+  .ledger {
+    position: fixed; left: 16px; bottom: 16px; z-index: 70; width: 430px; max-width: calc(100vw - 32px);
+    background: var(--ground); border: 1px solid var(--line-strong); border-radius: 11px;
+    box-shadow: var(--shadow-lg); overflow: hidden;
+  }
+  .ledger > header {
+    display: flex; align-items: center; gap: 9px; padding: 7px 11px;
+    background: var(--sunken); border-bottom: 1px solid var(--line); cursor: pointer;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft);
+  }
+  .ledger > header .n { margin-left: auto; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ink-faint); }
+  .ledger .body { max-height: 168px; overflow: auto; padding: 8px 11px; font-family: var(--mono); font-size: 11.5px; }
+  .ledger.closed .body { display: none; }
+  .ledger .act { margin-bottom: 8px; }
+  .ledger .act .h { color: var(--accent); font-family: var(--sans); font-size: 11.5px; font-weight: 600; }
+  .ledger .act .l { color: var(--ink-soft); white-space: pre-wrap; }
+  .ledger .none { color: var(--ink-faint); font-family: var(--sans); }
+
+  /* ---- variant switcher -------------------------------------------------- */
+
+  .switcher {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 80;
+    display: flex; align-items: center; gap: 4px; padding: 5px 6px;
+    background: var(--ink); color: var(--ground); border-radius: 999px; box-shadow: var(--shadow-lg);
+    font-size: 13px;
+  }
+  .switcher button {
+    background: transparent; border: 0; color: var(--ground); cursor: pointer;
+    width: 28px; height: 28px; border-radius: 999px; font-size: 15px; line-height: 1;
+  }
+  .switcher button:hover { background: rgb(255 255 255 / .18); }
+  .switcher .label { padding: 0 6px; white-space: nowrap; }
+  .switcher .key {
+    font-weight: 700; background: rgb(255 255 255 / .18); border-radius: 6px;
+    padding: 1px 7px; margin-right: 7px;
+  }
+  .switcher .hint { opacity: .5; font-size: 11px; padding-right: 6px; }
+</style>
+
+<div class="appbar">
+  <div class="wrap">
+    <div class="brand">Lineup<span>.</span></div>
+    <nav class="nav">
+      <a href="#">Catalog</a>
+      <a href="#">Lineup</a>
+      <a href="#" class="on" id="nav-roles">Roles</a>
+    </nav>
+    <div class="whoami">
+      <span>Signed in as</span>
+      <span class="who" id="who-name">Theo Vance</span>
+      <span class="chip chair" id="who-role">chair</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="pagehead">
+    <h1>Roles</h1>
+    <p id="lede"></p>
+  </div>
+  <div class="stance" id="stance"></div>
+  <div id="view"></div>
+</div>
+
+<div id="pop"></div>
+
+<div class="ledger closed" id="ledger">
+  <header id="ledger-head">Writes <span class="n" id="ledger-n">nothing yet</span></header>
+  <div class="body" id="ledger-body"><div class="none">Grant or revoke something — every row this page writes shows up here.</div></div>
+</div>
+
+<div class="switcher" role="group" aria-label="Prototype variant">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span class="label"><span class="key" id="vkey">A</span><span id="vname"></span></span>
+  <button id="next" aria-label="Next variant">→</button>
+  <span class="hint">← → to cycle</span>
+</div>
+
+<script>
+/* ==========================================================================
+   Fixtures — hand-written, shaped to docs/schema/classes.sql + people.sql.
+   Deliberately exercises every refusal #34 defined, and a clean case beside
+   each one so the difference is visible:
+
+     instructor        na2481 refused (live roster rows) / ab9034 allowed (only Concluded)
+     area_head         na2481 refused (heads live courses) / jl8802 allowed (Retired only)
+     program_director  pr3390 refused (directs ITP)       / — allowed once removed from ITP
+     chair             tv1067 refused (last chair)        / — allowed once a second chair exists
+
+   Plus xq7742: a netid holding `instructor` with no row in `people` at all.
+   The two projects have no foreign keys between them (#5), so this is legal
+   and renders with #37's "no name on file" treatment.
+   ========================================================================== */
+
+const ACTOR = "tv1067";                       // the chair; this page has no other viewer
+
+const PEOPLE = {
+  tv1067: { first: "Theo",   last: "Vance",     pronouns: "he/him" },
+  na2481: { first: "Nora",   last: "Applebaum", pronouns: "she/her" },
+  pr3390: { first: "Priya",  last: "Raman",     pronouns: "she/her" },
+  mo5512: { first: "Marcus", last: "Ola",       pronouns: "he/him" },
+  ab9034: { first: "Amina",  last: "Bello",     pronouns: "she/her" },
+  rc1129: { first: "Rui",    last: "Chen",      pronouns: "they/them" },
+  jl8802: { first: "Jae",    last: "Lin",       pronouns: "they/them" },
+  dk2210: { first: "Dana",   last: "Kirsch",    pronouns: "she/her" },
+  hs4417: { first: "Hugo",   last: "Santos",    pronouns: "he/him" },
+  vm7781: { first: "Vera",   last: "Molnar",    pronouns: "she/her" },
+  ts5502: { first: "Tomas",  last: "Sorensen",  pronouns: "he/him" },
+  im0093: { first: "Ines",   last: "Marchetti", pronouns: "she/her" },
+  by6640: { first: "Bao",    last: "Yun",       pronouns: "she/her" },
+  ok3356: { first: "Olu",    last: "Kalu",      pronouns: "he/him" },
+  cs7788: { first: "Chris",  last: "Ustar",     pronouns: "they/them" },
+  // xq7742 deliberately absent — holds a role, has no person row
+};
+
+const PROGRAMS = [
+  { code: "ITP",    name: "Interactive Telecommunications" },
+  { code: "IMA",    name: "Interactive Media Arts" },
+  { code: "LowRes", name: "IMA Low Residency" },
+];
+
+/* The seven roles. #34 split them into capabilities (flat, actor-side, wholly
+   subsumed by the chair) and qualifications (subject-side, gating whether a
+   relationship row may name you). `chair` is neither — it is the seat that
+   writes this table. */
+const ROLES = [
+  { key: "chair", name: "Chair", kind: "appointment", short: "Chair",
+    blurb: "Grants and revokes every role in the department. The only role that can open this page." },
+  { key: "coordinator", name: "Coordinator", kind: "capability", short: "Coordinator",
+    blurb: "Runs scheduling day to day — moves offerings through their lifecycle across all three programs." },
+  { key: "program_director", name: "Program director", kind: "qualification", short: "Director",
+    rel: "a program", blurb: "May be appointed to direct a program. The appointment is a second step." },
+  { key: "area_head", name: "Area head", kind: "qualification", short: "Area head",
+    rel: "a course's area", blurb: "May be put in charge of a course's area, and rule on its proposals." },
+  { key: "instructor", name: "Instructor", kind: "qualification", short: "Instructor",
+    rel: "an offering's roster", blurb: "May be staffed on an offering. The lead accepts or declines the class." },
+  { key: "advisor", name: "Advisor", kind: "qualification", short: "Advisor",
+    rel: "an advisee", blurb: "May be linked to an advisee. Nothing in the skeleton links one yet." },
+  { key: "student", name: "Student", kind: "qualification", short: "Student",
+    rel: "a registration", blurb: "Sees only classes an instructor has agreed to teach. Registration is out of scope." },
+];
+
+const ROLE = Object.fromEntries(ROLES.map(r => [r.key, r]));
+
+/* --- user_role rows ------------------------------------------------------ */
+
+let userRole = [
+  { netid: "tv1067", role: "chair",            by: "seed",   at: "1 Jun 2026" },   // the genesis grant
+  { netid: "tv1067", role: "instructor",       by: "tv1067", at: "1 Jun 2026" },
+  { netid: "pr3390", role: "coordinator",      by: "tv1067", at: "1 Jun 2026" },
+  { netid: "pr3390", role: "program_director", by: "tv1067", at: "1 Jun 2026" },
+  { netid: "rc1129", role: "program_director", by: "tv1067", at: "1 Jun 2026" },
+  { netid: "rc1129", role: "instructor",       by: "tv1067", at: "1 Jun 2026" },
+  { netid: "na2481", role: "instructor",       by: "tv1067", at: "1 Jun 2026" },
+  { netid: "na2481", role: "area_head",        by: "tv1067", at: "1 Jun 2026" },
+  { netid: "jl8802", role: "area_head",        by: "tv1067", at: "14 Jul 2026" },
+  { netid: "ab9034", role: "instructor",       by: "tv1067", at: "1 Jun 2026" },
+  { netid: "ab9034", role: "advisor",          by: "tv1067", at: "1 Jun 2026" },
+  { netid: "dk2210", role: "coordinator",      by: "tv1067", at: "3 Aug 2026" },
+  { netid: "mo5512", role: "student",          by: "tv1067", at: "1 Jun 2026" },
+  { netid: "xq7742", role: "instructor",       by: "tv1067", at: "1 Jun 2026" },
+];
+
+/* --- program_director rows ----------------------------------------------- */
+
+let directorOf = [
+  { program: "ITP", netid: "pr3390", by: "tv1067", at: "1 Jun 2026" },
+  { program: "IMA", netid: "rc1129", by: "tv1067", at: "1 Jun 2026" },
+  // LowRes has no director — a real gap the chair can act on
+];
+
+/* --- the live dependencies a revoke has to look at ------------------------ */
+/* None of this is on the roles page. That is the point: three of the four
+   refusals are conditional on data the chair cannot see from here. */
+
+const LIVE_STATES = ["Slated","Staffed","Offered","Accepted","Deferred","Scheduled","Published","Listed","Running"];
+
+const ROSTER = [   // offering_instructor rows, with the offering's state
+  { netid: "na2481", course: "ITPG-GT 2233", title: "Physical Computing", sec: 1, term: "Fall 2025",   state: "Running",   pos: 0 },
+  { netid: "na2481", course: "IMNY-UT 105",  title: "Creative Coding",    sec: 2, term: "Spring 2026", state: "Accepted",  pos: 1 },
+  { netid: "rc1129", course: "ITPG-GT 2048", title: "Live Web",           sec: 1, term: "Spring 2026", state: "Offered",   pos: 0 },
+  { netid: "xq7742", course: "IMLR-GT 1500", title: "Low Res Intensive",  sec: 1, term: "Fall 2025",   state: "Listed",    pos: 0 },
+  { netid: "tv1067", course: "ITPG-GT 2233", title: "Physical Computing", sec: 2, term: "Fall 2025",   state: "Running",   pos: 0 },
+  { netid: "ab9034", course: "IMNY-UT 205",  title: "Nature of Code",     sec: 1, term: "Fall 2024",   state: "Concluded", pos: 0 },
+  { netid: "ab9034", course: "IMNY-UT 205",  title: "Nature of Code",     sec: 1, term: "Spring 2025", state: "Concluded", pos: 0 },
+];
+
+const AREA_HEAD_OF = [   // course.area_head, with the course's state
+  { netid: "na2481", course: "ITPG-GT 2233", title: "Physical Computing", state: "Approved" },
+  { netid: "na2481", course: "ITPG-GT 2048", title: "Live Web",           state: "Approved" },
+  { netid: "na2481", course: "ITPG-GT 3080", title: "Sensors & Signals",  state: "Revising" },
+  { netid: "jl8802", course: "IMNY-UT 310",  title: "Sound as Interface", state: "Retired" },
+];
+
+/* ==========================================================================
+   State helpers — the writes are live, so the chains work
+   ========================================================================== */
+
+const holds   = (netid, role) => userRole.some(r => r.netid === netid && r.role === role);
+const grantOf = (netid, role) => userRole.find(r => r.netid === netid && r.role === role);
+const rolesOf = netid => ROLES.filter(r => holds(netid, r.key)).map(r => r.key);
+const progsOf = netid => directorOf.filter(d => d.netid === netid).map(d => d.program);
+const chairs  = () => userRole.filter(r => r.role === "chair").map(r => r.netid);
+
+/* Every netid the page could be about: the union of `people` and whoever holds
+   a role. The union matters — xq7742 holds `instructor` and has no person row. */
+const ALL_NETIDS = [...new Set([...Object.keys(PEOPLE), ...userRole.map(r => r.netid)])];
+const HELD_NETIDS = () => [...new Set(userRole.map(r => r.netid))];
+
+function nameOf(netid) {
+  const p = PEOPLE[netid];
+  return p ? `${p.first} ${p.last}` : netid;
+}
+function sortKey(netid) {
+  const p = PEOPLE[netid];
+  return p ? `${p.last} ${p.first}`.toLowerCase() : `zzz ${netid}`;
+}
+/* #37: a netid with no person row renders in monospace with a quiet note.
+   Deliberately not an error — incomplete data must not read as a broken thing. */
+function personCell(netid, { sub = true } = {}) {
+  const p = PEOPLE[netid];
+  const you = netid === ACTOR ? '<span class="youtag">you</span>' : "";
+  if (!p) return `<div class="noname">${netid}<i>no name on file</i></div>`;
+  return `<div class="person-name">${p.first} ${p.last}${you}</div>` +
+         (sub ? `<div class="person-sub">${netid}${p.pronouns ? " · " + p.pronouns : ""}</div>` : "");
+}
+function matches(netid, q) {
+  if (!q) return true;
+  q = q.toLowerCase();
+  return netid.toLowerCase().includes(q) || nameOf(netid).toLowerCase().includes(q);
+}
+
+/* ==========================================================================
+   Refusals — #34's four rules, each returning the *reason and its evidence*
+   together, never a bare boolean. #14's one-object shape: the rule and its
+   explanation are the same value, so they cannot drift.
+   ========================================================================== */
+
+function refusalToRevoke(netid, role) {
+  if (role === "chair") {
+    const cs = chairs();
+    if (cs.length <= 1 && cs.includes(netid))
+      return {
+        why: `${nameOf(netid)} is the only chair. Nobody else can grant a role, so removing this one would leave the department with no way to appoint anyone.`,
+        items: [],
+        fix: "Grant chair to someone else first.",
+      };
+    return null;
+  }
+  if (role === "instructor") {
+    const live = ROSTER.filter(r => r.netid === netid && LIVE_STATES.includes(r.state));
+    if (live.length) return {
+      why: `${nameOf(netid)} is on the roster of ${live.length} ${live.length === 1 ? "class that is" : "classes that are"} still live.`,
+      items: live.map(r => `${r.course} sec ${r.sec}, ${r.term} — <b>${r.state}</b>${r.pos === 0 ? " (lead)" : ""}`),
+      fix: "Take them off those rosters first, or wait until the classes conclude.",
+    };
+    const past = ROSTER.filter(r => r.netid === netid);
+    return past.length ? { note: `${past.length} concluded ${past.length === 1 ? "class keeps" : "classes keep"} their roster rows. Nothing deletes, and only live classes block a revoke.` } : null;
+  }
+  if (role === "area_head") {
+    const live = AREA_HEAD_OF.filter(a => a.netid === netid && a.state !== "Retired");
+    if (live.length) return {
+      why: `${nameOf(netid)} heads the area of ${live.length} ${live.length === 1 ? "course" : "courses"} that ${live.length === 1 ? "has" : "have"} not been retired.`,
+      items: live.map(a => `${a.course} — ${a.title} <span class="muted">(${a.state})</span>`),
+      fix: "Hand those courses to another area head first.",
+    };
+    const retired = AREA_HEAD_OF.filter(a => a.netid === netid);
+    return retired.length ? { note: `Heads ${retired.length} retired ${retired.length === 1 ? "course" : "courses"}, which do not block a revoke.` } : null;
+  }
+  if (role === "program_director") {
+    const ps = progsOf(netid);
+    if (ps.length) return {
+      why: `${nameOf(netid)} directs ${ps.join(" and ")}.`,
+      items: ps.map(p => `${p} — ${PROGRAMS.find(x => x.code === p).name}`),
+      fix: `Remove them from ${ps.join(" and ")} first.`,
+      unappoint: ps,
+    };
+    return null;
+  }
+  return null;   // coordinator, advisor, student: flat, nothing depends on them
+}
+
+/* Granting is refused for nothing at all — the chair is one OR-clause ahead of
+   the matrix (#34), and no invariant constrains who may hold a role. Recorded
+   as a function anyway, so the two directions read the same in the UI. */
+function refusalToGrant() { return null; }
+
+/* ==========================================================================
+   Writes — every mutation logs the rows it actually wrote
+   ========================================================================== */
+
+let writes = [];
+
+function logWrite(heading, lines) {
+  writes.unshift({ heading, lines });
+  const body = document.getElementById("ledger-body");
+  const n = document.getElementById("ledger-n");
+  n.textContent = `${writes.length} action${writes.length === 1 ? "" : "s"}, ${writes.reduce((a, w) => a + w.lines.length, 0)} rows`;
+  body.innerHTML = writes.map(w =>
+    `<div class="act"><div class="h">${w.heading}</div>${w.lines.map(l => `<div class="l">${l}</div>`).join("")}</div>`
+  ).join("");
+  document.getElementById("ledger").classList.remove("closed");
+}
+
+const today = "6 Aug 2026";
+
+function grant(netid, role) {
+  if (holds(netid, role)) return;
+  userRole.push({ netid, role, by: ACTOR, at: today });
+  logWrite(`Grant ${ROLE[role].name.toLowerCase()} to ${nameOf(netid)}`, [
+    `INSERT user_role (netid, role, granted_by)\n  VALUES ('${netid}', '${role}', '${ACTOR}');`,
+  ]);
+  render();
+}
+
+function revoke(netid, role) {
+  if (refusalToRevoke(netid, role)?.why) return;
+  userRole = userRole.filter(r => !(r.netid === netid && r.role === role));
+  logWrite(`Revoke ${ROLE[role].name.toLowerCase()} from ${nameOf(netid)}`, [
+    `DELETE FROM user_role\n  WHERE netid = '${netid}' AND role = '${role}';`,
+  ]);
+  render();
+}
+
+/* The two writes #34 made one act. The role row is inserted only if it is not
+   already there, so appointing a second program to an existing director is one
+   write and appointing a newcomer is two — which is exactly the thing the page
+   must not make the chair think about. */
+function appoint(netid, program) {
+  const lines = [];
+  if (!holds(netid, "program_director")) {
+    userRole.push({ netid, role: "program_director", by: ACTOR, at: today });
+    lines.push(`INSERT user_role (netid, role, granted_by)\n  VALUES ('${netid}', 'program_director', '${ACTOR}');`);
+  }
+  directorOf.push({ program, netid, by: ACTOR, at: today });
+  lines.push(`INSERT program_director (program_code, netid, granted_by)\n  VALUES ('${program}', '${netid}', '${ACTOR}');`);
+  logWrite(`Appoint ${nameOf(netid)} director of ${program}`, lines);
+  render();
+}
+
+function unappoint(netid, program) {
+  directorOf = directorOf.filter(d => !(d.netid === netid && d.program === program));
+  logWrite(`Remove ${nameOf(netid)} as director of ${program}`, [
+    `DELETE FROM program_director\n  WHERE program_code = '${program}' AND netid = '${netid}';`,
+  ]);
+  render();
+}
+
+/* ==========================================================================
+   Popover — variant A's refusal surface, and its program picker
+   ========================================================================== */
+
+const pop = document.getElementById("pop");
+let popOwner = null;
+
+function showPop(anchor, html, key) {
+  if (popOwner === key) return hidePop();
+  popOwner = key;
+  pop.innerHTML = html;
+  pop.style.display = "block";
+  const r = anchor.getBoundingClientRect();
+  const top = r.bottom + window.scrollY + 7;
+  let left = r.left + window.scrollX + r.width / 2 - 165;
+  left = Math.max(12, Math.min(left, window.innerWidth - 342));
+  pop.style.top = `${top}px`;
+  pop.style.left = `${left}px`;
+}
+function hidePop() { pop.style.display = "none"; popOwner = null; }
+document.addEventListener("click", e => {
+  if (!pop.contains(e.target) && !e.target.closest("[data-pop]")) hidePop();
+});
+
+function refusalPopHTML(netid, role, ref) {
+  return `
+    <h4><span class="refuse-mark">✕</span> Cannot revoke ${ROLE[role].name.toLowerCase()}</h4>
+    <p class="why">${ref.why}</p>
+    ${ref.items.length ? `<ul>${ref.items.map(i => `<li>${i}</li>`).join("")}</ul>` : ""}
+    <p class="why">${ref.fix}</p>
+    ${ref.unappoint ? `<div class="acts">${ref.unappoint.map(p =>
+      `<button class="btn" onclick="unappoint('${netid}','${p}')">Remove from ${p}</button>`).join("")}</div>` : ""}
+  `;
+}
+
+function programPickHTML(netid) {
+  const mine = progsOf(netid);
+  return `
+    <h4>${nameOf(netid)} — programs</h4>
+    <p class="why">A director role on its own does nothing until they are put over a program. Both rows are written together.</p>
+    <div class="acts">
+      ${PROGRAMS.map(p => mine.includes(p.code)
+        ? `<button class="btn danger" onclick="unappoint('${netid}','${p.code}')">Remove from ${p.code}</button>`
+        : `<button class="btn" onclick="appoint('${netid}','${p.code}')">Appoint to ${p.code}</button>`).join("")}
+    </div>
+  `;
+}
+
+function cellClick(ev, netid, role) {
+  ev.stopPropagation();
+  const el = ev.currentTarget;
+  if (role === "program_director") return showPop(el, programPickHTML(netid), `${netid}:${role}`);
+  if (holds(netid, role)) {
+    const ref = refusalToRevoke(netid, role);
+    if (ref?.why) return showPop(el, refusalPopHTML(netid, role, ref), `${netid}:${role}`);
+    return revoke(netid, role);
+  }
+  grant(netid, role);
+}
+
+/* ==========================================================================
+   Variant A — the grid
+   ========================================================================== */
+
+let aQuery = "";
+let aScope = "all";
+
+function renderA() {
+  const list = (aScope === "all" ? ALL_NETIDS : HELD_NETIDS())
+    .filter(n => matches(n, aQuery))
+    .sort((a, b) => (a === ACTOR ? -1 : b === ACTOR ? 1 : sortKey(a).localeCompare(sortKey(b))));
+
+  const groups = [
+    { label: "Appointment", keys: ["chair"] },
+    { label: "Capability",  keys: ["coordinator"] },
+    { label: "Qualifications — each one gates a relationship somewhere else", keys: ["program_director","area_head","instructor","advisor","student"] },
+  ];
+
+  const head = `
+    <tr class="groups">
+      <th></th>
+      ${groups.map(g => `<th class="g" colspan="${g.keys.length}">${g.label}</th>`).join("")}
+    </tr>
+    <tr>
+      <th>Person</th>
+      ${groups.flatMap(g => g.keys).map(k => `<th class="role">${ROLE[k].short}</th>`).join("")}
+    </tr>`;
+
+  const rows = list.map(netid => {
+    const cells = groups.flatMap(g => g.keys).map(role => {
+      const held = holds(netid, role);
+      const ref = held ? refusalToRevoke(netid, role) : null;
+      const locked = !!ref?.why;
+      const cls = `swatch${held ? " held" : ""}${locked ? " locked" : ""}`;
+      const glyph = held ? (locked ? "🔒" : "✓") : "";
+      const title = held
+        ? (locked ? "Held — cannot be revoked, click for why" : "Held — click to revoke")
+        : `Grant ${ROLE[role].name.toLowerCase()}`;
+      const progs = role === "program_director" && held
+        ? `<div class="cellprogs">${progsOf(netid).map(p => `<span class="chip prog-${p}">${p}</span>`).join("") || '<span class="chip">no program</span>'}</div>`
+        : "";
+      return `<td class="cell">
+        <button class="${cls}" data-pop title="${title}" aria-label="${nameOf(netid)} — ${ROLE[role].name}"
+                onclick="cellClick(event,'${netid}','${role}')">${glyph}</button>${progs}
+      </td>`;
+    }).join("");
+    return `<tr class="${netid === ACTOR ? "self" : ""}"><td class="person">${personCell(netid)}</td>${cells}</tr>`;
+  }).join("");
+
+  return `
+    <div class="controls">
+      <input class="search" id="a-q" placeholder="Search name or netid" value="${aQuery}">
+      <div class="seg">
+        <button class="${aScope === "all" ? "on" : ""}" onclick="aScope='all';render()">Everyone (${ALL_NETIDS.length})</button>
+        <button class="${aScope === "held" ? "on" : ""}" onclick="aScope='held';render()">Holds a role (${HELD_NETIDS().length})</button>
+      </div>
+      <span class="count">${list.length} shown</span>
+    </div>
+    <div class="card scroll-x"><table class="grid"><thead>${head}</thead><tbody>${rows}</tbody></table></div>
+    <p class="footnote">
+      Listing everyone means the read <b>drives from <code>people</code></b> and stitches roles in from
+      <code>classes</code> — the reverse of <code>getLineupPage</code>'s direction. Two round trips either way,
+      but sorting and searching by name come free, which they do not when <code>classes</code> drives.
+      A locked cell is <b>held and unrevokable</b>; an empty one is a grant waiting to happen.
+    </p>`;
+}
+
+/* ==========================================================================
+   Variant B — the roster
+   ========================================================================== */
+
+let bOpenReason = null;     // "netid:role"
+let bAdding = null;         // role key
+let bAddQuery = "";
+
+function bToggleReason(key) { bOpenReason = bOpenReason === key ? null : key; render(); }
+function bOpenAdd(role) { bAdding = bAdding === role ? null : role; bAddQuery = ""; render(); }
+function bPick(netid, role) {
+  bAdding = null;
+  if (role === "program_director") return;  // handled per-program below
+  grant(netid, role);
+}
+function bPickProgram(netid, program) { bAdding = null; appoint(netid, program); }
+
+function holderRow(netid, role, opts = {}) {
+  const g = grantOf(netid, role);
+  const ref = refusalToRevoke(netid, role);
+  const key = `${netid}:${role}${opts.program ? ":" + opts.program : ""}`;
+  const blocked = !!ref?.why && !opts.program;
+  const action = opts.program
+    ? `<button class="btn danger" onclick="unappoint('${netid}','${opts.program}')">Remove</button>`
+    : blocked
+      ? `<button class="btn" onclick="bToggleReason('${key}')">Cannot revoke ✕</button>`
+      : `<button class="btn danger" onclick="revoke('${netid}','${role}')">Revoke</button>`;
+  const open = bOpenReason === key;
+  return `
+    <div class="holder ${open ? "blocked" : ""}">
+      <div>${personCell(netid)}</div>
+      <div class="prov">granted by ${nameOf(g?.by ?? "seed") } · ${g?.at ?? ""}</div>
+      ${action}
+    </div>
+    ${open && ref ? `<div class="reason">
+        <b>${ref.why}</b>
+        ${ref.items.length ? `<ul>${ref.items.map(i => `<li>${i}</li>`).join("")}</ul>` : ""}
+        ${ref.fix}
+        ${ref.unappoint ? `<div style="margin-top:8px">${ref.unappoint.map(p =>
+          `<button class="btn" onclick="unappoint('${netid}','${p}')">Remove from ${p}</button>`).join(" ")}</div>` : ""}
+      </div>` : ""}`;
+}
+
+function typeahead(role, program) {
+  const pool = ALL_NETIDS
+    .filter(n => program ? !progsOf(n).includes(program) : !holds(n, role))
+    .filter(n => matches(n, bAddQuery))
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b)))
+    .slice(0, 8);
+  const onpick = program
+    ? n => `bPickProgram('${n}','${program}')`
+    : n => `bPick('${n}','${role}')`;
+  return `
+    <div class="addrow">
+      <div class="typeahead">
+        <input class="search" id="b-add" placeholder="Search everyone by name or netid" value="${bAddQuery}" autofocus>
+        <div class="ta-list">
+          ${pool.length ? pool.map(n => `<button onclick="${onpick(n)}">${personCell(n)}</button>`).join("")
+                        : `<div class="none">Nobody matches. A netid with no <code>people</code> row can still hold a role — the projects have no foreign key between them.</div>`}
+        </div>
+      </div>
+      <button class="btn" onclick="bOpenAdd(null)">Cancel</button>
+    </div>`;
+}
+
+function renderB() {
+  const sections = ROLES.map(r => {
+    const inert = r.key === "student" || r.key === "advisor";
+
+    if (r.key === "program_director") {
+      const body = PROGRAMS.map(p => {
+        const holders = directorOf.filter(d => d.program === p.code).map(d => d.netid);
+        return `
+          <div class="progsub">${p.code} — ${p.name}</div>
+          ${holders.length ? holders.map(n => holderRow(n, r.key, { program: p.code })).join("")
+                           : `<div class="empty-holder">No director. Nobody can act for ${p.code}'s offerings until one is appointed.</div>`}
+          ${bAdding === "pd:" + p.code ? typeahead(r.key, p.code)
+            : `<div class="addrow"><button class="btn" onclick="bOpenAdd('pd:${p.code}')">+ Appoint a director of ${p.code}</button></div>`}`;
+      }).join("");
+      const orphans = userRole.filter(x => x.role === "program_director" && !progsOf(x.netid).length).map(x => x.netid);
+      return `<section class="card rolesec">
+        <header>
+          <h3>${r.name}</h3><span class="kindtag">${r.kind}</span>
+          <span class="blurb">${r.blurb}</span>
+          <span class="n">${directorOf.length} appointment${directorOf.length === 1 ? "" : "s"}</span>
+        </header>
+        ${body}
+        ${orphans.length ? `<div class="progsub">Holds the role, directs nothing</div>
+          ${orphans.map(n => holderRow(n, r.key)).join("")}` : ""}
+      </section>`;
+    }
+
+    const holders = userRole.filter(x => x.role === r.key).map(x => x.netid)
+      .sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+    return `<section class="card rolesec ${inert ? "inert" : ""}">
+      <header>
+        <h3>${r.name}</h3><span class="kindtag">${r.kind}</span>
+        <span class="blurb">${r.blurb}</span>
+        <span class="n">${holders.length} ${holders.length === 1 ? "person" : "people"}</span>
+      </header>
+      ${holders.length ? holders.map(n => holderRow(n, r.key)).join("")
+                       : `<div class="empty-holder">Nobody holds this role.</div>`}
+      ${bAdding === r.key ? typeahead(r.key)
+        : `<div class="addrow"><button class="btn" onclick="bOpenAdd('${r.key}')">+ Grant ${r.name.toLowerCase()} to…</button></div>`}
+    </section>`;
+  }).join("");
+
+  return `
+    <div class="controls">
+      <span class="count">${HELD_NETIDS().length} people hold a role · ${userRole.length} grants · ${ALL_NETIDS.length} people in the directory</span>
+    </div>
+    ${sections}
+    <p class="footnote">
+      The page lists <b>only role-holders</b>, so the read <b>drives from <code>classes</code></b> and stitches
+      names in — the same direction as <code>getLineupPage</code>. Granting to someone new needs the search box,
+      which is a second read against <code>people</code> and the only place the full directory appears.
+    </p>`;
+}
+
+/* ==========================================================================
+   Variant C — the records
+   ========================================================================== */
+
+let cSelected = "na2481";
+let cQuery = "";
+let cScope = "held";
+
+function cSelect(n) { cSelected = n; render(); }
+
+function renderC() {
+  const list = (cScope === "held" ? HELD_NETIDS() : ALL_NETIDS)
+    .filter(n => matches(n, cQuery))
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+
+  const side = list.map(n => `
+    <button class="${n === cSelected ? "on" : ""}" onclick="cSelect('${n}')">
+      <span>${PEOPLE[n] ? nameOf(n) : `<span class="noname">${n}</span>`}${n === ACTOR ? '<span class="youtag">you</span>' : ""}</span>
+      <span class="rolebits">${rolesOf(n).map(k =>
+        `<span class="chip ${k === "chair" ? "chair" : ""}">${ROLE[k].short}</span>`).join("") || '<span class="muted tiny">no roles</span>'}</span>
+    </button>`).join("");
+
+  const n = cSelected;
+  const p = PEOPLE[n];
+  let allowed = 0, blocked = 0;
+
+  const rows = ROLES.map(r => {
+    const held = holds(n, r.key);
+    const ref = held ? refusalToRevoke(n, r.key) : null;
+    const stuck = !!ref?.why;
+    if (held && stuck) blocked++; else allowed++;
+    const g = grantOf(n, r.key);
+
+    const progs = r.key === "program_director"
+      ? `<div class="progpick">${PROGRAMS.map(pr => {
+           const on = progsOf(n).includes(pr.code);
+           return `<button class="btn ${on ? "on" : ""}" onclick="${on ? `unappoint('${n}','${pr.code}')` : `appoint('${n}','${pr.code}')`}">
+                     ${on ? "✓ " : "+ "}${pr.code}</button>`;
+         }).join("")}</div>`
+      : "";
+
+    const act = held
+      ? (stuck ? `<button class="btn" disabled>Cannot revoke</button>`
+               : `<button class="btn danger" onclick="revoke('${n}','${r.key}')">Revoke</button>`)
+      : `<button class="btn primary" onclick="grant('${n}','${r.key}')">Grant</button>`;
+
+    return `<div class="rrow ${held ? (stuck ? "blocked" : "on") : ""} ${!held && (r.key === "student" || r.key === "advisor") ? "inert" : ""}">
+      <div class="mark">${held ? (stuck ? '<span class="refuse-mark">🔒</span>' : "✓") : "○"}</div>
+      <div class="body">
+        <div class="rname">${r.name} <span class="kindtag">${r.kind}</span></div>
+        <div class="rblurb">${r.blurb}</div>
+        ${progs}
+        ${stuck ? `<div class="rwhy">${ref.why} ${ref.fix}
+            ${ref.items.length ? `<ul>${ref.items.map(i => `<li>${i}</li>`).join("")}</ul>` : ""}</div>` : ""}
+        ${held && !stuck && ref?.note ? `<div class="rprov">${ref.note}</div>` : ""}
+        ${held && g ? `<div class="rprov">Granted by ${nameOf(g.by)} · ${g.at}</div>` : ""}
+      </div>
+      <div class="act">${act}</div>
+    </div>`;
+  }).join("");
+
+  return `
+    <div class="split">
+      <div class="card">
+        <div class="controls" style="padding:11px 11px 0;margin:0">
+          <input class="search" id="c-q" placeholder="Search" value="${cQuery}">
+        </div>
+        <div class="controls" style="padding:9px 11px;margin:0">
+          <div class="seg">
+            <button class="${cScope === "held" ? "on" : ""}" onclick="cScope='held';render()">Holders</button>
+            <button class="${cScope === "all" ? "on" : ""}" onclick="cScope='all';render()">Everyone</button>
+          </div>
+        </div>
+        <div class="plist">${side || '<div class="empty-holder">Nobody matches.</div>'}</div>
+      </div>
+      <div class="card record">
+        <header>
+          <h2>${p ? `${p.first} ${p.last}` : `<span class="noname">${n}<i>no name on file</i></span>`}
+            ${n === ACTOR ? '<span class="youtag">you</span>' : ""}</h2>
+          <div class="meta"><span class="person-sub">${n}</span>${p?.pronouns ? " · " + p.pronouns : ""}</div>
+        </header>
+        <div class="summary">${allowed} change${allowed === 1 ? "" : "s"} available${blocked ? ` · <span class="refuse-mark">${blocked} held role${blocked === 1 ? "" : "s"} cannot be revoked</span>` : ""}</div>
+        ${rows}
+      </div>
+    </div>
+    <p class="footnote">
+      Every role is stated for every person, held or not, with the refusal in the open rather than behind a
+      control — the shape <a href="https://github.com/nopivnick/lineup-prototype-03/issues/37">#37</a> rejected
+      for row height in a grouped table, which has room here. Costs a click to see anyone: the roles are one
+      person at a time, and nobody's roles can be compared with anybody else's.
+    </p>`;
+}
+
+/* ==========================================================================
+   Variant D — the settled page
+
+   Assembled by the requester from all three, one answer at a time:
+
+     Q1 holders only, search reaches all of `people`      (B/C)
+     Q2 every refusal stated in the open                  (C — the shape #37 rejected)
+     Q3 appointing is one control on the person           (C)
+     Q4 all seven roles shown, the two inert ones marked  (the prototype's own)
+     Q5 own record shown, last-chair lock visible upfront (the prototype's own)
+     Q6 unnamed netids rendered, never minted             (the prototype's own)
+     Q7 visible to anyone holding a role other than `student`, read-only below chair
+     Q8 a three-program strip, because nothing else here is shaped like a program
+     Q9 read-only means controls *and* refusals absent, not greyed
+
+   The "viewing as" bar is a prototype device, not part of the page: it is how
+   Q7 and Q9 are looked at. #11 refuses role-narrowing, so a real actor is
+   always all of their roles at once.
+   ========================================================================== */
+
+const VIEWERS = ["tv1067", "pr3390", "mo5512"];
+let dViewer = "tv1067";
+let dSelected = "na2481";
+let dQuery = "";
+
+function dSetViewer(n) { dViewer = n; render(); }
+function dSelect(n) { dSelected = n; render(); }
+
+/* Q7, sharpened: *holds any role other than `student`*, never *does not hold
+   `student`*. ITP is full of grad students who teach, and a student who is also
+   an instructor must not lose the page. */
+const canSeeRoles = netid => rolesOf(netid).some(r => r !== "student");
+const canWriteRoles = netid => holds(netid, "chair");
+
+function renderD() {
+  const viewer = dViewer;
+  const mayWrite = canWriteRoles(viewer);
+
+  const bar = `
+    <div class="viewbar">
+      <span class="lab">Prototype — viewing as</span>
+      ${VIEWERS.map(n => `<button class="btn ${n === viewer ? "primary" : ""}" onclick="dSetViewer('${n}')">
+        ${nameOf(n)} <span class="muted tiny">${rolesOf(n).map(r => ROLE[r].short.toLowerCase()).join(", ") || "no roles"}</span>
+      </button>`).join("")}
+      <span class="muted tiny">Q7 and Q9 are what this bar is for. It is not part of the page.</span>
+    </div>`;
+
+  if (!canSeeRoles(viewer)) {
+    return bar + `<div class="card noaccess">
+      <h2>There is no Roles page here</h2>
+      <p>${nameOf(viewer)} holds only <b>student</b>, so the nav item is gone and the route refuses —
+      <b>absent rather than empty</b>, which is
+      <a href="https://github.com/nopivnick/lineup-prototype-03/issues/37">#37</a>'s rule for a control
+      nobody can ever use, applied to a whole page.</p>
+      <p style="margin-top:10px" class="muted">Grant them any other role from the chair's view and the page
+      appears — the predicate is <i>holds any role other than <code>student</code></i>, not <i>does not hold
+      <code>student</code></i>, so a student who teaches keeps it.</p>
+    </div>`;
+  }
+
+  /* --- Q8: the program strip ------------------------------------------- */
+  const strip = `<div class="progstrip">${PROGRAMS.map(p => {
+    const ds = directorOf.filter(d => d.program === p.code).map(d => d.netid);
+    return `<div class="progcard ${p.code} ${ds.length ? "" : "vacant"}">
+      <div class="code">${p.code}</div>
+      <div class="pname">${p.name}</div>
+      <div class="dir">${ds.length ? ds.map(nameOf).join(", ") : "No director"}</div>
+    </div>`;
+  }).join("")}</div>`;
+
+  /* --- Q1: holders listed, search reaches everyone ---------------------- */
+  const holders = HELD_NETIDS().filter(n => matches(n, dQuery))
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const others = mayWrite && dQuery
+    ? ALL_NETIDS.filter(n => !holds(n, "student") && !HELD_NETIDS().includes(n) && matches(n, dQuery))
+        .sort((a, b) => sortKey(a).localeCompare(sortKey(b))).slice(0, 6)
+    : [];
+
+  const entry = n => `
+    <button class="${n === dSelected ? "on" : ""}" onclick="dSelect('${n}')">
+      <span>${PEOPLE[n] ? nameOf(n) : `<span class="noname">${n}</span>`}${n === viewer ? '<span class="youtag">you</span>' : ""}</span>
+      <span class="rolebits">${rolesOf(n).map(k =>
+        `<span class="chip ${k === "chair" ? "chair" : ""}">${ROLE[k].short}</span>`).join("") || '<span class="muted tiny">no roles yet</span>'}</span>
+    </button>`;
+
+  const side = `
+    <div class="dsearch"><input class="search" id="d-q" placeholder="${mayWrite ? "Search anyone in the directory" : "Search"}" value="${dQuery}"></div>
+    ${holders.length ? `<div class="listlabel">Holds a role · ${holders.length}</div><div class="plist">${holders.map(entry).join("")}</div>`
+                     : `<div class="empty-holder">Nobody here matches.</div>`}
+    ${others.length ? `<div class="listlabel">Not on this list · grant a role to…</div><div class="plist">${others.map(entry).join("")}</div>` : ""}
+    ${mayWrite && dQuery && !others.length && !holders.length
+      ? `<div class="empty-holder">Nobody in <code>people</code> matches. A role can only be granted to someone the directory knows.</div>` : ""}`;
+
+  /* --- the record ------------------------------------------------------- */
+  const n = dSelected;
+  const p = PEOPLE[n];
+
+  const rows = ROLES.map(r => {
+    const held = holds(n, r.key);
+    const ref = held ? refusalToRevoke(n, r.key) : null;
+    const stuck = !!ref?.why;
+    const g = grantOf(n, r.key);
+    const inert = r.key === "advisor" || r.key === "student";
+
+    /* Q3: the two writes are one act — the role row rides along with the
+       program, and the chair never sees a director who directs nothing. */
+    const progs = r.key === "program_director" && mayWrite
+      ? `<div class="progpick">${PROGRAMS.map(pr => {
+           const on = progsOf(n).includes(pr.code);
+           return `<button class="btn ${on ? "on" : ""}" onclick="${on ? `unappoint('${n}','${pr.code}')` : `appoint('${n}','${pr.code}')`}">${on ? "✓ " : "+ "}${pr.code}</button>`;
+         }).join("")}</div>`
+      : r.key === "program_director" && held
+        ? `<div class="progpick">${progsOf(n).map(c => `<span class="chip prog-${c}">${c}</span>`).join("") || '<span class="muted tiny">directs nothing</span>'}</div>`
+        : "";
+
+    /* Q9: for a non-chair the control is absent — and so is the refusal,
+       which exists only to explain a control. */
+    const act = !mayWrite ? ""
+      : held
+        ? (stuck ? `<button class="btn" disabled>Cannot revoke</button>`
+                 : `<button class="btn danger" onclick="revoke('${n}','${r.key}')">Revoke</button>`)
+        : `<button class="btn primary" onclick="grant('${n}','${r.key}')">Grant</button>`;
+
+    const why = mayWrite && stuck
+      ? `<div class="rwhy">${ref.why} ${ref.fix}
+           ${ref.items.length ? `<ul>${ref.items.map(i => `<li>${i}</li>`).join("")}</ul>` : ""}</div>`
+      : "";
+
+    return `<div class="rrow ${held ? (stuck ? "blocked" : "on") : ""} ${!held && inert ? "inert" : ""}">
+      <div class="mark">${held ? (stuck ? '<span class="refuse-mark">🔒</span>' : "✓") : "○"}</div>
+      <div class="body">
+        <div class="rname">${r.name}
+          ${inert ? `<span class="kindtag">gates nothing yet</span>` : `<span class="kindtag">${r.kind}</span>`}</div>
+        <div class="rblurb">${r.blurb}</div>
+        ${progs}
+        ${why}
+        ${held && g ? `<div class="rprov">Granted by ${nameOf(g.by)} · ${g.at}</div>` : ""}
+      </div>
+      <div class="act">${act}</div>
+    </div>`;
+  }).join("");
+
+  return bar + strip + `
+    <div class="split">
+      <div class="card">${side}</div>
+      <div class="card record">
+        <header>
+          <h2>${p ? `${p.first} ${p.last}` : `<span class="noname">${n}<i>no name on file</i></span>`}
+            ${n === viewer ? '<span class="youtag">you</span>' : ""}</h2>
+          <div class="meta"><span class="person-sub">${n}</span>${p?.pronouns ? " · " + p.pronouns : ""}</div>
+        </header>
+        ${mayWrite ? "" : `<div class="summary">Read-only. ${nameOf(viewer)} is not the chair, so every control is
+          <b>absent rather than greyed</b> — and so is every refusal, which exists only to explain a control.</div>`}
+        ${rows}
+      </div>
+    </div>
+    <p class="footnote">
+      The read drives from <code>classes</code> and stitches names in from <code>people</code> — the second
+      consumer of <a href="https://github.com/nopivnick/lineup-prototype-03/issues/9">#9</a>'s cross-project
+      stitch, after <a href="https://github.com/nopivnick/lineup-prototype-03/issues/37">#37</a> made the
+      Catalog single-database. Stating every refusal without being asked costs three further
+      <code>classes</code>-side queries — live roster rows, non-retired headed courses, director rows — all
+      set-based over the holder set, and all skipped entirely for a non-chair.
+    </p>`;
+}
+
+/* ==========================================================================
+   Switcher
+   ========================================================================== */
+
+const VARIANTS = [
+  { key: "A", name: "Grid", render: renderA,
+    lede: "Every netid the university knows, and every role the department grants. A cell is a grant.",
+    stance: [
+      ["Lists", "Everyone in <code>people</code> — 16 rows, filterable to holders"],
+      ["Refusals", "A locked cell; the reason is a popover, on demand"],
+      ["Appointing", "One cell, then a program picker — two writes behind one control"],
+    ] },
+  { key: "B", name: "Roster", render: renderB,
+    lede: "One section per role, listing who holds it. The department read as seven lists of people.",
+    stance: [
+      ["Lists", "Only the 9 people who hold something; search reaches the rest"],
+      ["Refusals", "Inline, opening where you clicked, with the blocking rows named"],
+      ["Appointing", "A section per program — appointing to ITP is the visible act"],
+    ] },
+  { key: "C", name: "Records", render: renderC,
+    lede: "One person at a time. All seven roles stated, held or not, with every refusal in the open.",
+    stance: [
+      ["Lists", "Holders first, everyone by toggle — one person selected at a time"],
+      ["Refusals", "Always visible, never behind a click"],
+      ["Appointing", "One checklist row, programs ticked beneath it"],
+    ] },
+  { key: "D", name: "Settled", render: renderD,
+    lede: "The shape assembled from the three, one answer at a time. This is what #38 settles.",
+    stance: [
+      ["Lists", "Holders; the search reaches all of <code>people</code> to grant"],
+      ["Refusals", "Always in the open — and absent, with the controls, for a non-chair"],
+      ["Appointing", "One control on the person; the program strip carries the empty seat"],
+    ] },
+];
+
+let vi = VARIANTS.findIndex(v => v.key === "D");   // open on the settled shape
+
+function render() {
+  const v = VARIANTS[vi];
+  document.getElementById("view").innerHTML = v.render();
+
+  /* The app chrome follows whoever is viewing — only D has a viewer other
+     than the chair, and only D can lose the nav item altogether. */
+  const viewer = v.key === "D" ? dViewer : ACTOR;
+  const top = rolesOf(viewer)[0] ?? "student";
+  document.getElementById("who-name").textContent = nameOf(viewer);
+  document.getElementById("who-role").textContent = ROLE[top].short.toLowerCase();
+  document.getElementById("who-role").className = "chip" + (top === "chair" ? " chair" : "");
+  document.getElementById("nav-roles").style.display = canSeeRoles(viewer) ? "" : "none";
+
+  document.getElementById("lede").textContent = v.lede;
+  document.getElementById("stance").innerHTML = v.stance
+    .map(([k, s]) => `<div><b>${k}</b>${s}</div>`).join("");
+  document.getElementById("vkey").textContent = v.key;
+  document.getElementById("vname").textContent = "— " + v.name;
+  hidePop();
+  wireInputs();
+}
+
+/* Inputs are re-created on every render, so re-bind and restore the caret. */
+function wireInputs() {
+  const bind = (id, set) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.oninput = e => { set(e.target.value); render(); const n = document.getElementById(id); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } };
+  };
+  bind("a-q", v => aQuery = v);
+  bind("b-add", v => bAddQuery = v);
+  bind("c-q", v => cQuery = v);
+  bind("d-q", v => dQuery = v);
+}
+
+function go(d) {
+  vi = (vi + d + VARIANTS.length) % VARIANTS.length;
+  const u = new URL(location);
+  u.searchParams.set("variant", VARIANTS[vi].key);
+  history.replaceState(null, "", u);
+  render();
+}
+
+document.getElementById("prev").onclick = () => go(-1);
+document.getElementById("next").onclick = () => go(1);
+document.addEventListener("keydown", e => {
+  if (["INPUT", "TEXTAREA"].includes(e.target.tagName) || e.target.isContentEditable) return;
+  if (e.key === "ArrowLeft") go(-1);
+  if (e.key === "ArrowRight") go(1);
+});
+
+document.getElementById("ledger-head").onclick =
+  () => document.getElementById("ledger").classList.toggle("closed");
+
+const start = new URL(location).searchParams.get("variant");
+if (start) {
+  const i = VARIANTS.findIndex(v => v.key === start.toUpperCase());
+  if (i >= 0) vi = i;
+}
+render();
+</script>
