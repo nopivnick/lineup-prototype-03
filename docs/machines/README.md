@@ -228,7 +228,8 @@ are slow and material, and a state asserting "they said yes" when the yes has go
 gets published to the catalog and never caught.
 
 **The transition log gains a nullable `subject_netid`**, populated by `staff`, `unstaff`
-and `decline` — and, since ticket 19, `withdraw` — null elsewhere. This **amends ticket
+and `decline` — and, since ticket 19, `withdraw`, and since ticket 41, `offer` and
+`accept` — null elsewhere. This **amends ticket
 6's column list**. `actor_netid`
 records who clicked, which for a decline is routinely an admin taking a refusal by
 email — so with the roster row deleted in the same transaction, who said no would
@@ -554,7 +555,10 @@ established why: the log carries `subject_netid` because `actor_netid` "records 
 clicked, which for a decline is routinely an admin taking a refusal by email." All three
 are available to the lead, a `coordinator`, or the offering's director. This costs **no
 schema change** — ticket 19 ruled that `offer` and `accept` need no `subject_netid` because
-the roster row survives them, and `defer` leaves it intact too.
+the roster row survives them, and `defer` leaves it intact too. **Ticket 41 has since
+overturned the `offer` / `accept` half of that**: the roster row survives the event but not
+the offering, and by the time anyone reads the log it answers who the lead is *now*. Both
+events now carry `subject_netid`. See *Ticket 41* below.
 
 **Offering edits are gated by field class, not by lifecycle state**, and Course edits are
 gated by state. The rule behind the asymmetry: *a field write is state-gated exactly where
@@ -780,6 +784,38 @@ credits"* was therefore right, and is left as it stands.
 Two things this ticket settled are recorded above rather than here, at the entries that
 raised them: the free-text `reason` on log rows (ticket 19's entry) and the general audit
 trail (ticket 17's entry).
+
+### `offer` and `accept` gain `subject_netid`
+
+[What do the Course and Offering detail pages show?](https://github.com/nopivnick/lineup-prototype-03/issues/41)
+is a reads ticket and it amends one thing here, which is the log's column list.
+
+**Ticket 19's exception does not survive first contact with a reader.** It ruled that
+`offer` and `accept` need no `subject_netid` because *the roster row survives them* — true
+of the event, and the reason `decline` and `withdraw` needed the column was precisely that
+they DELETE position 0 in the same transaction. What ticket 19 could not check is that the
+roster survives the **offering**, and it does not: `withdraw` or `decline` empties position
+0, `staff` may seat someone else, and nothing in that sequence rewrites history. So a log
+read afterwards has an `offer` row attributable to nobody and an `accept` row attributable
+to whoever holds position 0 *now*. The roster is present-tense; the log is not. Ticket 41
+built the first thing that reads the log, and the case appeared immediately in its own
+fixtures — a section offered to one person, withdrawn, offered to a second, declined.
+
+**The trigger was a rendering choice, and the finding is not.** Ticket 41 settled that a
+history renders as a sentence per row, which is what made the missing name impossible to
+ignore — a table of raw columns shows a blank cell and lets the reader assume it means
+something. But the column would be wrong to omit under any rendering: the fact simply would
+not be recorded. The three rejected repairs are worth keeping, because each is the obvious
+one and each fails: reading the current roster is *silently* wrong exactly when a lead was
+swapped; walking back to the preceding `staff` row is unsound because ticket 15 made swaps
+inside `Staffed` fire nothing at all, so that row can name someone who was never offered
+anything; and saying nothing withholds the only fact anyone brings to a decline.
+
+**No state, no edge and no guard changes**, and the cost is one assignment: ticket 15's
+single writer already holds the netid at both events. Two comments are added to
+`offering.machine.ts`, on `offer` and on `accept`; `course.machine.ts` and
+`course-proposal-review.machine.ts` are untouched, checked explicitly. `subject_netid` was
+already nullable on all three logs and stays so — no Course or review event carries one.
 
 ## Open questions
 
