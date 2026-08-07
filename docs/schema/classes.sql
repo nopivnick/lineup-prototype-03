@@ -746,7 +746,7 @@ CREATE TABLE offering_transition (
   -- Who it was done to. issues/15 added it because a decline is routinely
   -- recorded by an admin and the roster row is deleted in the same transaction,
   -- so "who said no" would otherwise survive nowhere. Forced on `decline`,
-  -- `withdraw` and `staff`.
+  -- `withdraw`, `staff` and `unstaff`.
   --
   -- Forced on `offer` and `accept` too, since issues/41. Those two were the
   -- stated exception: issues/19 held that the roster row survives them and
