@@ -583,7 +583,7 @@ function directorLabel(prog) {
    the resolution on #43. #14 asserted the sibling rule on `retry`. */
 function retiredRefusal(c) {
   if (c.state !== "Retired") return null;
-  return { short: "the course is retired", fix: "Nothing in the map rules on this yet." };
+  return { short: "the course is retired", fix: "A retired course cannot be offered. Unretire it before slating a class." };
 }
 
 function refusalFor(c) {
@@ -748,7 +748,7 @@ function coursePicker({ showRefused, label = "Course" }) {
   const body = showRefused
     ? `<option value="">Choose a course…</option>
        <optgroup label="Can be offered">${ok.map(opt).join("")}</optgroup>
-       ${no.length ? `<optgroup label="Not yet — assignments missing">${no.map(opt).join("")}</optgroup>` : ""}`
+       ${no.length ? `<optgroup label="Cannot be offered">${no.map(opt).join("")}</optgroup>` : ""}`
     : `<option value="">Choose a course…</option>${ok.map(opt).join("")}`;
   const help = showRefused
     ? `Every course you may slate, with the ones that cannot be offered kept visible and refused.`
