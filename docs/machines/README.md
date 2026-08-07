@@ -832,8 +832,8 @@ these files do carry, so the rule is completed here.
 `Declined` or `Canceled` must be blocked when the Course is `Retired`, asserted in the
 Server Action. That closed the way back in *along the Offering lifecycle*. It said nothing
 about **creating a new offering**, and did not need to — at the time nothing in the
-skeleton could create one. [#40](https://github.com/nopivnick/lineup-prototype-03/issues/40)
-added the form that can, and ticket 43 built it, which is where the gap became visible: a
+skeleton could create one. [#40](https://github.com/nopivnick/lineup-prototype-03/issues/40) settled that the skeleton would create offerings (via `slate a class`),
+and ticket 43 built the form, which is where the gap became visible: a
 director could slate a fresh section of a `Retired` course and re-establish the exact state
 `noLiveOfferings` exists to forbid.
 
