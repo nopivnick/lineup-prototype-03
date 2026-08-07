@@ -1,0 +1,1547 @@
+<title>The two create forms — three variants</title>
+
+<!--
+  PROTOTYPE — throwaway. Answers issue #43, "What do the two create forms ask
+  for?"
+
+  Three structurally different takes on the two forms #40 added to the skeleton —
+  **propose a course** and **slate a class** — switchable with the floating bar
+  or the ← → keys. Hand-written fixtures, no data layer, no framework — a static
+  approximation of Next.js + Mantine, built to be reacted to, not promoted.
+
+    A — Page       one full-page form per act, everything asked at once,
+                   meetings included, the gate pre-empted in the picker
+    B — Modal      a modal over the list you launched from, asking the least it
+                   can; everything else is added afterwards on #41's detail page
+    C — Steps      a page in steps that shows the rows it is about to write
+                   before it writes them, and states the gate in the open
+
+  **A is the answer** — see the resolution on #43. It won for *both* forms,
+  which none of #37, #41 or #42 managed (each of those was assembled from two or
+  three), and it won with exactly one change: the proposal landing goes to the
+  **proposals list** rather than to a record, because a proposal has no page of
+  its own and three reviews means picking one by sort order. B and C are kept
+  beside it as the primary source it was chosen against — the argument for
+  asking everything at once is only legible next to the two that do not.
+
+  Every **rule** here is already settled and none of it is re-decided in this
+  file. From #10: `course_proposal` is title, description, credits — no
+  `course_number` (#7, each approving program mints its own), no state (#7, all
+  state lives in the reviews). From #10 again: there is **no requested-programs
+  table**, so which programs a proposal is for *is* the review rows the form
+  mints, one submit, one transaction. From #30: `program_code` never appears in
+  the offering create signature. From #10: `section_number` defaults to '1' and
+  is unique within `(course_id, term_code)`. From #32: a course without both an
+  area and an area head cannot be offered, asserted in the create path. From
+  #13: creation is an act and not a transition, so none of this logs anything.
+  From #42: proposing starts on the proposals list. From #8: proposing is the
+  `instructor` role; slating is the offering's own program director, a route #30
+  collapsed with *director of the course's program*.
+
+  What differs between the variants is presentation, and exactly the questions
+  #43 asks:
+
+                        | A Page              | B Modal              | C Steps
+    the form is         | a route             | a modal over a list  | a route, in steps
+    the programs are    | a labelled section  | chips, unexplained   | a step with a row preview
+    an empty program set| refused inline      | submit disabled      | the step will not advance
+    meetings are        | on the form         | added afterwards     | a step of their own
+    #32's gate          | pre-empted, greyed  | absent, then stated  | stated in the open first
+    section number      | asked, pre-filled   | derived, not shown   | derived, shown, editable
+    after submit        | the new record*     | the page, gaps marked| a receipt naming the rows
+
+      * amended on resolution: A's *proposal* landing is the proposals list,
+        not a record. See the note above and `landingA`.
+
+  Three things this file made visible that were hard to see on paper. The first
+  two were flagged ⚑ for #43 to rule on, and both were ruled — the refusals this
+  file guessed at are now the decided rule:
+
+  1. **Nothing in the map forbade slating a Retired course.** #32's gate is
+     areas and heads; #14 asserted the sibling rule (`retry` is blocked when the
+     Course is `Retired`) in the Server Action and said nothing about `create`,
+     because at the time no screen could create anything. Scenario *Slate ·
+     Interaction Design (Retired)* is the case. **Ruled: the create path
+     refuses**, completing #14's guard from the other end — `retire` requires no
+     live offerings, and creation was the door that let one back in, silently,
+     since creation is an act and not a transition and so logs nothing.
+
+  2. **A proposal with no programs checked mints a row nobody will ever
+     review**, since #10 stores no requested-programs list — a review row *is*
+     the request. **Ruled: refused.** Nothing in the skeleton could reach such a
+     proposal again: the list groups by proposal and its rows are reviews, and a
+     proposal carries no state of its own (#7).
+
+  3. **The two entry points pre-fill opposite halves of the same form.** From
+     #37's Lineup the term is known and the course is asked; from #41's course
+     page the course is known and the term is asked. Scenarios *from the Lineup*
+     and *from Physical Computing's page* are the same form reached two ways.
+     Not a question, but the reason the gate has to refuse on the page as well
+     as pre-empt in the picker: arriving from a course's own page, there is no
+     list to omit it from.
+
+  The "Viewing as" control is a prototype device, not part of the page. A
+  `student` reaches neither form: #38's *absent, not greyed*, so there is no
+  control to refuse.
+-->
+
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:        #ffffff;
+    --raised:        #f8f8fa;
+    --sunken:        #f1f1f4;
+    --line:          #e3e2e8;
+    --line-strong:   #c9c7d2;
+    --ink:           #1f1d26;
+    --ink-soft:      #63606f;
+    --ink-faint:     #8b8898;
+
+    --accent:        #57068c;
+    --accent-soft:   #f2e9f8;
+    --accent-line:   #ddc7ec;
+    --on-accent:     #ffffff;
+
+    --itp:           #7048a8;
+    --itp-bg:        #f3eefb;
+    --ima:           #0b7285;
+    --ima-bg:        #e3f4f7;
+    --lowres:        #a1651a;
+    --lowres-bg:     #fbf0de;
+
+    --live:          #2b8a3e;
+    --live-bg:       #e8f6ea;
+    --wait:          #b8600a;
+    --wait-bg:       #fdf1e2;
+    --stop:          #c92a2a;
+    --stop-bg:       #fceceb;
+    --idle:          #6b6878;
+    --idle-bg:       #eeedf1;
+
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+    --shadow-lg: 0 2px 6px rgb(31 29 38 / .10), 0 12px 32px rgb(31 29 38 / .16);
+
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #1a1b1e;
+      --raised:      #212226;
+      --sunken:      #26272c;
+      --line:        #34353b;
+      --line-strong: #4a4b53;
+      --ink:         #e6e5ea;
+      --ink-soft:    #a5a3af;
+      --ink-faint:   #7b7987;
+
+      --accent:      #b197fc;
+      --accent-soft: #2b2440;
+      --accent-line: #453a63;
+      --on-accent:   #1a1b1e;
+
+      --itp:         #b197fc;
+      --itp-bg:      #2b2440;
+      --ima:         #4dc4d9;
+      --ima-bg:      #17343a;
+      --lowres:      #dfa441;
+      --lowres-bg:   #3a2e17;
+
+      --live:        #63d67e;
+      --live-bg:     #16301d;
+      --wait:        #f0a45c;
+      --wait-bg:     #35240f;
+      --stop:        #ff8785;
+      --stop-bg:     #3a1c1c;
+      --idle:        #9b98a6;
+      --idle-bg:     #2c2d33;
+
+      --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+      --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+    }
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground:#ffffff; --raised:#f8f8fa; --sunken:#f1f1f4; --line:#e3e2e8; --line-strong:#c9c7d2;
+    --ink:#1f1d26; --ink-soft:#63606f; --ink-faint:#8b8898;
+    --accent:#57068c; --accent-soft:#f2e9f8; --accent-line:#ddc7ec; --on-accent:#ffffff;
+    --itp:#7048a8; --itp-bg:#f3eefb; --ima:#0b7285; --ima-bg:#e3f4f7; --lowres:#a1651a; --lowres-bg:#fbf0de;
+    --live:#2b8a3e; --live-bg:#e8f6ea; --wait:#b8600a; --wait-bg:#fdf1e2;
+    --stop:#c92a2a; --stop-bg:#fceceb; --idle:#6b6878; --idle-bg:#eeedf1;
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+    --shadow-lg: 0 2px 6px rgb(31 29 38 / .10), 0 12px 32px rgb(31 29 38 / .16);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:#1a1b1e; --raised:#212226; --sunken:#26272c; --line:#34353b; --line-strong:#4a4b53;
+    --ink:#e6e5ea; --ink-soft:#a5a3af; --ink-faint:#7b7987;
+    --accent:#b197fc; --accent-soft:#2b2440; --accent-line:#453a63; --on-accent:#1a1b1e;
+    --itp:#b197fc; --itp-bg:#2b2440; --ima:#4dc4d9; --ima-bg:#17343a; --lowres:#dfa441; --lowres-bg:#3a2e17;
+    --live:#63d67e; --live-bg:#16301d; --wait:#f0a45c; --wait-bg:#35240f;
+    --stop:#ff8785; --stop-bg:#3a1c1c; --idle:#9b98a6; --idle-bg:#2c2d33;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+    --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--ground);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0 0 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * { box-sizing: border-box; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- app chrome -------------------------------------------------------- */
+
+  .appbar { border-bottom: 1px solid var(--line); background: var(--raised); position: sticky; top: 0; z-index: 40; }
+  .appbar .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
+  .brand { font-weight: 700; letter-spacing: -.01em; }
+  .brand span { color: var(--accent); }
+  .nav { display: flex; gap: 16px; margin-left: 10px; }
+  .nav a { color: var(--ink-soft); text-decoration: none; font-size: 13px; padding: 4px 2px; }
+  .nav a.on { color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+  .whoami { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-faint); }
+  .whoami select { background: var(--ground); border: 1px solid var(--line-strong); border-radius: 7px; padding: 5px 8px; font-size: 12.5px; }
+
+  .picker { border-bottom: 1px solid var(--line); background: var(--sunken); }
+  .picker .wrap { display: flex; align-items: center; gap: 10px; padding-top: 11px; padding-bottom: 11px; flex-wrap: wrap; }
+  .picker label { font-size: 12px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em; }
+  .picker select { background: var(--ground); border: 1px solid var(--line-strong); border-radius: 7px; padding: 6px 10px; font-size: 13px; max-width: 640px; }
+  .picker .note { font-size: 12.5px; color: var(--ink-soft); font-style: italic; flex: 1 1 260px; min-width: 200px; }
+
+  /* ---- shared bits ------------------------------------------------------- */
+
+  .page { padding: 26px 0 40px; }
+  .crumb { font-size: 12.5px; color: var(--ink-faint); margin-bottom: 10px; }
+  .crumb a { color: var(--ink-soft); text-decoration: none; }
+  .crumb a:hover { text-decoration: underline; }
+  h1 { font-size: 22px; letter-spacing: -.015em; margin: 0 0 4px; }
+  h2 { font-size: 14px; letter-spacing: -.005em; margin: 0 0 2px; }
+  .lede { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 22px; max-width: 62ch; }
+
+  .card { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; }
+  .card + .card { margin-top: 16px; }
+  .card .hd { padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .card .hd .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .card .bd { padding: 18px; }
+
+  .fld { margin-bottom: 16px; }
+  .fld:last-child { margin-bottom: 0; }
+  .fld > label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px; }
+  .fld .req { color: var(--stop); margin-left: 3px; }
+  .fld .help { font-size: 12px; color: var(--ink-faint); margin-top: 5px; }
+  .fld input[type=text], .fld input[type=number], .fld input[type=time], .fld input[type=date], .fld select, .fld textarea {
+    width: 100%; background: var(--ground); border: 1px solid var(--line-strong);
+    border-radius: 8px; padding: 8px 10px; font-size: 13.5px;
+  }
+  .fld textarea { min-height: 96px; resize: vertical; line-height: 1.55; }
+  .fld.bad input, .fld.bad select, .fld.bad textarea { border-color: var(--stop); }
+  .fld .err { font-size: 12px; color: var(--stop); margin-top: 5px; font-weight: 500; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .narrow { max-width: 200px; }
+
+  .btn { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 8px; padding: 9px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .btn:disabled { background: var(--sunken); color: var(--ink-faint); cursor: not-allowed; border: 1px solid var(--line); }
+  .btn.ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong); font-weight: 500; }
+  .actions { display: flex; align-items: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+  .actions .why { font-size: 12.5px; color: var(--ink-soft); }
+
+  .chipset { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pchip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-strong); background: var(--ground);
+           border-radius: 999px; padding: 6px 13px 6px 10px; font-size: 13px; cursor: pointer; user-select: none; }
+  .pchip input { margin: 0; }
+  .pchip.on { border-color: var(--accent-line); background: var(--accent-soft); font-weight: 600; }
+  .prog { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 2px 6px; border-radius: 5px; }
+  .prog.ITP { color: var(--itp); background: var(--itp-bg); }
+  .prog.IMA { color: var(--ima); background: var(--ima-bg); }
+  .prog.LOWRES { color: var(--lowres); background: var(--lowres-bg); }
+
+  .chk { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--ground); cursor: pointer; }
+  .chk + .chk { margin-top: 8px; }
+  .chk.on { border-color: var(--accent-line); background: var(--accent-soft); }
+  .chk input { margin: 3px 0 0; }
+  .chk .t { font-weight: 600; font-size: 13.5px; }
+  .chk .d { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+
+  .banner { border-radius: 10px; padding: 12px 14px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; }
+  .banner .ic { font-size: 14px; line-height: 1.4; }
+  .banner.stop { background: var(--stop-bg); color: var(--stop); border: 1px solid color-mix(in srgb, var(--stop) 28%, transparent); }
+  .banner.wait { background: var(--wait-bg); color: var(--wait); border: 1px solid color-mix(in srgb, var(--wait) 28%, transparent); }
+  .banner.info { background: var(--sunken); color: var(--ink-soft); border: 1px solid var(--line); }
+  .banner.live { background: var(--live-bg); color: var(--live); border: 1px solid color-mix(in srgb, var(--live) 28%, transparent); }
+  .banner b { font-weight: 700; }
+  .banner + * { margin-top: 14px; }
+  .banner .fix { display: block; margin-top: 4px; font-weight: 400; opacity: .92; }
+
+  .flag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+          color: var(--wait); background: var(--wait-bg); border: 1px solid color-mix(in srgb, var(--wait) 30%, transparent);
+          border-radius: 999px; padding: 1px 8px; text-transform: uppercase; vertical-align: middle; }
+
+  .writes { background: var(--sunken); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .writes .ttl { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); margin-bottom: 9px; }
+  .writes ul { margin: 0; padding-left: 0; list-style: none; }
+  .writes li { font-family: var(--mono); font-size: 12px; padding: 3px 0; color: var(--ink); }
+  .writes li .tbl { color: var(--accent); font-weight: 700; }
+  .writes li .dim { color: var(--ink-faint); }
+  .writes .foot { font-size: 12px; color: var(--ink-soft); margin-top: 9px; font-style: italic; }
+
+  .steps { display: flex; gap: 0; margin-bottom: 22px; border-bottom: 1px solid var(--line); }
+  .steps .s { padding: 9px 16px 11px; font-size: 13px; color: var(--ink-faint); display: flex; align-items: center; gap: 8px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .steps .s .n { width: 19px; height: 19px; border-radius: 999px; background: var(--sunken); color: var(--ink-faint); font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+  .steps .s.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+  .steps .s.on .n { background: var(--accent); color: var(--on-accent); }
+  .steps .s.done .n { background: var(--live-bg); color: var(--live); }
+  .steps .s.done { color: var(--ink-soft); }
+
+  .mtg { border: 1px solid var(--line); border-radius: 9px; padding: 12px; background: var(--ground); }
+  .mtg + .mtg { margin-top: 10px; }
+  .mtg .top { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+  .mtg .top select { width: auto; }
+  .mtg .rm { margin-left: auto; background: none; border: 0; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 0 4px; }
+  .mtg .rm:hover { color: var(--stop); }
+  .addmtg { background: none; border: 1px dashed var(--line-strong); color: var(--ink-soft); border-radius: 9px; padding: 9px; width: 100%; cursor: pointer; font-size: 13px; margin-top: 10px; }
+  .addmtg:hover { border-color: var(--accent-line); color: var(--accent); }
+
+  /* ---- the list a modal sits over ---------------------------------------- */
+
+  .listbg { pointer-events: none; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .tbl td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  .tbl tr.grp td { background: var(--sunken); font-weight: 600; }
+  .scrim { position: fixed; inset: 0; background: rgb(20 18 26 / .48); z-index: 60; display: grid; place-items: start center; padding: 60px 20px 40px; overflow: auto; }
+  .modal { background: var(--ground); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); width: 100%; max-width: 560px; }
+  .modal .mh { padding: 16px 20px 14px; border-bottom: 1px solid var(--line); }
+  .modal .mh h1 { font-size: 17px; }
+  .modal .mh .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+  .modal .mb { padding: 18px 20px; }
+  .modal .mf { padding: 14px 20px; border-top: 1px solid var(--line); background: var(--raised); border-radius: 0 0 14px 14px; display: flex; align-items: center; gap: 10px; }
+  .modal .mf .why { font-size: 12.5px; color: var(--ink-soft); margin-left: auto; text-align: right; }
+
+  /* ---- the after-submit landings ----------------------------------------- */
+
+  .gap { border: 1px dashed var(--line-strong); border-radius: 8px; padding: 9px 11px; font-size: 12.5px; color: var(--ink-faint); background: var(--ground); }
+  .gap b { color: var(--wait); font-weight: 600; }
+  .gap + .gap { margin-top: 8px; }
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 5px 16px; font-size: 13.5px; }
+  .kv dt { color: var(--ink-faint); font-size: 12.5px; }
+  .kv dd { margin: 0; }
+  .receipt { max-width: 620px; }
+  .receipt .big { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .lnk { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .lnk:hover { text-decoration: underline; }
+
+  .muted { color: var(--ink-faint); }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  .noteline { font-size: 12.5px; color: var(--ink-soft); margin-top: 12px; }
+
+  /* ---- variant switcher -------------------------------------------------- */
+
+  .switcher {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 80;
+    display: flex; align-items: center; gap: 4px; padding: 5px 6px;
+    background: var(--ink); color: var(--ground); border-radius: 999px; box-shadow: var(--shadow-lg);
+    font-size: 13px;
+  }
+  .switcher button {
+    background: transparent; border: 0; color: var(--ground); cursor: pointer;
+    width: 28px; height: 28px; border-radius: 999px; font-size: 15px; line-height: 1;
+  }
+  .switcher button:hover { background: rgb(255 255 255 / .18); }
+  .switcher .label { padding: 0 6px; white-space: nowrap; }
+  .switcher .key { font-weight: 700; background: rgb(255 255 255 / .18); border-radius: 6px; padding: 1px 7px; margin-right: 7px; }
+  .switcher .hint { opacity: .5; font-size: 11px; padding-right: 6px; }
+
+  @media (max-width: 720px) {
+    .row2, .row3 { grid-template-columns: 1fr; }
+    .kv { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="appbar">
+  <div class="wrap">
+    <div class="brand">Lineup<span>.</span></div>
+    <nav class="nav">
+      <a href="#" id="nav-catalog">Catalog</a>
+      <a href="#" id="nav-lineup">Lineup</a>
+      <a href="#" id="nav-proposals">Proposals</a>
+      <a href="#">Roles</a>
+    </nav>
+    <div class="whoami">
+      <span>Viewing as</span>
+      <select id="actor"></select>
+    </div>
+  </div>
+</div>
+
+<div class="picker">
+  <div class="wrap">
+    <label for="scenario">Scenario</label>
+    <select id="scenario"></select>
+    <span class="note" id="note"></span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="view"></div>
+</div>
+
+<div class="switcher" role="group" aria-label="Prototype variant">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span class="label"><span class="key" id="vkey">A</span><span id="vname"></span></span>
+  <button id="next" aria-label="Next variant">→</button>
+  <span class="hint">← → to cycle</span>
+</div>
+
+<script>
+/* ==========================================================================
+   Fixtures — hand-written, shaped to docs/schema/classes.sql + people.sql, and
+   continuous with the cast in catalog-lineup-views.html, roles-page.html,
+   proposals-review.html and course-offering-detail.html.
+
+   Deliberately exercises, because #43 asks about each:
+
+     · a course with an area and a head          → offerable
+     · a course with an area and no head         → #32's gate, half-missing
+     · a course with neither                     → #32's gate, both missing
+     · a Retired course                          → the refusal nothing authorises
+     · a course/term pair that already has §1–3  → what `section_number` derives to
+     · a LowRes course                           → the `dates` and `async` meeting kinds
+     · a proposer who directs nothing            → proposing is flat `instructor`
+   ========================================================================== */
+
+const PEOPLE = {
+  na2481: { name: "Nora Applebaum", pronouns: "she/her" },
+  tv1067: { name: "Theo Vance",     pronouns: "he/him" },
+  pr3390: { name: "Priya Raman",    pronouns: "she/her" },
+  mo5512: { name: "Marcus Ola",     pronouns: "he/him" },
+  ab9034: { name: "Amina Bello",    pronouns: "she/her" },
+  rc1129: { name: "Rui Chen",       pronouns: "they/them" },
+  jl8802: { name: "Jae Lin",        pronouns: null },
+};
+
+const ACTORS = [
+  { netid: "na2481", roles: ["instructor", "area_head"], programs: [],
+    label: "Nora Applebaum — instructor + area head" },
+  { netid: "pr3390", roles: ["coordinator", "program_director", "instructor"], programs: ["ITP"],
+    label: "Priya Raman — coordinator + ITP director" },
+  { netid: "ab9034", roles: ["program_director"], programs: ["IMA"],
+    label: "Amina Bello — IMA director" },
+  { netid: "rc1129", roles: ["program_director", "instructor"], programs: ["LOWRES"],
+    label: "Rui Chen — LowRes director" },
+  { netid: "tv1067", roles: ["chair", "instructor"], programs: [],
+    label: "Theo Vance — chair (+ instructor)" },
+  { netid: "mo5512", roles: ["student"], programs: [],
+    label: "Marcus Ola — student" },
+];
+
+const PROGRAMS = [
+  { code: "ITP",    name: "Interactive Telecommunications", level: "Graduate" },
+  { code: "IMA",    name: "Interactive Media Arts",          level: "Undergraduate" },
+  { code: "LOWRES", name: "IMA Low Residency",               level: "Graduate" },
+];
+
+/* #3: a term is a code, year plus semester ordinal. Sorted chronologically as
+   text, which is the property that decides the order of this list. */
+const TERMS = [
+  { code: "20253", label: "Fall 2025" },
+  { code: "20261", label: "Spring 2026" },
+  { code: "20262", label: "Summer 2026" },
+  { code: "20263", label: "Fall 2026" },
+];
+
+/* #32's gate reads exactly these two: 1..n `course_area` rows, and a non-null
+   `course.area_head`. They are assigned separately and either can be missing. */
+const COURSES = [
+  { id:1, prog:"ITP", number:"ITPG-GT 2233", title:"Physical Computing", credits:4,
+    state:"Approved", areas:["Physical Interaction"], areaHead:"na2481" },
+  { id:2, prog:"IMA", number:"IMNY-UT 103", title:"Code of Music", credits:4,
+    state:"Approved", areas:["Code & Media"], areaHead:null },
+  { id:3, prog:"ITP", number:"ITPG-GT 3011", title:"Speculative Objects", credits:2,
+    state:"Approved", areas:[], areaHead:null },
+  { id:4, prog:"IMA", number:"IMNY-UT 201", title:"Nature of Code", credits:4,
+    state:"Approved", areas:["Code & Media"], areaHead:"rc1129" },
+  { id:5, prog:"ITP", number:"ITPG-GT 2050", title:"Interaction Design", credits:4,
+    state:"Retired", areas:["Physical Interaction"], areaHead:"na2481" },
+  { id:6, prog:"LOWRES", number:"IMLR-GT 1500", title:"Machine Vision Intensive", credits:4,
+    state:"Approved", areas:["Computer Vision"], areaHead:"jl8802" },
+];
+
+/* Existing offerings, so the form can derive a section number that does not
+   collide. #10: UNIQUE (course_id, term_code, section_number). */
+const OFFERINGS = [
+  { course:1, term:"20253", section:"1", state:"Running"   },
+  { course:1, term:"20253", section:"2", state:"Slated"    },
+  { course:1, term:"20253", section:"3", state:"Declined"  },
+  { course:4, term:"20253", section:"1", state:"Published" },
+  { course:6, term:"20261", section:"1", state:"Accepted"  },
+];
+
+const AREAS = {
+  ITP:    ["Physical Interaction", "Code & Media", "Design & Storytelling"],
+  IMA:    ["Code & Media", "Foundations", "Art & Culture"],
+  LOWRES: ["Computer Vision", "Residency Intensive"],
+};
+
+const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+/* ==========================================================================
+   Scenarios — each one is a form reached a particular way, from a particular
+   place, by a particular actor. The variants disagree about the rendering; the
+   scenario is the same situation in all three.
+   ========================================================================== */
+
+const SCENARIOS = [
+  { key:"propose", form:"propose", from:"proposals", actor:"na2481",
+    label:"Propose a course — from the proposals list",
+    note:"#42 put the control here. Proposing is flat `instructor`, so Nora directs nothing and may still request all three programs." },
+
+  { key:"slate-lineup", form:"slate", from:"lineup", term:"20253", actor:"pr3390",
+    label:"Slate a class — from the Lineup, Fall 2025",
+    note:"The term is known and the course is asked. Note what happens to the course list: #32's gate has three of six courses to refuse." },
+
+  { key:"slate-course", form:"slate", from:"course", course:1, actor:"pr3390",
+    label:"Slate a class — from Physical Computing's page",
+    note:"The same form reached the other way: the course is known and the term is asked. §1–3 already exist in Fall 2025, so watch the section number." },
+
+  { key:"slate-blocked", form:"slate", from:"course", course:3, actor:"pr3390",
+    label:"Slate a class — Speculative Objects, which cannot be offered",
+    note:"#32's create-time gate, the map's third actorless invariant, refusing on a screen for the first time. No area and no head — both halves missing." },
+
+  { key:"slate-halfblocked", form:"slate", from:"course", course:2, actor:"ab9034",
+    label:"Slate a class — Code of Music, which has an area but no head",
+    note:"#32 made the two assignments separate, so half-missing is a real state. #37 built its shadow as the derived `not offerable yet` marker." },
+
+  { key:"slate-retired", form:"slate", from:"course", course:5, actor:"pr3390",
+    label:"Slate a class — Interaction Design, which is Retired  ⚑",
+    note:"A refusal no closed ticket authorises. #14 blocked `retry` against a Retired course in the Server Action and said nothing about creating one, because no screen could create anything then." },
+
+  { key:"slate-lowres", form:"slate", from:"lineup", term:"20262", actor:"rc1129",
+    label:"Slate a class — LowRes, Summer 2026",
+    note:"Where `offering_meeting.kind` earns the structured table: an intensive is `dates`, not `weekly`, and an online component is `async`." },
+];
+
+/* ==========================================================================
+   Read model — assembled the way the create path's loader would, per #9's
+   view-shaped read modules.
+   ========================================================================== */
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const courseOf = id => COURSES.find(c => c.id === id);
+const termOf = code => TERMS.find(t => t.code === code);
+const nameOf = n => PEOPLE[n]?.name ?? n;
+
+const isChair = a => a.roles.includes("chair");
+const isDirectorOf = (a, p) => a.roles.includes("program_director") && a.programs.includes(p);
+
+/* #8: proposing is the `instructor` role, flat — no scope, no program. The
+   chair is one OR-clause ahead of the matrix (#34). */
+const mayPropose = a => a.roles.includes("instructor") || isChair(a);
+
+/* #8 as collapsed by #30: *director of the offering's program* and *director of
+   the course's program* are provably the same set, so this reads the course. */
+const maySlate = (a, c) => isChair(a) || isDirectorOf(a, c.prog);
+
+/* #32's gate, verbatim: a course must not become an Offering without both an
+   area and an area head. Asserted in the create path (#30's single writer),
+   never a machine guard, since #13 made creation an act and not a transition.
+   #37 renders its shadow on the Catalog as `not offerable yet`. */
+function gate(c) {
+  const noArea = c.areas.length === 0;
+  const noHead = !c.areaHead;
+  if (!noArea && !noHead) return null;
+  const missing = noArea && noHead ? "an area and an area head"
+                : noArea ? "an area"
+                : "an area head";
+  return {
+    missing,
+    short: noArea && noHead ? "no area, no area head" : noArea ? "no area" : "no area head",
+    /* #37/#41: name the person or the role, never quote the matrix. */
+    fix: `${nameOf(directorLabel(c.prog))} assigns ${noArea && noHead ? "both" : "it"} on the course.`,
+  };
+}
+function directorLabel(prog) {
+  const d = ACTORS.find(a => isDirectorOf(a, prog));
+  return d ? d.netid : prog + "'s director";
+}
+
+/* ⚑ THE FINDING. Not authorised by any closed ticket — see the file header and
+   the resolution on #43. #14 asserted the sibling rule on `retry`. */
+function retiredRefusal(c) {
+  if (c.state !== "Retired") return null;
+  return { short: "the course is retired", fix: "A retired course cannot be offered. Unretire it before slating a class." };
+}
+
+function refusalFor(c) {
+  if (!c) return null;
+  return retiredRefusal(c) ?? gate(c);
+}
+const offerable = c => !refusalFor(c);
+
+/* #10: UNIQUE (course_id, term_code, section_number), default '1'. Two sections
+   of one course in one term is real (#30), so the number is what tells them
+   apart and the form has to know what is taken. */
+function takenSections(courseId, term) {
+  return OFFERINGS.filter(o => o.course === courseId && o.term === term).map(o => o.section);
+}
+function nextSection(courseId, term) {
+  const taken = takenSections(courseId, term);
+  let n = 1;
+  while (taken.includes(String(n))) n++;
+  return String(n);
+}
+
+/* ==========================================================================
+   Form state — in memory, reset when the scenario or the variant changes.
+   No persistence (the prototype checks the shape of the ask, not the write).
+   ========================================================================== */
+
+let F = {};
+
+function freshForm(sc) {
+  if (sc.form === "propose") {
+    return { title:"", description:"", credits:"", programs:[], submitted:false, touched:false, step:0 };
+  }
+  const course = sc.course ?? "";
+  const term = sc.term ?? "";
+  return {
+    course, term,
+    section: course && term ? nextSection(course, term) : "1",
+    sectionTouched: false,
+    mode:"", cap:"", call:"", sis:"", url:"",
+    meetings: [],
+    submitted:false, touched:false, step:0,
+  };
+}
+
+function syncSection() {
+  if (F.sectionTouched) return;
+  if (F.course && F.term) F.section = nextSection(Number(F.course), F.term);
+}
+
+/* --- validity, shared by all three variants ----------------------------- */
+
+function proposeErrors() {
+  const e = {};
+  if (!F.title.trim()) e.title = "A proposal needs a title.";
+  if (!String(F.credits).trim()) e.credits = "A proposal needs a credit value.";
+  else if (!(Number(F.credits) > 0)) e.credits = "Credits must be greater than zero.";
+  /* The load-bearing one. #10: there is no requested-programs table — a review
+     row *is* the request — so a proposal with no programs checked mints a
+     proposal nobody will ever look at. */
+  if (F.programs.length === 0) e.programs = "A proposal with no programs would never be reviewed by anyone.";
+  return e;
+}
+
+function slateErrors() {
+  const e = {};
+  if (!F.course) e.course = "Pick a course.";
+  if (!F.term) e.term = "Pick a term.";
+  if (F.course && F.term) {
+    const taken = takenSections(Number(F.course), F.term);
+    if (!String(F.section).trim()) e.section = "A section needs a number.";
+    else if (taken.includes(String(F.section).trim())) e.section = `§${esc(F.section)} already exists in ${esc(termOf(F.term)?.label ?? F.term)}.`;
+  }
+  if (F.course) {
+    const r = refusalFor(courseOf(Number(F.course)));
+    if (r) e.gate = r;
+  }
+  return e;
+}
+
+const errorsNow = () => (SC().form === "propose" ? proposeErrors() : slateErrors());
+const validNow = () => Object.keys(errorsNow()).length === 0;
+
+/* ==========================================================================
+   The rows each submit would write — one transaction, either way.
+   #40: "proposing is one transaction minting a proposal plus one review per
+   requested program, a review row *being* the request". #13: creation is an act
+   and not a transition, so **neither form writes a log row**.
+   ========================================================================== */
+
+function plannedWrites() {
+  const sc = SC(), a = actor();
+  if (sc.form === "propose") {
+    const rows = [
+      { t:"course_proposal", d:`title, description, credits · created_by ${a.netid}` },
+    ];
+    for (const p of F.programs) {
+      rows.push({ t:"course_proposal_review", d:`program_code ${p} · snapshot Proposed · created_by ${a.netid}` });
+    }
+    return { rows, foot: `One transaction. No transition log row — creation is an act, not a transition (#13).` };
+  }
+  const c = courseOf(Number(F.course));
+  const rows = [{
+    t:"offering",
+    d:`course_id ${F.course}, term_code ${F.term || "—"}, section_number ${F.section} · program_code ${c ? c.prog : "—"} derived · snapshot Slated`,
+  }];
+  for (const m of F.meetings) rows.push({ t:"offering_meeting", d:meetingSummary(m) });
+  return {
+    rows,
+    foot: `One transaction. \`program_code\` is derived from the course and never asked (#30). The class starts \`Slated\` — decided to run, nobody picked to ask yet (#15).`,
+  };
+}
+
+function meetingSummary(m) {
+  if (m.kind === "async") return "kind async · no time at all";
+  if (m.kind === "dates") return `kind dates · ${m.from || "—"} → ${m.to || "—"} ${m.start || "—"}–${m.end || "—"} · ${m.room || "no room"}`;
+  return `kind weekly · ${DAYS[m.day] ?? "—"} ${m.start || "—"}–${m.end || "—"} · ${m.room || "no room"}`;
+}
+
+function newMeeting(kind) {
+  return { kind, day: 1, from:"", to:"", start:"", end:"", room:"" };
+}
+
+/* ==========================================================================
+   Shared renderers
+   ========================================================================== */
+
+function progChip(code) { return `<span class="prog ${code}">${code}</span>`; }
+
+function field(key, label, { type="text", req=false, help="", placeholder="", suffix="", cls="" } = {}) {
+  const e = F.touched || F.submitted ? errorsNow()[key] : null;
+  return `
+    <div class="fld ${e ? "bad" : ""} ${cls}">
+      <label for="f-${key}">${esc(label)}${req ? '<span class="req">*</span>' : ""}</label>
+      <input id="f-${key}" type="${type}" data-f="${key}" value="${esc(F[key] ?? "")}" placeholder="${esc(placeholder)}">
+      ${e ? `<div class="err">${esc(e)}</div>` : help ? `<div class="help">${help}</div>` : ""}
+      ${suffix}
+    </div>`;
+}
+
+function textarea(key, label, { help="", req=false } = {}) {
+  const e = F.touched || F.submitted ? errorsNow()[key] : null;
+  return `
+    <div class="fld ${e ? "bad" : ""}">
+      <label for="f-${key}">${esc(label)}${req ? '<span class="req">*</span>' : ""}</label>
+      <textarea id="f-${key}" data-f="${key}" rows="5">${esc(F[key] ?? "")}</textarea>
+      ${e ? `<div class="err">${esc(e)}</div>` : help ? `<div class="help">${help}</div>` : ""}
+    </div>`;
+}
+
+/* The course picker is where #32's gate is either pre-empted or not — which is
+   one of the three things the variants actually disagree about. */
+function coursePicker({ showRefused, label = "Course" }) {
+  const e = F.touched || F.submitted ? errorsNow().course : null;
+  const list = COURSES.filter(c => maySlate(actor(), c));
+  const ok = list.filter(offerable), no = list.filter(c => !offerable(c));
+  const opt = c => {
+    const r = refusalFor(c);
+    const dis = showRefused && r ? " disabled" : "";
+    const tail = showRefused && r ? ` — cannot be offered: ${r.short}` : "";
+    return `<option value="${c.id}"${F.course == c.id ? " selected" : ""}${dis}>${esc(c.number)} ${esc(c.title)}${tail}</option>`;
+  };
+  const body = showRefused
+    ? `<option value="">Choose a course…</option>
+       <optgroup label="Can be offered">${ok.map(opt).join("")}</optgroup>
+       ${no.length ? `<optgroup label="Cannot be offered">${no.map(opt).join("")}</optgroup>` : ""}`
+    : `<option value="">Choose a course…</option>${ok.map(opt).join("")}`;
+  const help = showRefused
+    ? `Every course you may slate, with the ones that cannot be offered kept visible and refused.`
+    : `Only courses that can be offered. ${no.length} more ${no.length === 1 ? "is" : "are"} hidden.`;
+  return `
+    <div class="fld ${e ? "bad" : ""}">
+      <label for="f-course">${esc(label)}<span class="req">*</span></label>
+      <select id="f-course" data-f="course">${body}</select>
+      ${e ? `<div class="err">${esc(e)}</div>` : `<div class="help">${help}</div>`}
+    </div>`;
+}
+
+function termPicker() {
+  const e = F.touched || F.submitted ? errorsNow().term : null;
+  return `
+    <div class="fld ${e ? "bad" : ""}">
+      <label for="f-term">Term<span class="req">*</span></label>
+      <select id="f-term" data-f="term">
+        <option value="">Choose a term…</option>
+        ${TERMS.map(t => `<option value="${t.code}"${F.term === t.code ? " selected" : ""}>${esc(t.label)} <span>(${t.code})</span></option>`).join("")}
+      </select>
+      ${e ? `<div class="err">${esc(e)}</div>` : `<div class="help">Terms sort chronologically as text — <span class="mono">${TERMS.map(t=>t.code).join(" &lt; ")}</span> (#3).</div>`}
+    </div>`;
+}
+
+function sectionField({ show = true, explain = true } = {}) {
+  if (!show) return "";
+  const e = F.touched || F.submitted ? errorsNow().section : null;
+  const taken = F.course && F.term ? takenSections(Number(F.course), F.term) : [];
+  const help = explain
+    ? (taken.length
+        ? `§${taken.join(", §")} already exist in this term, so this defaults to §${nextSection(Number(F.course), F.term)}.`
+        : `Defaults to §1. Unique within course and term (#10).`)
+    : "";
+  return `
+    <div class="fld ${e ? "bad" : ""} narrow">
+      <label for="f-section">Section</label>
+      <input id="f-section" type="text" data-f="section" value="${esc(F.section)}">
+      ${e ? `<div class="err">${e}</div>` : help ? `<div class="help">${help}</div>` : ""}
+    </div>`;
+}
+
+/* #40/#41: refusals are stated in the open, naming the person or the role and
+   never quoting the matrix. Here the refused thing is the *form itself*. */
+function gateBanner(r, { pre = false } = {}) {
+  if (!r) return "";
+  if (r.short === "the course is retired") {
+    return `<div class="banner stop"><span class="ic">⃠</span><div>
+      <b>This course is retired, so it cannot be offered.</b>
+      <span class="fix">${esc(r.fix)} <span class="flag">⚑ finding</span></span>
+    </div></div>`;
+  }
+  return `<div class="banner stop"><span class="ic">⃠</span><div>
+    <b>This course cannot be offered yet — it has ${esc(r.missing === "an area and an area head" ? "neither an area nor an area head" : "no " + r.missing.replace(/^an? /, ""))}.</b>
+    <span class="fix">${esc(r.fix)} ${pre ? "You will be able to slate it once that is done." : ""}</span>
+  </div></div>`;
+}
+
+function programSection({ style }) {
+  const e = F.touched || F.submitted ? errorsNow().programs : null;
+  const n = F.programs.length;
+  if (style === "chips") {
+    return `
+      <div class="fld ${e ? "bad" : ""}">
+        <label>Programs<span class="req">*</span></label>
+        <div class="chipset">
+          ${PROGRAMS.map(p => `
+            <label class="pchip ${F.programs.includes(p.code) ? "on" : ""}">
+              <input type="checkbox" data-prog="${p.code}" ${F.programs.includes(p.code) ? "checked" : ""}>
+              ${progChip(p.code)}
+            </label>`).join("")}
+        </div>
+        ${e ? `<div class="err">${esc(e)}</div>` : ""}
+      </div>`;
+  }
+  /* The explained form: says out loud that checking a box mints a row. */
+  return `
+    <div class="fld ${e ? "bad" : ""}">
+      <label>Request a review from<span class="req">*</span></label>
+      ${PROGRAMS.map(p => `
+        <label class="chk ${F.programs.includes(p.code) ? "on" : ""}">
+          <input type="checkbox" data-prog="${p.code}" ${F.programs.includes(p.code) ? "checked" : ""}>
+          <span>
+            <span class="t">${progChip(p.code)} ${esc(p.name)}</span>
+            <span class="d">${esc(p.level)} — reviews independently, and may approve what another program rejects.</span>
+          </span>
+        </label>`).join("")}
+      ${e ? `<div class="err">${esc(e)}</div>`
+          : `<div class="help">Each program you check gets its own review, which it decides on its own. ${
+              n ? `Submitting writes <b>${n}</b> review${n === 1 ? "" : "s"}.` : ""}</div>`}
+    </div>`;
+}
+
+/* The absences #43 asks whether to state or leave silent. */
+function absencesNote(which) {
+  if (which === "propose") {
+    return `<div class="noteline">
+      No course number: each approving program mints its own (#7).
+      No area or area head: a program's director assigns those during its review (#32).
+      Nothing is approved by submitting — three programs may answer three different ways (#7).
+    </div>`;
+  }
+  return `<div class="noteline">
+    No program to pick: an offering's program is always its course's, so it is derived (#30).
+    No instructor here: staffing is a separate act, and this class starts <span class="mono">Slated</span> (#15).
+  </div>`;
+}
+
+function meetingEditor({ collapsed = false } = {}) {
+  const rows = F.meetings.map((m, i) => {
+    const shape = m.kind === "weekly" ? `
+        <div class="row3">
+          <div class="fld"><label>Day</label>
+            <select data-m="${i}" data-mf="day">${DAYS.map((d, di) => `<option value="${di}"${m.day == di ? " selected" : ""}>${d}</option>`).join("")}</select></div>
+          <div class="fld"><label>From</label><input type="time" data-m="${i}" data-mf="start" value="${esc(m.start)}"></div>
+          <div class="fld"><label>To</label><input type="time" data-m="${i}" data-mf="end" value="${esc(m.end)}"></div>
+        </div>
+        <div class="fld"><label>Room</label><input type="text" data-m="${i}" data-mf="room" value="${esc(m.room)}" placeholder="370J-447"></div>`
+      : m.kind === "dates" ? `
+        <div class="row2">
+          <div class="fld"><label>First day</label><input type="date" data-m="${i}" data-mf="from" value="${esc(m.from)}"></div>
+          <div class="fld"><label>Last day</label><input type="date" data-m="${i}" data-mf="to" value="${esc(m.to)}"></div>
+        </div>
+        <div class="row3">
+          <div class="fld"><label>From</label><input type="time" data-m="${i}" data-mf="start" value="${esc(m.start)}"></div>
+          <div class="fld"><label>To</label><input type="time" data-m="${i}" data-mf="end" value="${esc(m.end)}"></div>
+          <div class="fld"><label>Room</label><input type="text" data-m="${i}" data-mf="room" value="${esc(m.room)}"></div>
+        </div>`
+      : `<div class="help">No time and no room. A positive statement, not an absence (#10).</div>`;
+    return `
+      <div class="mtg">
+        <div class="top">
+          <select data-m="${i}" data-mf="kind">
+            <option value="weekly"${m.kind === "weekly" ? " selected" : ""}>Weekly</option>
+            <option value="dates"${m.kind === "dates" ? " selected" : ""}>Date range</option>
+            <option value="async"${m.kind === "async" ? " selected" : ""}>Asynchronous</option>
+          </select>
+          <span class="muted mono">${esc(meetingSummary(m))}</span>
+          <button class="rm" data-rm="${i}" aria-label="Remove">✕</button>
+        </div>
+        ${shape}
+      </div>`;
+  }).join("");
+  const empty = `<div class="banner info"><span class="ic">◇</span><div>No meetings. A class with no meeting rows is legal (#10) — an unscheduled section is a real thing.</div></div>`;
+  return (F.meetings.length ? rows : (collapsed ? "" : empty)) +
+    `<button class="addmtg" data-add="1">+ Add a meeting</button>`;
+}
+
+function writesPanel() {
+  const { rows, foot } = plannedWrites();
+  return `
+    <div class="writes">
+      <div class="ttl">What submitting writes</div>
+      <ul>${rows.map(r => `<li><span class="tbl">${esc(r.t)}</span> <span class="dim">${r.d}</span></li>`).join("")}</ul>
+      <div class="foot">${foot}</div>
+    </div>`;
+}
+
+/* ==========================================================================
+   The lists a form is launched from — background for the modal variant, and
+   the thing every variant navigates back to. Deliberately thin: #37 and #42
+   already settled these, and this file must not re-decide them.
+   ========================================================================== */
+
+function proposalsListBg() {
+  return `
+    <div class="page listbg">
+      <div class="crumb">Proposals</div>
+      <h1>Proposals</h1>
+      <p class="lede">Every proposal you may read, grouped by proposal with one row per program's review (#42).</p>
+      <div class="card"><div class="bd" style="padding:0">
+        <table class="tbl">
+          <thead><tr><th>Proposal</th><th>Program</th><th>State</th><th>Area</th><th></th></tr></thead>
+          <tbody>
+            <tr class="grp"><td colspan="5">Physical Computing II — 4 credits — Nora Applebaum, 12 Feb 2026</td></tr>
+            <tr><td class="muted">↳</td><td>${progChip("ITP")}</td><td>Approved</td><td>Physical Interaction</td><td class="muted">⋯ 2  ↗</td></tr>
+            <tr><td class="muted">↳</td><td>${progChip("IMA")}</td><td>Developing</td><td class="muted">—</td><td class="muted">⋯ 3  ↗</td></tr>
+            <tr class="grp"><td colspan="5">Sound and Space — 2 credits — Rui Chen, 3 Mar 2026</td></tr>
+            <tr><td class="muted">↳</td><td>${progChip("LOWRES")}</td><td>Proposed</td><td class="muted">—</td><td class="muted">⋯ 3  ↗</td></tr>
+          </tbody>
+        </table>
+      </div></div>
+    </div>`;
+}
+
+function lineupListBg(term) {
+  const t = termOf(term);
+  return `
+    <div class="page listbg">
+      <div class="crumb">Lineup</div>
+      <h1>Lineup — ${esc(t?.label ?? term)}</h1>
+      <p class="lede">One group per course, one row per section (#37).</p>
+      <div class="card"><div class="bd" style="padding:0">
+        <table class="tbl">
+          <thead><tr><th>Course</th><th>§</th><th>State</th><th>Roster</th><th>Meets</th><th></th></tr></thead>
+          <tbody>
+            ${OFFERINGS.filter(o => o.term === term).map(o => {
+              const c = courseOf(o.course);
+              return `<tr><td>${esc(c.number)} ${esc(c.title)}</td><td>§${o.section}</td><td>${o.state}</td>
+                      <td class="muted">—</td><td class="muted">—</td><td class="muted">⋯ 3  ↗</td></tr>`;
+            }).join("") || `<tr><td colspan="6" class="muted">Nothing slated in this term yet.</td></tr>`}
+          </tbody>
+        </table>
+      </div></div>
+    </div>`;
+}
+
+function coursePageBg(courseId) {
+  const c = courseOf(courseId);
+  const r = refusalFor(c);
+  return `
+    <div class="page listbg">
+      <div class="crumb">Catalog › ${esc(c.number)}</div>
+      <h1>${esc(c.title)}</h1>
+      <p class="lede">${progChip(c.prog)} ${esc(c.number)} · ${c.credits} credits · ${esc(c.state)}${r ? ` · <b>not offerable yet</b>` : ""}</p>
+      <div class="card"><div class="bd">
+        <dl class="kv">
+          <dt>Areas</dt><dd>${c.areas.length ? c.areas.map(esc).join(", ") : `<span class="muted">none assigned</span>`}</dd>
+          <dt>Area head</dt><dd>${c.areaHead ? esc(nameOf(c.areaHead)) : `<span class="muted">none assigned</span>`}</dd>
+        </dl>
+      </div></div>
+    </div>`;
+}
+
+function backgroundFor(sc) {
+  if (sc.from === "proposals") return proposalsListBg();
+  if (sc.from === "lineup") return lineupListBg(sc.term);
+  return coursePageBg(sc.course);
+}
+
+function entryCrumb(sc) {
+  if (sc.from === "proposals") return `<a href="#">Proposals</a> › Propose a course`;
+  if (sc.from === "lineup") return `<a href="#">Lineup</a> › ${esc(termOf(sc.term)?.label ?? sc.term)} › Slate a class`;
+  const c = courseOf(sc.course);
+  return `<a href="#">Catalog</a> › <a href="#">${esc(c.number)}</a> › Slate a class`;
+}
+
+/* ==========================================================================
+   VARIANT A — Page.  One full-page form per act. Everything is asked at once,
+   meetings included. The gate is pre-empted in the picker: refused courses are
+   listed and greyed with their reason, so you learn the rule before you hit it.
+   After submit you land on the new record's detail page.
+   ========================================================================== */
+
+function proposeA() {
+  const err = F.touched || F.submitted ? errorsNow() : {};
+  return `
+    <div class="page">
+      <div class="crumb">${entryCrumb(SC())}</div>
+      <h1>Propose a course</h1>
+      <p class="lede">One body, reviewed separately by each program you request. Each program decides on its own and they may disagree.</p>
+
+      <div class="card">
+        <div class="hd"><h2>The course</h2><div class="sub">This is the body every program reviews. It stays editable while a review is <span class="mono">Developing</span> (#8).</div></div>
+        <div class="bd">
+          ${field("title", "Title", { req:true, placeholder:"Physical Computing II" })}
+          ${textarea("description", "Description", { help:"What the course is. Shown in the catalog." })}
+          ${field("credits", "Credits", { req:true, type:"number", cls:"narrow", help:"The course's, not the section's (#10)." })}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><h2>Programs</h2><div class="sub">There is no list of requested programs stored anywhere — the reviews <em>are</em> the request (#10).</div></div>
+        <div class="bd">${programSection({ style:"explained" })}</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" data-submit="1" ${validNow() ? "" : "disabled"}>Submit proposal</button>
+        <button class="btn ghost">Cancel</button>
+        ${!validNow() && (F.touched || F.submitted) ? `<span class="why">${esc(Object.values(err)[0] ?? "")}</span>` : ""}
+      </div>
+      ${absencesNote("propose")}
+    </div>`;
+}
+
+function slateA() {
+  const sc = SC();
+  const c = F.course ? courseOf(Number(F.course)) : null;
+  const r = refusalFor(c);
+  const err = F.touched || F.submitted ? errorsNow() : {};
+  return `
+    <div class="page">
+      <div class="crumb">${entryCrumb(sc)}</div>
+      <h1>Slate a class</h1>
+      <p class="lede">A section of a course in a term. It starts <span class="mono">Slated</span> — decided to run, nobody picked to ask yet.</p>
+
+      ${r ? gateBanner(r, { pre:true }) : ""}
+
+      <div class="card">
+        <div class="hd"><h2>Which class</h2></div>
+        <div class="bd">
+          <div class="row2">
+            ${sc.from === "course"
+              ? `<div class="fld"><label>Course</label>
+                   <input type="text" value="${esc(c.number)} ${esc(c.title)}" disabled>
+                   <div class="help">${progChip(c.prog)} — the offering's program is derived from it and never asked (#30).</div>
+                 </div>`
+              : coursePicker({ showRefused:true })}
+            ${termPicker()}
+          </div>
+          ${sectionField()}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><h2>Meetings</h2><div class="sub">One row per slot, three kinds. Add none if it is not scheduled yet.</div></div>
+        <div class="bd">${meetingEditor()}</div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><h2>Details</h2><div class="sub">All editable later, in any state, by a coordinator or the program's director (#8).</div></div>
+        <div class="bd">
+          <div class="row2">
+            ${field("mode", "Mode", { placeholder:"In person" })}
+            ${field("cap", "Enrollment limit", { type:"number" })}
+          </div>
+          <div class="row2">
+            ${field("call", "Call number")}
+            ${field("sis", "SIS class number")}
+          </div>
+          ${field("url", "URL")}
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" data-submit="1" ${validNow() ? "" : "disabled"}>Slate the class</button>
+        <button class="btn ghost">Cancel</button>
+        ${!validNow() && (F.touched || F.submitted) ? `<span class="why">${esc(err.gate ? err.gate.short : (Object.values(err)[0] ?? ""))}</span>` : ""}
+      </div>
+      ${absencesNote("slate")}
+    </div>`;
+}
+
+/* ==========================================================================
+   VARIANT B — Modal.  The form is a modal over the list that launched it, and
+   asks the least it can: the columns that are NOT NULL and nothing else.
+   Everything optional is added afterwards on #41's detail page, which is where
+   those fields already live and are already editable. The gate is not
+   pre-empted — refused courses are simply absent, the way #37 drops rows.
+   ========================================================================== */
+
+function proposeB() {
+  const err = F.touched || F.submitted ? errorsNow() : {};
+  return `
+    ${proposalsListBg()}
+    <div class="scrim">
+      <div class="modal">
+        <div class="mh">
+          <h1>Propose a course</h1>
+          <div class="sub">You can fill in the rest once it exists.</div>
+        </div>
+        <div class="mb">
+          ${field("title", "Title", { req:true, placeholder:"Physical Computing II" })}
+          ${field("credits", "Credits", { req:true, type:"number", cls:"narrow" })}
+          ${programSection({ style:"chips" })}
+        </div>
+        <div class="mf">
+          <button class="btn" data-submit="1" ${validNow() ? "" : "disabled"}>Propose</button>
+          <button class="btn ghost">Cancel</button>
+          ${!validNow() && (F.touched || F.submitted) ? `<span class="why">${esc(Object.values(err)[0] ?? "")}</span>` : ""}
+        </div>
+      </div>
+    </div>`;
+}
+
+function slateB() {
+  const sc = SC();
+  const c = F.course ? courseOf(Number(F.course)) : null;
+  const r = refusalFor(c);
+  const err = F.touched || F.submitted ? errorsNow() : {};
+  /* The gate is not pre-empted here, so a course reached from its own page can
+     still be refused — the one case the hidden-from-the-picker approach cannot
+     cover, and the reason this variant states it at all. */
+  const preReached = sc.from === "course" && r;
+  return `
+    ${backgroundFor(sc)}
+    <div class="scrim">
+      <div class="modal">
+        <div class="mh">
+          <h1>Slate a class</h1>
+          <div class="sub">${sc.from === "lineup" ? esc(termOf(sc.term)?.label ?? "") : esc(c ? c.number + " " + c.title : "")}</div>
+        </div>
+        <div class="mb">
+          ${preReached ? gateBanner(r) : ""}
+          ${sc.from === "course"
+            ? `<div class="fld"><label>Course</label><input type="text" value="${esc(c.number)} ${esc(c.title)}" disabled></div>`
+            : coursePicker({ showRefused:false })}
+          ${sc.from === "lineup"
+            ? `<div class="fld"><label>Term</label><input type="text" value="${esc(termOf(sc.term)?.label ?? "")}" disabled><div class="help">From the Lineup you were on.</div></div>`
+            : termPicker()}
+          ${F.course && F.term && !r
+            ? `<div class="banner info"><span class="ic">§</span><div>This will be <b>§${esc(F.section)}</b>.${
+                takenSections(Number(F.course), F.term).length
+                  ? ` §${takenSections(Number(F.course), F.term).join(", §")} already exist.` : ""}</div></div>`
+            : ""}
+        </div>
+        <div class="mf">
+          <button class="btn" data-submit="1" ${validNow() ? "" : "disabled"}>Slate it</button>
+          <button class="btn ghost">Cancel</button>
+          ${!validNow() && (F.touched || F.submitted)
+            ? `<span class="why">${esc(err.gate ? err.gate.short : (Object.values(err)[0] ?? ""))}</span>`
+            : `<span class="why">Meetings, mode and cap on the next screen.</span>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ==========================================================================
+   VARIANT C — Steps.  A page in steps, whose device is that it shows the rows
+   it is about to write before it writes them — which is the only way the
+   proposal/review fan-out is visible at all, since #10 stores no requested-
+   programs list. The gate is stated in the open, first, before anything is
+   picked. After submit you get a receipt naming what was written.
+   ========================================================================== */
+
+function stepBar(labels) {
+  return `<div class="steps">${labels.map((l, i) =>
+    `<div class="s ${i === F.step ? "on" : i < F.step ? "done" : ""}"><span class="n">${i < F.step ? "✓" : i + 1}</span>${esc(l)}</div>`
+  ).join("")}</div>`;
+}
+
+function stepNav(last, blocked) {
+  const err = errorsNow();
+  return `
+    <div class="actions">
+      ${F.step > 0 ? `<button class="btn ghost" data-step="-1">Back</button>` : ""}
+      ${F.step < last
+        ? `<button class="btn" data-step="1" ${blocked ? "disabled" : ""}>Continue</button>`
+        : `<button class="btn" data-submit="1" ${validNow() ? "" : "disabled"}>${SC().form === "propose" ? "Submit proposal" : "Slate the class"}</button>`}
+      ${blocked ? `<span class="why">${esc(blocked === true ? (Object.values(err)[0]?.short ?? Object.values(err)[0] ?? "") : blocked)}</span>` : ""}
+    </div>`;
+}
+
+function proposeC() {
+  const err = errorsNow();
+  const steps = ["The course", "The programs", "Review"];
+  let body = "";
+  if (F.step === 0) {
+    body = `
+      <div class="card"><div class="bd">
+        ${field("title", "Title", { req:true, placeholder:"Physical Computing II" })}
+        ${textarea("description", "Description")}
+        ${field("credits", "Credits", { req:true, type:"number", cls:"narrow" })}
+      </div></div>
+      ${stepNav(2, err.title || err.credits ? true : false)}`;
+  } else if (F.step === 1) {
+    body = `
+      <div class="card">
+        <div class="hd"><h2>Which programs review this?</h2><div class="sub">Each one you pick gets its own review and answers on its own.</div></div>
+        <div class="bd">${programSection({ style:"explained" })}</div>
+      </div>
+      <div style="margin-top:16px">${writesPanel()}</div>
+      ${stepNav(2, err.programs ? true : false)}`;
+  } else {
+    body = `
+      <div class="card">
+        <div class="hd"><h2>${esc(F.title || "Untitled")}</h2><div class="sub">${esc(F.credits || "—")} credits · proposed by ${esc(nameOf(actor().netid))}</div></div>
+        <div class="bd">
+          <dl class="kv">
+            <dt>Description</dt><dd>${F.description ? esc(F.description) : `<span class="muted">none</span>`}</dd>
+            <dt>Reviewed by</dt><dd>${F.programs.length ? F.programs.map(progChip).join(" ") : `<span class="muted">nobody</span>`}</dd>
+            <dt>Course number</dt><dd class="muted">Assigned by each program when it approves (#7)</dd>
+            <dt>Area and head</dt><dd class="muted">Assigned by each program's director during review (#32)</dd>
+          </dl>
+        </div>
+      </div>
+      <div style="margin-top:16px">${writesPanel()}</div>
+      ${stepNav(2, false)}`;
+  }
+  return `
+    <div class="page">
+      <div class="crumb">${entryCrumb(SC())}</div>
+      <h1>Propose a course</h1>
+      <p class="lede">Three steps. Nothing is written until the last one.</p>
+      ${stepBar(steps)}
+      ${body}
+    </div>`;
+}
+
+function slateC() {
+  const sc = SC();
+  const err = errorsNow();
+  const c = F.course ? courseOf(Number(F.course)) : null;
+  const r = refusalFor(c);
+  const steps = ["The class", "When it meets", "Review"];
+  let body = "";
+  if (F.step === 0) {
+    body = `
+      ${r ? gateBanner(r, { pre:true }) : ""}
+      <div class="card"><div class="bd">
+        <div class="row2">
+          ${sc.from === "course"
+            ? `<div class="fld"><label>Course</label><input type="text" value="${esc(c.number)} ${esc(c.title)}" disabled>
+                 <div class="help">${progChip(c.prog)} — derived, never asked (#30).</div></div>`
+            : coursePicker({ showRefused:true })}
+          ${termPicker()}
+        </div>
+        ${sectionField()}
+      </div></div>
+      <div style="margin-top:16px">${writesPanel()}</div>
+      ${stepNav(2, err.course || err.term || err.section || err.gate ? (err.gate ? err.gate.short : true) : false)}`;
+  } else if (F.step === 1) {
+    body = `
+      <div class="card">
+        <div class="hd"><h2>When it meets</h2><div class="sub">Skip this if it is not scheduled yet — a class with no meeting rows is legal (#10).</div></div>
+        <div class="bd">${meetingEditor()}</div>
+      </div>
+      <div style="margin-top:16px">${writesPanel()}</div>
+      ${stepNav(2, false)}`;
+  } else {
+    body = `
+      <div class="card">
+        <div class="hd"><h2>${esc(c ? c.number + " " + c.title : "—")} §${esc(F.section)}</h2>
+          <div class="sub">${esc(termOf(F.term)?.label ?? "—")} · ${c ? progChip(c.prog) : ""} · starts <span class="mono">Slated</span></div></div>
+        <div class="bd">
+          <dl class="kv">
+            <dt>Meets</dt><dd>${F.meetings.length ? F.meetings.map(m => esc(meetingSummary(m))).join("<br>") : `<span class="muted">not scheduled yet</span>`}</dd>
+            <dt>Instructor</dt><dd class="muted">Staffed separately — this class starts with nobody picked to ask (#15)</dd>
+            <dt>Mode, cap, numbers</dt><dd class="muted">Added on the class page, in any state (#8)</dd>
+          </dl>
+        </div>
+      </div>
+      <div style="margin-top:16px">${writesPanel()}</div>
+      ${stepNav(2, false)}`;
+  }
+  return `
+    <div class="page">
+      <div class="crumb">${entryCrumb(sc)}</div>
+      <h1>Slate a class</h1>
+      <p class="lede">Three steps. Nothing is written until the last one.</p>
+      ${stepBar(steps)}
+      ${body}
+    </div>`;
+}
+
+/* ==========================================================================
+   After submit — the third thing the variants disagree about.
+   ========================================================================== */
+
+function landingA() {
+  const sc = SC();
+  if (sc.form === "propose") {
+    /* SETTLED on #43: back to the proposals list, on the new group. A proposal
+       has no page of its own — #40 and #42 built a list and a *per-review*
+       detail page — so landing on a record means picking one review of three
+       by sort order, which nothing justifies. The list is #42's own shape for
+       one body and several verdicts, so the proposer's first sight of what
+       they caused is the fan-out itself. */
+    return `
+      <div class="page">
+        <div class="crumb">Proposals</div>
+        <h1>Proposals</h1>
+        <div class="banner live"><span class="ic">✓</span><div>Proposed. ${F.programs.length} review${F.programs.length === 1 ? "" : "s"} opened — ${F.programs.map(p => `<b>${p}</b>`).join(", ")}.</div></div>
+        <div class="card"><div class="bd" style="padding:0">
+          <table class="tbl">
+            <thead><tr><th>Proposal</th><th>Program</th><th>State</th><th>Area</th><th></th></tr></thead>
+            <tbody>
+              <tr class="grp"><td colspan="5">${esc(F.title)} — ${esc(F.credits)} credits — ${esc(nameOf(actor().netid))}, today &nbsp;<span class="flag">new</span></td></tr>
+              ${F.programs.map(p => `<tr><td class="muted">↳</td><td>${progChip(p)}</td><td>Proposed</td><td class="muted">—</td><td class="muted">⋯ 2  ↗</td></tr>`).join("")}
+              <tr class="grp"><td colspan="5">Sound and Space — 2 credits — Rui Chen, 3 Mar 2026</td></tr>
+              <tr><td class="muted">↳</td><td>${progChip("LOWRES")}</td><td>Proposed</td><td class="muted">—</td><td class="muted">⋯ 3  ↗</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+        <div class="noteline">Each review is reachable by its own <span class="mono">↗</span>, and none of them is the one you were sent to.</div>
+      </div>`;
+  }
+  const c = courseOf(Number(F.course));
+  return `
+    <div class="page">
+      <div class="crumb"><a href="#">Lineup</a> › ${esc(termOf(F.term)?.label ?? "")} › ${esc(c.number)} §${esc(F.section)}</div>
+      <h1>${esc(c.title)} §${esc(F.section)}</h1>
+      <p class="lede">${progChip(c.prog)} ${esc(c.number)} · ${esc(termOf(F.term)?.label ?? "")} · <span class="mono">Slated</span></p>
+      <div class="banner live"><span class="ic">✓</span><div>Slated. Next: pick who to ask.</div></div>
+      <div class="card"><div class="bd">
+        <dl class="kv">
+          <dt>Meets</dt><dd>${F.meetings.length ? F.meetings.map(m => esc(meetingSummary(m))).join("<br>") : `<span class="muted">not scheduled yet</span>`}</dd>
+          <dt>Mode</dt><dd>${F.mode ? esc(F.mode) : `<span class="muted">—</span>`}</dd>
+          <dt>Enrollment limit</dt><dd>${F.cap ? esc(F.cap) : `<span class="muted">—</span>`}</dd>
+          <dt>Roster</dt><dd class="muted">nobody yet</dd>
+        </dl>
+      </div></div>
+      <div class="noteline">Variant A lands on #41's class page with everything already filled in, because the form asked for it all.</div>
+    </div>`;
+}
+
+function landingB() {
+  const sc = SC();
+  if (sc.form === "propose") {
+    return `
+      <div class="page">
+        <div class="crumb"><a href="#">Proposals</a> › ${esc(F.title)}</div>
+        <h1>${esc(F.title)}</h1>
+        <p class="lede">${esc(F.credits)} credits · proposed by ${esc(nameOf(actor().netid))} · today</p>
+        <div class="banner live"><span class="ic">✓</span><div>Proposed to ${F.programs.map(p => `<b>${p}</b>`).join(", ")}. Finish it below while the reviews are still open.</div></div>
+        <div class="card"><div class="bd">
+          <div class="gap"><b>No description.</b> Editable while any review is <span class="mono">Developing</span> (#8) — and you are its author.</div>
+          <div style="margin-top:14px"><dl class="kv">
+            ${F.programs.map(p => `<dt>${progChip(p)} review</dt><dd>Proposed · <span class="muted">no area assigned</span></dd>`).join("")}
+          </dl></div>
+        </div></div>
+        <div class="noteline">Variant B lands you on the same page but marks what the modal did not ask, which is the whole bargain it makes.</div>
+      </div>`;
+  }
+  const c = courseOf(Number(F.course));
+  return `
+    <div class="page">
+      <div class="crumb"><a href="#">Lineup</a> › ${esc(termOf(F.term)?.label ?? "")} › ${esc(c.number)} §${esc(F.section)}</div>
+      <h1>${esc(c.title)} §${esc(F.section)}</h1>
+      <p class="lede">${progChip(c.prog)} ${esc(c.number)} · ${esc(termOf(F.term)?.label ?? "")} · <span class="mono">Slated</span></p>
+      <div class="banner live"><span class="ic">✓</span><div>Slated. Three things are still empty.</div></div>
+      <div class="card"><div class="bd">
+        <div class="gap"><b>No meetings.</b> Add them here — a class with none is legal, so nothing is blocked (#10).</div>
+        <div class="gap"><b>No mode and no enrollment limit.</b> Editable in any state by you or a coordinator (#8).</div>
+        <div class="gap"><b>Nobody on the roster.</b> Staffing is its own act; this class is <span class="mono">Slated</span> until you pick someone (#15).</div>
+      </div></div>
+      <div class="noteline">Variant B's cost is right here: three gaps a person has to come back for, against a modal that took four seconds.</div>
+    </div>`;
+}
+
+function landingC() {
+  const sc = SC();
+  const { rows } = plannedWrites();
+  const what = sc.form === "propose"
+    ? `${esc(F.title)} — proposed to ${F.programs.map(p => `<b>${p}</b>`).join(", ")}`
+    : `${esc(courseOf(Number(F.course)).title)} §${esc(F.section)} — ${esc(termOf(F.term)?.label ?? "")}`;
+  return `
+    <div class="page">
+      <div class="receipt">
+        <div class="banner live"><span class="ic">✓</span><div><b>Written.</b> ${rows.length} row${rows.length === 1 ? "" : "s"}, one transaction.</div></div>
+        <div class="card"><div class="bd">
+          <div class="big">${what}</div>
+          <div class="muted" style="font-size:12.5px">by ${esc(nameOf(actor().netid))}, just now</div>
+          <div style="margin-top:16px">
+            <ul style="margin:0;padding-left:0;list-style:none">
+              ${rows.map(r => `<li class="mono" style="padding:3px 0"><span style="color:var(--accent);font-weight:700">${esc(r.t)}</span> <span class="muted">${r.d}</span></li>`).join("")}
+            </ul>
+          </div>
+          <div class="actions">
+            <a class="lnk" href="#">Open it →</a>
+            <span class="muted">·</span>
+            <a class="lnk" href="#">${sc.form === "propose" ? "Back to proposals" : "Back to the Lineup"}</a>
+          </div>
+        </div></div>
+        <div class="noteline">Variant C's receipt is the same panel it showed before submitting, in the past tense. Whether a person wants to read this, or just wants to be on the record, is the question.</div>
+      </div>
+    </div>`;
+}
+
+/* ==========================================================================
+   Wiring
+   ========================================================================== */
+
+const VARIANTS = [
+  { key:"A", name:"Page",  propose:proposeA, slate:slateA, landing:landingA },
+  { key:"B", name:"Modal", propose:proposeB, slate:slateB, landing:landingB },
+  { key:"C", name:"Steps", propose:proposeC, slate:slateC, landing:landingC },
+];
+
+const state = { v:0, scenario:SCENARIOS[0].key, actor:SCENARIOS[0].actor };
+
+const SC = () => SCENARIOS.find(s => s.key === state.scenario) ?? SCENARIOS[0];
+const actor = () => ACTORS.find(a => a.netid === state.actor) ?? ACTORS[0];
+
+function resetForm() { F = freshForm(SC()); }
+
+function render() {
+  const v = VARIANTS[state.v], sc = SC(), a = actor();
+  document.getElementById("vkey").textContent = v.key;
+  document.getElementById("vname").textContent = v.name;
+  document.getElementById("note").textContent = sc.note;
+
+  for (const id of ["nav-catalog", "nav-lineup", "nav-proposals"]) document.getElementById(id).className = "";
+  if (sc.from === "proposals") document.getElementById("nav-proposals").className = "on";
+  else if (sc.from === "lineup") document.getElementById("nav-lineup").className = "on";
+  else document.getElementById("nav-catalog").className = "on";
+
+  const view = document.getElementById("view");
+
+  /* #38: read-only means the control is absent, not greyed. A student never
+     reaches either form because neither control is ever rendered for them. */
+  const permitted = sc.form === "propose"
+    ? mayPropose(a)
+    : (F.course ? maySlate(a, courseOf(Number(F.course))) : COURSES.some(c => maySlate(a, c)));
+
+  if (!permitted) {
+    view.innerHTML = `
+      ${backgroundFor(sc)}
+      <div class="page">
+        <div class="banner info"><span class="ic">◇</span><div>
+          <b>${esc(nameOf(a.netid))} never sees this form.</b>
+          <span class="fix">${sc.form === "propose"
+            ? "Proposing is the `instructor` role (#8). There is no greyed-out button to explain — #38's rule is that the control is absent, not refused."
+            : "Slating is the course's own program director (#8 as collapsed by #30). Absent, not greyed."}</span>
+        </div></div>
+      </div>`;
+    return;
+  }
+
+  if (F.submitted) { view.innerHTML = v.landing(); return; }
+  view.innerHTML = sc.form === "propose" ? v.propose() : v.slate();
+}
+
+/* --- input handling ----------------------------------------------------- */
+
+/* Typing must not re-render the field being typed into, or the caret jumps.
+   Free-text fields update state and refresh only the parts that read them; the
+   fields that drive other UI (course, term, section) re-render properly. */
+const DRIVERS = ["course", "term", "section"];
+
+function refreshDerived() {
+  const w = document.querySelector(".writes");
+  if (w) w.outerHTML = writesPanel();
+  for (const b of document.querySelectorAll("[data-submit]")) b.disabled = !validNow();
+}
+
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.tagName === "SELECT") return;          // handled on `change`
+  if (t.dataset.f) {
+    F[t.dataset.f] = t.value;
+    F.touched = true;
+    if (t.dataset.f === "section") { F.sectionTouched = true; render(); }
+    else refreshDerived();
+    return;
+  }
+  if (t.dataset.mf) {
+    F.meetings[Number(t.dataset.m)][t.dataset.mf] = t.value;
+    const sum = t.closest(".mtg")?.querySelector(".top .mono");
+    if (sum) sum.textContent = meetingSummary(F.meetings[Number(t.dataset.m)]);
+    refreshDerived();
+  }
+});
+
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.prog) {
+    const p = t.dataset.prog;
+    F.programs = F.programs.includes(p) ? F.programs.filter(x => x !== p) : [...F.programs, p];
+    F.touched = true;
+    render();
+    return;
+  }
+  if (t.dataset.mf) {
+    const m = F.meetings[Number(t.dataset.m)];
+    if (t.dataset.mf === "kind") Object.assign(m, newMeeting(t.value));
+    else if (t.dataset.mf === "day") m.day = Number(t.value);
+    else m[t.dataset.mf] = t.value;
+    render();
+    return;
+  }
+  if (t.dataset.f && DRIVERS.includes(t.dataset.f)) {
+    F[t.dataset.f] = t.value;
+    if (t.dataset.f === "section") F.sectionTouched = true;
+    else syncSection();
+    F.touched = true;
+    render();
+  }
+});
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("button, a");
+  if (!b) return;
+  if (b.dataset.add) { F.meetings.push(newMeeting("weekly")); render(); }
+  else if (b.dataset.rm) { F.meetings.splice(Number(b.dataset.rm), 1); render(); }
+  else if (b.dataset.step) { F.step = Math.max(0, F.step + Number(b.dataset.step)); F.touched = true; render(); }
+  else if (b.dataset.submit) { F.submitted = true; render(); }
+  else if (b.classList.contains("ghost") || b.classList.contains("lnk")) { e.preventDefault(); resetForm(); render(); }
+});
+
+/* --- chrome ------------------------------------------------------------- */
+
+const scSel = document.getElementById("scenario");
+scSel.innerHTML = SCENARIOS.map(s => `<option value="${s.key}">${esc(s.label)}</option>`).join("");
+scSel.onchange = () => { state.scenario = scSel.value; state.actor = SC().actor; buildActor(); resetForm(); render(); };
+
+const acSel = document.getElementById("actor");
+function buildActor() {
+  acSel.innerHTML = ACTORS.map(a => `<option value="${a.netid}"${a.netid === state.actor ? " selected" : ""}>${esc(a.label)}</option>`).join("");
+}
+acSel.onchange = () => { state.actor = acSel.value; resetForm(); render(); };
+
+function go(d) { state.v = (state.v + d + VARIANTS.length) % VARIANTS.length; resetForm(); render(); }
+document.getElementById("prev").onclick = () => go(-1);
+document.getElementById("next").onclick = () => go(1);
+document.addEventListener("keydown", e => {
+  const t = e.target.tagName;
+  if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT" || e.target.isContentEditable) return;
+  if (e.key === "ArrowLeft") go(-1);
+  if (e.key === "ArrowRight") go(1);
+});
+
+buildActor();
+resetForm();
+render();
+</script>
