@@ -612,6 +612,9 @@ with no actor in it. Those writes carry two predicates, ANDed: a state predicate
 everyone including the seed script, and a role predicate binding the actor.
 
 The two cross-entity invariants these files already carry stay **out** of the database.
+(Three since [#43](https://github.com/nopivnick/lineup-prototype-03/issues/43) — see *The
+Offering create path refuses a `Retired` course* below, which lands the same way and for
+the same reasons.)
 `retry` against a `Retired` Course needs a cross-table read, so only a trigger could hold
 it — rejected by tickets 13 and 30 on *where would a reader find it* — and it is a
 transition rule, so it belongs where a reader looks for transition rules, inside
@@ -816,6 +819,50 @@ single writer already holds the netid at both events. Two comments are added to
 `offering.machine.ts`, on `offer` and on `accept`; `course.machine.ts` and
 `course-proposal-review.machine.ts` are untouched, checked explicitly. `subject_netid` was
 already nullable on all three logs and stays so — no Course or review event carries one.
+
+### The Offering create path refuses a `Retired` course
+
+[What do the two create forms ask for?](https://github.com/nopivnick/lineup-prototype-03/issues/43)
+is a forms ticket, and it amends nothing in these files — but it found a hole in a rule
+these files do carry, so the rule is completed here.
+
+**`retire`'s guard had a door on the other side.**
+[#14](https://github.com/nopivnick/lineup-prototype-03/issues/14) made `retire` require
+`noLiveOfferings`, and named the one consequence no machine can express: `retry` from
+`Declined` or `Canceled` must be blocked when the Course is `Retired`, asserted in the
+Server Action. That closed the way back in *along the Offering lifecycle*. It said nothing
+about **creating a new offering**, and did not need to — at the time nothing in the
+skeleton could create one. [#40](https://github.com/nopivnick/lineup-prototype-03/issues/40) settled that the skeleton would create offerings (via `slate a class`),
+and ticket 43 built the form, which is where the gap became visible: a
+director could slate a fresh section of a `Retired` course and re-establish the exact state
+`noLiveOfferings` exists to forbid.
+
+**It is worse than `retry`, for a reason that is this map's own doing.**
+[#17](https://github.com/nopivnick/lineup-prototype-03/issues/17) deleted the transition a
+field write used to fire, and [#13](https://github.com/nopivnick/lineup-prototype-03/issues/13)
+made creation an act and not a transition — so a `retry` at least writes a log row naming
+who fired it, while a create writes none at all. The silent path was the unguarded one.
+
+**Where it lands is already decided by precedent.** The rule names no actor — a director
+cannot do it either — so it is an **invariant**, and by ticket 28's test the actorless
+rules are the ones eligible for the schema. It stays out of the schema anyway, on the same
+ground as its sibling: it needs a cross-table read, so only a trigger could hold it, and
+tickets 13 and 30 rejected triggers on *where would a reader find it*. It is asserted in
+the Offering create path — [#30](https://github.com/nopivnick/lineup-prototype-03/issues/30)'s
+single writer, which already loads the course row to derive `program_code` and already
+holds [#32](https://github.com/nopivnick/lineup-prototype-03/issues/32)'s area-and-head
+gate, so it reads a row it has in hand and costs one comparison.
+
+That makes it the **fourth actorless invariant to land in a writer rather than the schema**,
+and the second cross-entity one. The count in *Permission enforcement lives in one
+TypeScript module* reads "the two cross-entity invariants these files already carry"; it is
+three now, and the new one sits beside `retry` against a `Retired` Course rather than
+replacing it — they guard the same contradiction at two different doors.
+
+**No machine is amended** — checked explicitly against all three files. Creation fires no
+event, so there is no transition to comment on, which is the whole reason the rule has to
+live in prose here rather than beside an edge. `course.machine.ts`'s `retire` already
+carries the guard this completes.
 
 ## Open questions
 
