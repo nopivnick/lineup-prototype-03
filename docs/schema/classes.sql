@@ -409,7 +409,7 @@ CREATE TABLE course (
   -- **Provenance, not a reference to the body.** issues/8 ruled there is no link
   -- back from a course to its proposal, and that ruling is untouched: it is
   -- about the *body*, which issues/7 has the mint **copy** so that variants in
-  -- different programmes may diverge. This column references the act, not the
+  -- different programs may diverge. This column references the act, not the
   -- text, and nothing reads through it to render course content.
   --
   -- It exists because issues/42 built the first screen that can reach a review,
