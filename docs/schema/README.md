@@ -27,7 +27,18 @@ the file is never the only place a change is visible. The same discipline
   so variants may diverge, and this column references the act rather than the text. Left
   nullable against ticket 10's usual preference for the strict option, because `NOT NULL`
   would decide the seed's shape — whether fixtures are minted through a review or written
-  already `Approved` — which no closed ticket has settled.
+  already `Approved` — which no closed ticket had settled.
+
+- **`course.minted_from_review_id` is now `NOT NULL`** — tightened by
+  [What are the seed fixtures?](https://github.com/nopivnick/lineup-prototype-03/issues/49),
+  which is the ticket 42 deferred the choice to by name. Ticket 49 rules that **every seeded
+  course is minted through a proposal and an approving review**, so the reason for the
+  nullability is gone and ticket 10's DDL asymmetry applies as usual — the strict option is
+  the recoverable one. Enforceable everywhere, checked rather than assumed:
+  [#43](https://github.com/nopivnick/lineup-prototype-03/issues/43) confirmed the create
+  forms make no course directly, and `approve` is the only mint. Legacy migration, which is
+  out of scope and would import courses with no review behind them, inherits a constraint it
+  can drop in one statement that cannot fail.
 
 ## Shape
 

@@ -419,19 +419,24 @@ CREATE TABLE course (
   -- revised, which is exactly when someone asks.
   --
   -- `UNIQUE`, because a review's `approve` fires once and mints one course; the
-  -- constraint also supplies the index for the review-to-course lookup. Postgres
-  -- permits many NULLs under a unique constraint, so this costs nothing while the
-  -- column is optional.
+  -- constraint also supplies the index for the review-to-course lookup.
   --
-  -- **Nullable, deliberately, against issues/10's usual preference for the strict
-  -- option.** issues/7 makes every course arrive by an approving review, so
-  -- `NOT NULL` looks free — but it would force the seed to author a proposal and
-  -- a review for every fixture course, and whether the seed mints through the
-  -- review or writes an already-`Approved` course directly is a question no
-  -- closed ticket settles. Tightening later is the direction that scans and can
-  -- fail; that cost is accepted here rather than deciding the seed's shape from a
-  -- column comment. Whoever settles the seed inherits the choice.
-  minted_from_review_id  bigint  UNIQUE
+  -- **`NOT NULL` as of issues/49**, which is the ticket issues/42 deferred this to
+  -- by name. issues/42 left the column optional because `NOT NULL` would have
+  -- settled, from a column comment, whether the seed mints every fixture course
+  -- through a review or writes an already-`Approved` course directly — a question
+  -- no closed ticket had reached. issues/49 rules that **every seeded course is
+  -- minted through a proposal and an approving review**, so the reason for the
+  -- nullability is gone and issues/10's DDL asymmetry applies as usual: the strict
+  -- option is the recoverable one, since dropping a constraint is catalog-only and
+  -- always succeeds while adding one scans and can fail.
+  --
+  -- Enforceable everywhere, checked rather than assumed: issues/43 confirmed the
+  -- create forms make **no course directly**, and issues/7's `approve` is the only
+  -- mint. The out-of-scope legacy migration, which would import courses with no
+  -- review behind them, inherits a constraint it can drop in one statement that
+  -- cannot fail — rather than an absence it would have to notice was deliberate.
+  minted_from_review_id  bigint  NOT NULL UNIQUE
                                  REFERENCES course_proposal_review (course_proposal_review_id),
 
   snapshot       jsonb       NOT NULL,
