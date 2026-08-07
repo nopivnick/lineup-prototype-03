@@ -11,6 +11,24 @@ Where a column exists because a ticket said so, the SQL comment names the ticket
 file records what ticket 10 itself decided, what it dropped, and the two places where it
 had to derive rather than apply.
 
+## Amendments since ticket 10
+
+Ticket 10 settled the schema; later tickets may amend it, and each one is recorded here so
+the file is never the only place a change is visible. The same discipline
+`docs/machines/README.md` keeps for the lifecycles.
+
+- **`course.minted_from_review_id`** — added by
+  [What do the proposals list and the review detail page show?](https://github.com/nopivnick/lineup-prototype-03/issues/42),
+  the first screen able to reach a review, which found the trail died at approval in both
+  directions. A nullable, `UNIQUE` reference to the review whose `approve` minted the
+  course. It does **not** disturb
+  [#8](https://github.com/nopivnick/lineup-prototype-03/issues/8)'s ruling that a course
+  carries no link to its proposal: that ruling is about the *body*, which the mint copies
+  so variants may diverge, and this column references the act rather than the text. Left
+  nullable against ticket 10's usual preference for the strict option, because `NOT NULL`
+  would decide the seed's shape — whether fixtures are minted through a review or written
+  already `Approved` — which no closed ticket has settled.
+
 ## Shape
 
 **21 tables. 20 in `classes`, 1 in `people`.**

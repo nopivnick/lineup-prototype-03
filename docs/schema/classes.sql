@@ -404,6 +404,36 @@ CREATE TABLE course (
   -- Offering create path, which refuses a course without both an area and a head.
   area_head      text,
 
+  -- issues/42. The review whose `approve` minted this course.
+  --
+  -- **Provenance, not a reference to the body.** issues/8 ruled there is no link
+  -- back from a course to its proposal, and that ruling is untouched: it is
+  -- about the *body*, which issues/7 has the mint **copy** so that variants in
+  -- different programmes may diverge. This column references the act, not the
+  -- text, and nothing reads through it to render course content.
+  --
+  -- It exists because issues/42 built the first screen that can reach a review,
+  -- and found the trail died at approval in both directions — the review could
+  -- not say which course it produced, and the course could not say where it came
+  -- from. Reconstructing the pair by matching titles is right until the course is
+  -- revised, which is exactly when someone asks.
+  --
+  -- `UNIQUE`, because a review's `approve` fires once and mints one course; the
+  -- constraint also supplies the index for the review-to-course lookup. Postgres
+  -- permits many NULLs under a unique constraint, so this costs nothing while the
+  -- column is optional.
+  --
+  -- **Nullable, deliberately, against issues/10's usual preference for the strict
+  -- option.** issues/7 makes every course arrive by an approving review, so
+  -- `NOT NULL` looks free — but it would force the seed to author a proposal and
+  -- a review for every fixture course, and whether the seed mints through the
+  -- review or writes an already-`Approved` course directly is a question no
+  -- closed ticket settles. Tightening later is the direction that scans and can
+  -- fail; that cost is accepted here rather than deciding the seed's shape from a
+  -- column comment. Whoever settles the seed inherits the choice.
+  minted_from_review_id  bigint  UNIQUE
+                                 REFERENCES course_proposal_review (course_proposal_review_id),
+
   snapshot       jsonb       NOT NULL,
   status         text        GENERATED ALWAYS AS (snapshot->>'value') STORED,
 
