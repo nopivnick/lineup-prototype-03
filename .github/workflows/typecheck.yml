@@ -1,0 +1,26 @@
+name: typecheck
+
+# The reference artifacts in docs/ are not application code, but they are real
+# TypeScript and they cross-import — docs/machines/course.machine.ts imports
+# LiveState from offering.machine, and docs/permissions/ and docs/fixtures/ name
+# the state unions offering.machine exports. Nothing catches a typo'd state name
+# except this.
+#
+# Settled by "Where does the rest of the spec live?" (#50).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck

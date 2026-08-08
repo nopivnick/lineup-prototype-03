@@ -1,0 +1,12 @@
+{
+  "name": "lineup-prototype-03-spec",
+  "private": true,
+  "description": "Type-checking for the reference artifacts in docs/. Not the application — see docs/README.md.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "xstate": "^5.32.5"
+  }
+}
