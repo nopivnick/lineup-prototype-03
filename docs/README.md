@@ -14,7 +14,7 @@ tickets are linked throughout as provenance, not as required reading.
 Next.js + Mantine + mantine-datatable, two Supabase projects (`people` and `classes`),
 curated Postgres schemas, hand-written fixtures, a dev user-switcher with no login, and
 **seven screens**: a Catalog list, a term Lineup, a chair-only roles page, a Course detail
-page, an Offering detail page, a proposals list, a proposal review page, and two create
+page, an Offering detail page, a proposals list, and a proposal review page — plus two create
 forms. The Course, Offering and Course-proposal-review lifecycles persist as XState
 snapshots.
 
