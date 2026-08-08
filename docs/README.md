@@ -25,7 +25,7 @@ snapshots.
 | 1 | [`machines/`](./machines/) | the three lifecycles — states, events, and the standing principles the whole map reasons by |
 | 2 | [`schema/`](./schema/) | 21 tables of reference DDL |
 | 3 | [`permissions/`](./permissions/) | the matrix, the read tiers, the field-class map, the invariants |
-| 4 | [`data-access/`](./data-access/) | the seven read modules, the two write paths, the identity seam |
+| 4 | [`data-access/`](./data-access/) | the seven read modules, the four write paths, the identity seam |
 | 5 | [`fixtures/`](./fixtures/) | the seed content |
 | 6 | [`prototypes/`](./prototypes/) | what each screen displays — **variant D** in each file is the settled shape |
 
@@ -37,12 +37,14 @@ through it.
 legacy MySQL dumps and one research subagent's findings on multi-database access. Read them
 if a package points you there.
 
-> **Packages 4 and 5 are being written now.** They were settled in issue comments and are
-> being transcribed into packages by
-> [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50)'s task tickets. Until
-> those close, the settled content lives in the tickets each package will cite.
+> **Package 5 is being written now.** It was settled in issue comments and is being
+> transcribed into a package by
+> [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50)'s task tickets. Until it
+> closes, the settled content lives in the tickets it will cite.
 > Package 3 has landed — [#56](https://github.com/nopivnick/lineup-prototype-03/issues/56) —
-> and took the field-class map with it, out of `schema/`.
+> and took the field-class map with it, out of `schema/`. Package 4 has landed —
+> [#57](https://github.com/nopivnick/lineup-prototype-03/issues/57) — and is where
+> `getActor()` and the four write paths are now written down.
 
 ## What the build effort inherits
 
