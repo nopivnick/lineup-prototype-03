@@ -245,7 +245,7 @@ Tier 3 default.
 | | [#8](https://github.com/nopivnick/lineup-prototype-03/issues/8)'s table | [#10](https://github.com/nopivnick/lineup-prototype-03/issues/10), [#42](https://github.com/nopivnick/lineup-prototype-03/issues/42), [#43](https://github.com/nopivnick/lineup-prototype-03/issues/43), [#62](https://github.com/nopivnick/lineup-prototype-03/issues/62) | **#65 ruled** |
 |---|---|---|---|
 | create proposal | `instructor`, `program_director`, `area_head` — flat | `instructor` alone | **#8's table, whole** |
-| edit shared body | `created_by`, a director of **any requested** program, or `area_head` | `created_by` alone | **neither** — `created_by`, or the director or `review.area_head` of a program **whose own review is `Developing`** |
+| edit shared body | `course_proposal.created_by`, a director of **any requested** program, or `course_proposal_review.area_head` | `course_proposal.created_by` alone | **neither** — `course_proposal.created_by`, or the director or `course_proposal_review.area_head` of a program **whose own review is `Developing`** |
 
 #65 is recorded in full below. The short version is that the two rows deserved different
 answers, and the reason they had been read as one question is that both were residue from
