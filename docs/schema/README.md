@@ -43,6 +43,23 @@ follows — see [`docs/agents/spec-packages.md`](../agents/spec-packages.md). An
   out of scope and would import courses with no review behind them, inherits a constraint it
   can drop in one statement that cannot fail.
 
+- **The Roster field class splits, and `offering_instructor` gains `granted_by` /
+  `granted_at`** — by
+  [Who writes co-instructor roster rows?](https://github.com/nopivnick/lineup-prototype-03/issues/61).
+  The class read *"Not a field class — `staff` / `unstaff` non-exposure"* against
+  `offering_instructor` **rows**, which under ticket 28's *a column with no class is
+  unwritable* made every co-instructor row unwritable — the opposite of
+  [#8](https://github.com/nopivnick/lineup-prototype-03/issues/8)'s matrix row *edit
+  positions 1..n* and of [#15](https://github.com/nopivnick/lineup-prototype-03/issues/15)'s
+  *"positions 1..n stay non-gating and freely editable in any state."* That clause was hung
+  on `revise`, and [#17](https://github.com/nopivnick/lineup-prototype-03/issues/17) deleted
+  `revise`; ticket 10 wrote the class against a table whose only surviving writer was
+  `staff`, and the line is true of position 0 and overreaches by one word. It is now two
+  classes. Ticket 61 also **narrows ticket 8's row** from *coordinator or director* to the
+  offering's program director alone, on ticket 8's own decision-versus-execution axis, and
+  adds the two attribution columns for the reason `offering_area` has them — a child row
+  created by a field write, with no log row behind it.
+
 ## Shape
 
 **21 tables. 20 in `classes`, 1 in `people`.**
@@ -178,7 +195,8 @@ rather than applying one.
 | **Course assignment** — state-blind | Director of `course.program_code` alone | `course.area_head`, `course_area` rows |
 | **Offering operational** — state-blind, `Concluded` included | Coordinator, or the offering's program director | `offering.section_number`, `.call_number`, `.sis_class_number`, `.url`, `.mode`, `.enrollment_limit`; `offering_meeting` rows |
 | **Seat-sharing tags** — state-blind | Director of the **category's** program | `offering_area`, `offering_requirement_category` rows |
-| **Roster** | Not a field class — `staff` / `unstaff` non-exposure | `offering_instructor` rows |
+| **Roster — position 0** | Not a field class — `staff` / `unstaff` non-exposure | the `offering_instructor` row at position 0 |
+| **Roster — positions 1..n** — state-blind, every state | The offering's program director alone | `offering_instructor` rows below position 0 |
 | **Proposal body** — gated to `Developing` | `course_proposal.created_by` | `course_proposal.title`, `.description`, `.credits` |
 | **Review assignment** — gated to `Proposed` / `Developing` | Director of that review's program | `course_proposal_review.area_head`, `course_proposal_review_area` rows |
 | **Authorization** | `chair` alone | `user_role`, `program_director` rows |

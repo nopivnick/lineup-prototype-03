@@ -52,6 +52,20 @@
   The "Viewing as" control is a prototype device for looking at what varies by
   role, not part of the page. A `student` gets no history at all — absent, not
   empty (#40).
+
+  AMENDED by #61, "Who writes co-instructor roster rows?", on one point:
+
+    **The roster is rows carrying their own `position`, not an array indexed by
+    convention.** This file shipped `roster[0]` as "the lead", a shape that
+    cannot express a gap — and #61 established that gaps below an empty position
+    0 are not merely legal but are what `decline` and `withdraw` *produce*, each
+    DELETEing position 0 and leaving everything under it. PComp §3 is the case:
+    declined, no lead, and now one co-instructor still seated. Under the old
+    shape it rendered as an ordinary two-person roster with nothing saying the
+    section could not be offered to anyone. So the empty-state set goes from five
+    to six — *no roster at all* keeps its copy, and *rows below an empty position
+    0* is new, showing the table with the same sentence above it, because the
+    fact is still true and is now less obvious rather than more.
 -->
 
 <style>
@@ -473,7 +487,8 @@
      · an offering that was deferred, withdrawn from, re-staffed and declined
        (PComp §3) — two different people held position 0 in one term, which is
        what breaks any history line that claims to name the person an `offer`
-       went to
+       went to; and since #61 it is also **a roster with a gap at position 0**,
+       one co-instructor still seated under a lead who declined
      · a LowRes offering whose lead has no `people` row, and whose meetings are
        `dates` and `async` rather than `weekly`
      · seat-sharing tags with a granter from another program
@@ -547,7 +562,7 @@ const COURSES = [
 
 const OFFERINGS = [
   { id:101, course:1, term:"20253", section:"1", state:"Running",
-    roster:["na2481","rc1129"], cap:24, mode:"In person",
+    roster:[{pos:0,netid:"na2481"},{pos:1,netid:"rc1129"}], cap:24, mode:"In person",
     call:"18441", sis:9032, url:null,
     meetings:[
       { kind:"weekly", day:"Mon", start:"18:30", end:"21:00", room:"370J-447" },
@@ -563,8 +578,12 @@ const OFFERINGS = [
     foreignAreas:[], foreignCats:[],
     createdBy:"pr3390", createdAt:"2025-03-04T13:00", updatedBy:null, updatedAt:null },
 
+  /* #61's case: `decline` DELETEd position 0 and left position 1 seated, so this
+     section has a co-instructor and no lead. Not a contrived fixture — it is
+     what the machine's own edge produces, and `Declined.retry` would land it in
+     `Slated` in exactly this shape. */
   { id:103, course:1, term:"20253", section:"3", state:"Declined",
-    roster:[], cap:24, mode:"In person", call:null, sis:null, url:null,
+    roster:[{pos:1,netid:"jl8802"}], cap:24, mode:"In person", call:null, sis:null, url:null,
     meetings:[{ kind:"weekly", day:"Thu", start:"18:30", end:"21:00", room:"370J-447" }],
     foreignAreas:[], foreignCats:[],
     createdBy:"pr3390", createdAt:"2025-03-04T13:04", updatedBy:null, updatedAt:null },
@@ -576,7 +595,7 @@ const OFFERINGS = [
     createdBy:"pr3390", createdAt:"2026-01-09T10:30", updatedBy:null, updatedAt:null },
 
   { id:108, course:6, term:"20261", section:"1", state:"Accepted",
-    roster:["xq7742"], cap:14, mode:"Low residency",
+    roster:[{pos:0,netid:"xq7742"}], cap:14, mode:"Low residency",
     call:"20117", sis:11840, url:"https://lowres.nyu.edu/mvi",
     meetings:[
       { kind:"dates", from:"2026-01-05", to:"2026-01-16", start:"10:00", end:"16:00", room:"370J-Commons" },
@@ -639,7 +658,7 @@ const RECORDS = [
   { key:"o102",kind:"offering", id:102, label:"Class · Physical Computing §2, Fall 2025 — Slated",
     note:"Decided to run, nobody picked to ask yet. No roster, no call number, no history — the emptiest a real section gets." },
   { key:"o103",kind:"offering", id:103, label:"Class · Physical Computing §3, Fall 2025 — Declined",
-    note:"Deferred, withdrawn, re-staffed, declined. Two people held position 0; nobody holds it now." },
+    note:"Deferred, withdrawn, re-staffed, declined. Two people held position 0; nobody holds it now — and a co-instructor is still seated at position 1 (#61)." },
   { key:"o108",kind:"offering", id:108, label:"Class · Machine Vision Intensive §1, Spring 2026 — Accepted",
     note:"LowRes: `dates` and `async` meetings, and a lead with no row in `people`." },
   { key:"c3",  kind:"course",   id:3,   label:"Course · ITPG-GT 3011 Speculative Objects — nothing yet",
@@ -720,7 +739,7 @@ const LEAD_ONLY = ["accept","decline","defer"];
 
 function offeringActions(actor, o) {
   const c = courseOf(o.course);
-  const lead = o.roster[0] ?? null;
+  const lead = leadOf(o);
   return (OFFERING_EVENTS[o.state] ?? []).map(ev => {
     if (LEAD_ONLY.includes(ev)) {
       if (lead === actor.netid) return { ev, ok:true };
@@ -805,12 +824,28 @@ function actionBlock(actions, { primary = true } = {}) {
   return `${none}<div class="actbar">${btns}</div>${why ? `<div class="refusals">${why}</div>` : ""}`;
 }
 
+/* #61: rows carry their own `position`; the lead is whoever holds 0, and that
+   may be nobody while rows sit below. Never `roster[0]`. */
+function leadOf(o) { return o.roster.find(r => r.pos === 0)?.netid ?? null; }
+
+const NO_LEAD = `Position 0 is empty, so this section cannot be offered to anyone.`;
+
 function rosterList(o) {
-  if (!o.roster.length) return `<div class="empty"><b>No instructor yet</b>Position 0 is empty, so this section cannot be offered to anyone.</div>`;
-  return `<table><thead><tr><th>Position</th><th>Instructor</th></tr></thead><tbody>${
-    o.roster.map((n, i) => `<tr>
-      <td class="num">${i}</td>
-      <td>${person(n, { lead: i === 0, pronouns: true })}</td>
+  /* Two distinct empties (#61 splits what #41 shipped as one). Nothing at all,
+     and rows below a vacant position 0 — the second is what `decline` and
+     `withdraw` leave behind, and it must not read as a staffed section. */
+  if (!o.roster.length)
+    return `<div class="empty"><b>No instructor yet</b>${NO_LEAD}</div>`;
+
+  const notice = leadOf(o)
+    ? ``
+    : `<div class="empty" style="margin-bottom:10px"><b>No lead instructor</b>${NO_LEAD} The people below are co-instructors.</div>`;
+
+  const rows = [...o.roster].sort((a, b) => a.pos - b.pos);
+  return `${notice}<table><thead><tr><th>Position</th><th>Instructor</th></tr></thead><tbody>${
+    rows.map(r => `<tr>
+      <td class="num">${r.pos}</td>
+      <td>${person(r.netid, { lead: r.pos === 0, pronouns: true })}</td>
     </tr>`).join("")}</tbody></table>`;
 }
 
@@ -1001,7 +1036,7 @@ function reachStrip(rec) {
             ? (openable ? `<button class="openlink" data-open="${openable}">§${esc(s.section)}</button>`
                         : `<span class="mono">§${esc(s.section)}</span>`)
             : `<span class="mono">§${esc(s.section)}</span>`}
-          <span class="grow">${s.roster.length ? nameOf(s.roster[0]) : `<span class="none">Needs an instructor</span>`}</span>
+          <span class="grow">${leadOf(s) ? nameOf(leadOf(s)) : `<span class="none">Needs an instructor</span>`}</span>
           ${stateChip(s.state)}
           ${v === "B" ? `<span class="mono ${openable ? "openlink" : "none"}"${openable ? ` data-open="${openable}"` : ""}>⋯ ▾ Open class page</span>` : ""}
           ${(v === "C" || v === "D") && openable ? `<button class="openbtn" data-open="${openable}" title="Open class page">↗</button>` : ""}
@@ -1059,7 +1094,7 @@ function courseA(c, rec, actor) {
         <td>${esc(TERMS[o.term])}</td>
         <td class="num">§${esc(o.section)}</td>
         <td>${stateChip(o.state)}</td>
-        <td>${o.roster.length ? person(o.roster[0]) : `<span class="none">Needs an instructor</span>`}</td>
+        <td>${leadOf(o) ? person(leadOf(o)) : `<span class="none">Needs an instructor</span>`}</td>
         <td>${o.meetings.map(m => esc(meetingText(m))).join("<br>")}</td>
         <td class="num">${o.cap ?? "—"}</td>
       </tr>`).join("")}</tbody></table></div>`
@@ -1166,7 +1201,7 @@ function courseB(c, rec, actor) {
             <table><tbody>${byTerm[t].map(o => `<tr>
               <td class="num" style="width:60px">§${esc(o.section)}</td>
               <td style="width:110px">${stateChip(o.state)}</td>
-              <td>${o.roster.length ? person(o.roster[0]) : `<span class="none">Needs an instructor</span>`}</td>
+              <td>${leadOf(o) ? person(leadOf(o)) : `<span class="none">Needs an instructor</span>`}</td>
               <td>${o.meetings.map(m => esc(meetingText(m))).join("<br>")}</td>
             </tr>`).join("")}</tbody></table>
           </div>`).join("")
@@ -1299,7 +1334,7 @@ function courseC(c, rec, actor) {
           <table><tbody>${byTerm[t].map(o => `<tr>
             <td class="num" style="width:56px">§${esc(o.section)}</td>
             <td style="width:110px">${stateChip(o.state)}</td>
-            <td>${o.roster.length ? person(o.roster[0]) : `<span class="none">Needs an instructor</span>`}</td>
+            <td>${leadOf(o) ? person(leadOf(o)) : `<span class="none">Needs an instructor</span>`}</td>
             <td>${o.meetings.map(m => esc(meetingText(m))).join("<br>")}</td>
           </tr>`).join("")}</tbody></table>
         </div>`).join("")
@@ -1455,7 +1490,7 @@ function sectionsByTerm(offs) {
       return `<tr>
         <td class="num" style="width:56px">§${esc(o.section)}</td>
         <td style="width:110px">${stateChip(o.state)}</td>
-        <td>${o.roster.length ? person(o.roster[0]) : `<span class="none">Needs an instructor</span>`}</td>
+        <td>${leadOf(o) ? person(leadOf(o)) : `<span class="none">Needs an instructor</span>`}</td>
         <td>${o.meetings.map(m => esc(meetingText(m))).join("<br>")}</td>
         <td style="width:34px" class="rt">${key ? `<button class="openbtn" data-open="${key}" title="Open class page">↗</button>` : ""}</td>
       </tr>`;
