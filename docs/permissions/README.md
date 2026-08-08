@@ -230,35 +230,114 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   position 0, in every state, which is what makes the state-blindness safe rather than a
   licence to rewrite a `Published` section's lead by `UPDATE … SET position = 0`.
 
-## What this transcription found
+## What this transcription found, and how it resolved
 
-Two rows of #8's CourseProposalReview table say one thing and four later tickets say
-another, and nobody has said which is the rule. Graduated as
+The transcription could not write down two rows of #8's CourseProposalReview table,
+because four later tickets stated them narrower and nobody had said which was the rule.
+It graduated the conflict as
 [Do `program_director` and `area_head` hold flat routes on proposal creation and body edits?](https://github.com/nopivnick/lineup-prototype-03/issues/65)
-rather than settled here — a transcription that finds itself *deciding* something has found
-a ticket, not a paragraph.
+rather than settling it here — a transcription that finds itself *deciding* something has
+found a ticket, not a paragraph — and shipped the narrow form as a marked reversible
+default in the meantime, on
+[#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s own precedent for its
+Tier 3 default.
 
-| | [#8](https://github.com/nopivnick/lineup-prototype-03/issues/8)'s table | [#10](https://github.com/nopivnick/lineup-prototype-03/issues/10), [#42](https://github.com/nopivnick/lineup-prototype-03/issues/42), [#43](https://github.com/nopivnick/lineup-prototype-03/issues/43), [#62](https://github.com/nopivnick/lineup-prototype-03/issues/62) |
-|---|---|---|
-| create proposal | `instructor`, `program_director`, `area_head` — flat | `instructor` alone |
-| edit shared body | `created_by`, a director of any requested program, or `area_head` | `course_proposal.created_by` alone |
+| | [#8](https://github.com/nopivnick/lineup-prototype-03/issues/8)'s table | [#10](https://github.com/nopivnick/lineup-prototype-03/issues/10), [#42](https://github.com/nopivnick/lineup-prototype-03/issues/42), [#43](https://github.com/nopivnick/lineup-prototype-03/issues/43), [#62](https://github.com/nopivnick/lineup-prototype-03/issues/62) | **#65 ruled** |
+|---|---|---|---|
+| create proposal | `instructor`, `program_director`, `area_head` — flat | `instructor` alone | **#8's table, whole** |
+| edit shared body | `created_by`, a director of **any requested** program, or `area_head` | `created_by` alone | **neither** — `created_by`, or the director or `review.area_head` of a program **whose own review is `Developing`** |
 
-This is [#61](https://github.com/nopivnick/lineup-prototype-03/issues/61)'s shape for the
-**third** time — a later package restating a #8 row narrower than #8 wrote it — and #61 and
-[#32](https://github.com/nopivnick/lineup-prototype-03/issues/32) both resolved that shape
-in favour of #8's table. It does not obviously resolve that way here, which is why it is a
-ticket rather than a correction: #61's case was a cell written into a vacuum, where
-[#43](https://github.com/nopivnick/lineup-prototype-03/issues/43) read the subject matter
-and **argued** for the narrow reading, from #4's conjunction model and #34's
-capability/qualification split. One of the two is wrong and the map has never chosen.
+#65 is recorded in full below. The short version is that the two rows deserved different
+answers, and the reason they had been read as one question is that both were residue from
+the same drafting pass.
 
-**The artifact takes the narrow form in the meantime**, marked at both claims, on
-[#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s own precedent when it
-recorded Tier 3 narrowly *"explicitly so it could close"*: the reversible subset under #8's
-*under-grants are loud and over-grants are silent*. Widening is one line in each of two
-places and removes nothing from anyone. It also keeps this package agreeing with the three
-closed tickets nearest it and with `docs/prototypes/`, rather than contradicting them the
-moment it shipped — which is the failure #61 caught one ticket before it happened.
+## Amendments (continued)
+
+- **#8's create-proposal row is restored whole, and the body-edit row is scoped to the
+  review that opened the edit** — by
+  [Do `program_director` and `area_head` hold flat routes on proposal creation and body edits?](https://github.com/nopivnick/lineup-prototype-03/issues/65),
+  which ends the narrow default this package shipped with.
+
+  **The narrowing had no ruling behind it.** #43's own body states *"#8 already wrote both
+  — proposing is the `instructor` role"*, which is a misquote of the row. So #43's
+  resolution — *an IMA director who holds no `instructor` role cannot propose … #4's
+  conjunction model and #34's capability/qualification split working exactly as written* —
+  is a sound derivation from a premise #8 never wrote. It says *as written* because it
+  believed it was applying #8. It never saw the wide reading, so it never weighed it. #42
+  reached the same place more defensibly, citing #8's **prose** (*"the proposal's own
+  `created_by` … gates body edits"*), which is real but non-exclusive: it argues
+  `created_by` **is** a route, against *proposing confers nothing*, not that it is the only
+  one. This is therefore #61's shape for the **third** time, and the third resolved for the
+  table.
+
+  **On create, flat is forced by the act.** At create time there is no proposal, no review
+  and no course, so no relationship can scope anything. Under
+  [#34](https://github.com/nopivnick/lineup-prototype-03/issues/34) all three arms are
+  *qualifications*, normally scoped by a relationship, and on create none of them can be —
+  `instructor` included. Any objection to a flat director arm applies word-for-word to the
+  flat instructor arm nobody disputes, so it proves too much. The requester confirmed that
+  **every ITP/IMA/LowRes director teaches**, so the two restored arms grant nobody today,
+  and directed the widening anyway: an empty set is a fixture fact rather than a rule, and
+  [#11](https://github.com/nopivnick/lineup-prototype-03/issues/11) refuses role-narrowing.
+  The chair already proposes by `CHAIR_BYPASS` without holding `instructor`, so *only
+  teachers may propose* was never a live principle.
+
+  **On the body, #8's table lost — to #8.** #8 overturned flat approval three lines above
+  that row (*flat approval would let an ITP director dispose of the IMA review*), rewrote
+  the `develop`/`approve`/`reject` row to be program-scoped, and left the body row flat
+  across every requested program — which reaches **further** than disposing of one review,
+  since the body is shared and changing it changes what all of them are reading. #32 read
+  all three rows, program-scoped that one, and left this one behind. But pure `created_by`
+  has its own hole: a director fires `develop` and can then edit nothing, shrinking the job
+  #8 gave `develop` to *hand it back to the proposer*. The ruling keeps both halves of #8:
+  ITP cannot rewrite the body because IMA asked for changes — ITP must `develop` its own
+  review first.
+
+  **The cost is accepted, not overlooked.** #42 seeded *Critical Data Practice* as the
+  fixture where a proposer who is also `review.area_head` writes and approves unsupervised.
+  This makes that reachable **without being the proposer**: an assigned head may edit the
+  body and then approve it.
+
+- **A relationship may now carry a state, and that is where #65's condition had to go** —
+  the model change #65 made rather than inherited, called out because it widens what the
+  word *relationship* means in this package.
+
+  Until now a relationship was a row that either exists or does not.
+  [#32](https://github.com/nopivnick/lineup-prototype-03/issues/32) came closest to an
+  exception — *a review with no assigned head has nobody holding it* — but that is a row
+  **missing**, not a row **dormant**. The two `… of a review that is Developing` arms hold
+  a row that exists and stops conferring anything when the review leaves `Developing`.
+
+  It sits there because the alternative is worse. #28 split a field rule into a state
+  predicate that **names no actor** and a role predicate that does, and that filing is what
+  stops the chair re-homing a course. *Whose own review is `Developing`* is a state whose
+  answer depends on who is asking, so putting it in the `StateGate` would make the actorless
+  half name an actor. #4 already lets the relationship vary by actor. So the `StateGate` on
+  the Proposal body class keeps the weaker **actorless floor** — *at least one review is
+  `Developing`* — which is exactly what `created_by` writes under, an author having no
+  review of their own, and the per-review condition rides in the two routes. The invariant
+  entry carries a note saying why it is stated weakly, and `Invariant` gained an optional
+  `note` to hold it, matching `Act` and `FieldClass`.
+
+## What #65 leaves for two open tickets
+
+Recorded here because `docs/prototypes/` has no ledger of its own yet — that is
+[#59](https://github.com/nopivnick/lineup-prototype-03/issues/59) — and writing an
+amendment into an HTML file with no ledger beside it puts it where no reader looks.
+
+- **`docs/prototypes/create-forms.html`** ([#43](https://github.com/nopivnick/lineup-prototype-03/issues/43))
+  shows an IMA director who holds no `instructor` role being refused the create control.
+  Under the restored row that person may propose. But the requester states every real
+  director teaches, so the **fixture cast is the fault**, not the page —
+  [#58](https://github.com/nopivnick/lineup-prototype-03/issues/58)'s subject.
+- **`docs/prototypes/field-edits.html`** ([#62](https://github.com/nopivnick/lineup-prototype-03/issues/62))
+  gains a proposal-body section for a director whose own review is `Developing`. No page
+  needs redrawing by hand: #62 settled that an edit page **renders only the field classes
+  open to you**, so the page is a function of `FIELD_CLASSES` and follows by its own stated
+  rule. #62's *decision* survives; **one of its reasons narrows** — it held that the
+  one-page shape "earns nothing on the review page" because the body's writer and the
+  review assignment's writer are the same person "only when a director proposes", and they
+  are now the same person whenever that review is `Developing`.
 
 ## Notes for the build effort
 
