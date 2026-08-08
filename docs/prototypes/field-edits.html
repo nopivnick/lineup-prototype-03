@@ -1,0 +1,1755 @@
+<title>Where a field edit happens — four variants</title>
+
+<!--
+  PROTOTYPE — throwaway. Answers issue #62, "Where does a field edit happen, and
+  what shape is it?"
+
+  Seven field classes have had a writer, a state rule and a column list since #8
+  and #10, and **no control anywhere in the skeleton**. Four screen tickets — #37
+  the list views, #38 the roles page, #41 the detail pages, #42 the review page,
+  #43 the create forms — each settled what a page *displays* or what a form
+  *asks*, and none of them was about what a page lets you *change*. This file is
+  four structurally different answers, switchable with the floating bar or the
+  ← → keys.
+
+    B — SETTLED       the rail gains `Edit`, opening one full page per record
+                      that asks everything you may change at once — #43's shape
+                      for creation, applied to editing. Won outright, the second
+                      of five prototyped tickets to do so. A, C and D are kept
+                      beside it as the primary source it was chosen against.
+    A — In place      the value is the control; click it, change it, it saves.
+                      No route, no form, no Save button for the page.
+    C — Section by section  every section of the record carries its own Edit,
+                      opening a small full page for that field class alone.
+                      One page = one writer = one state rule.
+    D — In the rail    the record keeps no controls at all; the rail lists the
+                      changes you may make beneath the transitions you may fire,
+                      refused the same way, opening C's pages.
+
+  A and D are the poles of the ticket's first question — *the rail holds what you
+  may do, and an edit is arguably one of those*. B and C are the poles of its
+  second — *field-at-a-time or a form*, and if a form, how big.
+
+  ---------------------------------------------------------------------------
+  What is already settled, and is not re-decided here
+  ---------------------------------------------------------------------------
+
+  · The pages exist and their shape is fixed — a record on the left, a sticky
+    rail of permitted actions with refusals stated beneath, history in sentences
+    at the bottom (#41, inherited by #42).
+  · Refusals are stated in the open, never greyed and never silent (#40) — and
+    read-only means controls *and* refusals **absent**, not disabled (#38).
+    So a `student` sees no controls and no refusals in any variant.
+  · Full pages beat drawers and modals (#40, #43). Nothing here opens a modal.
+  · A field write fires no transition and writes **no log row** (#17).
+    `updated_at` / `updated_by` are the only trace — which is why every variant
+    is wired to actually mutate, so you can watch the rail's *last changed* move
+    and the history below it stay exactly as long as it was.
+  · The check lives inside the single field writer, state predicate and role
+    predicate ANDed and **checked separately** (#28).
+  · The chair is one OR-clause ahead of the permission check (#34), rendered
+    here exactly as `course-offering-detail.html` renders it for transitions.
+  · Position 0 of a roster is **not a field class** — renumbering into 0 is
+    `staff`, through the machine or not at all (#15, #61). Every variant refuses
+    it; none of them offers it.
+
+  ---------------------------------------------------------------------------
+  The seven classes, and where they surface
+  ---------------------------------------------------------------------------
+
+    Course page    Course body          gated to `Revising`
+                   Course assignment    state-blind
+    Class page     Offering operational state-blind, `Concluded` included
+                   Seat-sharing tags    state-blind, writer is the *category's*
+                                        director — the map's one scope exception
+                   Roster, positions 1..n   state-blind, every state
+    Review page    Proposal body        gated to `Developing`
+                   Review assignment    gated to `Proposed` / `Developing`
+
+  Three of the seven are **not columns**. `course_area`, `offering_meeting`,
+  `offering_area`, `offering_requirement_category` and `offering_instructor` are
+  rows, and adding or removing a row is not the same interaction as editing a
+  value. Two classes are *mixed* — Course assignment is one column plus rows,
+  Offering operational is six columns plus rows — which is the case that makes
+  "a field edit" the wrong unit and the field class the right one.
+
+  ---------------------------------------------------------------------------
+  What each variant does about the five open questions
+  ---------------------------------------------------------------------------
+
+                        | B Edit page     | A In place      | C Section      | D Rail
+    entry point         | the rail        | the value       | the section    | the rail
+    a save commits      | the record      | one field       | one class      | one class
+    a state gate refuses| in the form     | under the field | on the header  | in the rail
+    rows add/remove     | sub-table       | in place, ×     | its own page   | its own page
+    `Concluded` reads   | with a caution  | no different    | with a caution | no different
+
+  `Concluded` was built split down the middle rather than answered — open
+  Physical Computing §1, Spring 2025 in each variant. #8 put `Concluded` inside
+  the operational class on purpose and #17's worked example was *"wrong
+  instructor credited"*, so the question was never whether the edit is allowed
+  but whether the screen should say anything about it. Settling B settles that
+  too: **it is stated**.
+
+  ---------------------------------------------------------------------------
+  What settling B changed in this file
+  ---------------------------------------------------------------------------
+
+  Two repairs, both cases B alone did not survive:
+
+  · **The `Concluded` caution is keyed on the record, not on the class.** It
+    first fired only when the operational class was the one open to you, which
+    is wrong under B: every class on a class page is state-blind, so a director
+    editing nothing but the roster is still correcting a finished term.
+
+  · **The review edit page states whose body it is about to rewrite.** B commits
+    one Save across every class open to you, and on a review one of those tables
+    is the *proposal's* — shared with every other programme reviewing it. C
+    carried that caution because its pages are one class wide and the body has
+    its own; B has to carry it on the one page or the shared write is silent.
+
+  ---------------------------------------------------------------------------
+  Two things this file made visible that were hard to see on paper
+  ---------------------------------------------------------------------------
+
+  1. **Two predicates fail independently, so a refusal is sometimes two
+     sentences.** #28 ruled the state and role predicates are ANDed and checked
+     separately, and every variant here hits the case where both fail at once:
+     view Physical Computing (Approved) as Amina Bello, IMA's director, and the
+     body is refused *both* because she is not its director and because the
+     course is not `Revising`. Stating one hides a wall the reader will walk
+     into next. Stating both is the only honest rendering and it is bulkier than
+     any transition refusal in #41, because a transition has one gate and a
+     field class has two.
+
+  2. **Seat-sharing inverts who the refusal names, and it is the only class
+     that does.** #25 and #30 left exactly one exception standing: the writer of
+     a foreign tag is the director of the **category's** programme, not the
+     offering's. So on Physical Computing §1 — an ITP class — Priya Raman, ITP's
+     own director, may not touch the IMA tag, and Amina Bello, who has no other
+     business on the page, may. Every other refusal on these pages points at the
+     record's own programme; this one points away from it, and a reader with no
+     way to know that reads it as a bug.
+
+  The "Viewing as" control is a prototype device for looking at what varies by
+  role, not part of the page.
+
+  Not a data layer, not a framework, no persistence — a static approximation of
+  Next.js + Mantine, built to be reacted to, not to be promoted. The cast is
+  continuous with catalog-lineup-views.html, roles-page.html,
+  course-offering-detail.html, proposals-review.html and create-forms.html, and
+  adds two people: a coordinator who is not also a director (so the operational
+  class's *coordinator or the offering's director* has something to say), and a
+  proposer who is not a director (so the proposal body's `created_by` does).
+-->
+
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:        #ffffff;
+    --raised:        #f8f8fa;
+    --sunken:        #f1f1f4;
+    --line:          #e3e2e8;
+    --line-strong:   #c9c7d2;
+    --ink:           #1f1d26;
+    --ink-soft:      #63606f;
+    --ink-faint:     #8b8898;
+
+    --accent:        #57068c;
+    --accent-soft:   #f2e9f8;
+    --accent-line:   #ddc7ec;
+    --on-accent:     #ffffff;
+
+    --itp:           #7048a8;
+    --itp-bg:        #f3eefb;
+    --ima:           #0b7285;
+    --ima-bg:        #e3f4f7;
+    --lowres:        #a1651a;
+    --lowres-bg:     #fbf0de;
+
+    --live:          #2b8a3e;
+    --live-bg:       #e8f6ea;
+    --wait:          #b8600a;
+    --wait-bg:       #fdf1e2;
+    --stop:          #c92a2a;
+    --stop-bg:       #fceceb;
+    --idle:          #6b6878;
+    --idle-bg:       #eeedf1;
+
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+    --shadow-lg: 0 2px 6px rgb(31 29 38 / .10), 0 12px 32px rgb(31 29 38 / .16);
+
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #1a1b1e;
+      --raised:      #212226;
+      --sunken:      #26272c;
+      --line:        #34353b;
+      --line-strong: #4a4b53;
+      --ink:         #e6e5ea;
+      --ink-soft:    #a5a3af;
+      --ink-faint:   #7b7987;
+
+      --accent:      #b197fc;
+      --accent-soft: #2b2440;
+      --accent-line: #453a63;
+      --on-accent:   #1a1b1e;
+
+      --itp:         #b197fc;
+      --itp-bg:      #2b2440;
+      --ima:         #4dc4d9;
+      --ima-bg:      #17343a;
+      --lowres:      #dfa441;
+      --lowres-bg:   #3a2e17;
+
+      --live:        #63d67e;
+      --live-bg:     #16301d;
+      --wait:        #f0a45c;
+      --wait-bg:     #35240f;
+      --stop:        #ff8785;
+      --stop-bg:     #3a1c1c;
+      --idle:        #9b98a6;
+      --idle-bg:     #2c2d33;
+
+      --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+      --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+    }
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground:#ffffff; --raised:#f8f8fa; --sunken:#f1f1f4; --line:#e3e2e8; --line-strong:#c9c7d2;
+    --ink:#1f1d26; --ink-soft:#63606f; --ink-faint:#8b8898;
+    --accent:#57068c; --accent-soft:#f2e9f8; --accent-line:#ddc7ec; --on-accent:#ffffff;
+    --itp:#7048a8; --itp-bg:#f3eefb; --ima:#0b7285; --ima-bg:#e3f4f7; --lowres:#a1651a; --lowres-bg:#fbf0de;
+    --live:#2b8a3e; --live-bg:#e8f6ea; --wait:#b8600a; --wait-bg:#fdf1e2;
+    --stop:#c92a2a; --stop-bg:#fceceb; --idle:#6b6878; --idle-bg:#eeedf1;
+    --shadow: 0 1px 2px rgb(31 29 38 / .07), 0 6px 18px rgb(31 29 38 / .07);
+    --shadow-lg: 0 2px 6px rgb(31 29 38 / .10), 0 12px 32px rgb(31 29 38 / .16);
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:#1a1b1e; --raised:#212226; --sunken:#26272c; --line:#34353b; --line-strong:#4a4b53;
+    --ink:#e6e5ea; --ink-soft:#a5a3af; --ink-faint:#7b7987;
+    --accent:#b197fc; --accent-soft:#2b2440; --accent-line:#453a63; --on-accent:#1a1b1e;
+    --itp:#b197fc; --itp-bg:#2b2440; --ima:#4dc4d9; --ima-bg:#17343a; --lowres:#dfa441; --lowres-bg:#3a2e17;
+    --live:#63d67e; --live-bg:#16301d; --wait:#f0a45c; --wait-bg:#35240f;
+    --stop:#ff8785; --stop-bg:#3a1c1c; --idle:#9b98a6; --idle-bg:#2c2d33;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+    --shadow-lg: 0 2px 8px rgb(0 0 0 / .5), 0 16px 40px rgb(0 0 0 / .45);
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--ground);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0 0 110px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * { box-sizing: border-box; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- app chrome -------------------------------------------------------- */
+
+  .appbar { border-bottom: 1px solid var(--line); background: var(--raised); position: sticky; top: 0; z-index: 40; }
+  .appbar .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
+  .brand { font-weight: 700; letter-spacing: -.01em; }
+  .brand span { color: var(--accent); }
+  .nav { display: flex; gap: 4px; margin-left: 8px; }
+  .nav a { padding: 5px 11px; border-radius: 7px; text-decoration: none; color: var(--ink-soft); font-size: 13.5px; }
+  .nav a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .whoami { margin-left: auto; display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-soft); }
+  .whoami select, .picker select {
+    background: var(--ground); border: 1px solid var(--line-strong); border-radius: 7px;
+    padding: 5px 9px; font-size: 13px; max-width: 460px;
+  }
+
+  .picker { border-bottom: 1px solid var(--line); background: var(--sunken); }
+  .picker .wrap { display: flex; align-items: center; gap: 10px; min-height: 48px; padding-top: 7px; padding-bottom: 7px; flex-wrap: wrap; }
+  .picker label { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); font-weight: 600; }
+  .picker .note { font-size: 12.5px; color: var(--ink-soft); font-style: italic; }
+
+  .crumb { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-soft); margin: 22px 0 6px; }
+  .crumb a { color: var(--accent); text-decoration: none; cursor: pointer; }
+  .crumb a:hover { text-decoration: underline; }
+
+  /* ---- page frame -------------------------------------------------------- */
+
+  .page { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 26px; align-items: start; margin: 8px 0 40px; }
+  @media (max-width: 900px) { .page { grid-template-columns: minmax(0,1fr); } }
+
+  .hdr { margin-bottom: 18px; }
+  .hdr .kicker { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); font-weight: 700; }
+  .hdr h1 { font-size: 25px; line-height: 1.2; margin: 4px 0 6px; letter-spacing: -.015em; }
+  .hdr .sub { color: var(--ink-soft); font-size: 13.5px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .card { border: 1px solid var(--line); border-radius: 12px; background: var(--raised); margin-bottom: 16px; overflow: hidden; }
+  .card > h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint);
+    font-weight: 700; margin: 0; padding: 12px 16px 11px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .card > h2 .cls { font-weight: 500; text-transform: none; letter-spacing: 0; font-size: 11.5px; color: var(--ink-faint); font-family: var(--mono); }
+  .card > h2 .spacer { margin-left: auto; }
+  .card .body { padding: 14px 16px 16px; }
+  .card.locked { background: var(--ground); }
+
+  /* ---- field rows -------------------------------------------------------- */
+
+  .fields { display: grid; grid-template-columns: 168px minmax(0,1fr); gap: 0; }
+  .fields > .k {
+    color: var(--ink-faint); font-size: 12.5px; padding: 9px 12px 9px 0;
+    border-top: 1px solid var(--line); display: flex; align-items: flex-start;
+  }
+  .fields > .v { padding: 9px 0; border-top: 1px solid var(--line); min-width: 0; }
+  .fields > .k:first-of-type, .fields > .v:first-of-type { border-top: 0; }
+  .fields .none { color: var(--ink-faint); font-style: italic; }
+  .num { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  .desc { color: var(--ink); max-width: 62ch; }
+
+  /* the value-as-control affordance (variant A) */
+  .vrow { display: flex; align-items: flex-start; gap: 8px; }
+  .vrow .val { min-width: 0; flex: 1; }
+  .pencil {
+    border: 1px solid transparent; background: none; color: var(--ink-faint);
+    border-radius: 6px; padding: 1px 6px; cursor: pointer; font-size: 12.5px; line-height: 1.6; flex: none;
+  }
+  .pencil:hover { border-color: var(--line-strong); color: var(--accent); background: var(--ground); }
+
+  input.txt, textarea.txt, select.txt {
+    width: 100%; background: var(--ground); border: 1px solid var(--line-strong);
+    border-radius: 7px; padding: 6px 9px; font-size: 13.5px;
+  }
+  textarea.txt { min-height: 92px; resize: vertical; line-height: 1.5; }
+  input.txt.short { max-width: 150px; }
+  .editbox { display: grid; gap: 7px; }
+  .editbox .row { display: flex; gap: 7px; align-items: center; }
+
+  /* ---- refusals ---------------------------------------------------------- */
+
+  .refusal {
+    display: block; border-left: 2px solid var(--line-strong); padding: 2px 0 2px 10px;
+    color: var(--ink-soft); font-size: 12.5px; margin-top: 6px;
+  }
+  .refusal b { color: var(--ink); font-weight: 600; }
+  .refusal + .refusal { margin-top: 5px; }
+  .refusal .lede { color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em; font-size: 10.5px; font-weight: 700; display: block; }
+  .refusals { display: grid; gap: 6px; margin-top: 10px; }
+
+  .caution {
+    border: 1px solid var(--line-strong); background: var(--sunken); border-radius: 9px;
+    padding: 9px 12px; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 13px;
+  }
+  .caution b { color: var(--ink); }
+
+  /* ---- rail -------------------------------------------------------------- */
+
+  .rail { position: sticky; top: 74px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); overflow: hidden; }
+  .rail .sec { padding: 13px 15px; border-top: 1px solid var(--line); }
+  .rail .sec:first-child { border-top: 0; }
+  .rail h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); font-weight: 700; margin: 0 0 9px; }
+  .rail .prov { font-size: 12px; color: var(--ink-soft); }
+  .rail .prov b { color: var(--ink); font-weight: 600; }
+
+  .state { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .state.live { background: var(--live-bg); color: var(--live); }
+  .state.wait { background: var(--wait-bg); color: var(--wait); }
+  .state.stop { background: var(--stop-bg); color: var(--stop); }
+  .state.idle { background: var(--idle-bg); color: var(--idle); }
+
+  .actbar { display: flex; flex-wrap: wrap; gap: 7px; }
+  .vbtn {
+    border: 1px solid var(--line-strong); background: var(--ground); color: var(--ink);
+    border-radius: 8px; padding: 5px 12px; font-size: 13px; cursor: pointer; font-family: var(--mono);
+  }
+  .vbtn:hover { border-color: var(--accent); color: var(--accent); }
+  .vbtn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .vbtn.primary:hover { color: var(--on-accent); opacity: .92; }
+  .vbtn.plain { font-family: var(--sans); }
+
+  .editlist { display: grid; gap: 9px; }
+  .editlist .item { display: grid; gap: 3px; }
+  .editlist button {
+    text-align: left; width: 100%; border: 1px solid var(--line-strong); background: var(--ground);
+    border-radius: 8px; padding: 7px 11px; font-size: 13px; cursor: pointer;
+  }
+  .editlist button:hover { border-color: var(--accent); color: var(--accent); }
+  .editlist .dead { padding: 1px 0; font-size: 13px; color: var(--ink); }
+
+  .none { color: var(--ink-faint); font-style: italic; }
+  .hairline { border: 0; border-top: 1px dashed var(--line-strong); margin: 12px 0 11px; }
+
+  /* ---- tables (rows, not columns) ---------------------------------------- */
+
+  table.rows { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.rows th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--ink-faint); font-weight: 700; padding: 0 10px 7px 0; border-bottom: 1px solid var(--line);
+  }
+  table.rows td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.rows tr:last-child td { border-bottom: 0; }
+  table.rows td.act { text-align: right; padding-right: 0; width: 1%; white-space: nowrap; }
+  .x {
+    border: 1px solid var(--line-strong); background: var(--ground); color: var(--ink-soft);
+    border-radius: 6px; padding: 1px 8px; cursor: pointer; font-size: 12.5px; line-height: 1.6;
+  }
+  .x:hover { border-color: var(--stop); color: var(--stop); }
+  .addline { margin-top: 11px; }
+  .addline .vbtn { font-family: var(--sans); }
+
+  .chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--sunken); color: var(--ink-soft); }
+  .chip.itp { background: var(--itp-bg); color: var(--itp); }
+  .chip.ima { background: var(--ima-bg); color: var(--ima); }
+  .chip.lowres { background: var(--lowres-bg); color: var(--lowres); }
+  .grant { font-size: 11.5px; color: var(--ink-faint); margin-left: 7px; }
+  .lead-mark { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; margin-left: 7px; }
+  .netid-fallback { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
+  .pronouns { color: var(--ink-faint); font-size: 12px; margin-left: 6px; }
+
+  .empty { border: 1px dashed var(--line-strong); border-radius: 9px; padding: 12px 14px; color: var(--ink-soft); font-size: 13px; }
+  .empty b { display: block; color: var(--ink); margin-bottom: 2px; }
+
+  /* ---- history ----------------------------------------------------------- */
+
+  .tl { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 10px; }
+  .tl + .tl { margin-top: 2px; }
+  .dotcol { display: grid; justify-items: center; gap: 2px; padding-top: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--idle); }
+  .dot.live { background: var(--live); } .dot.wait { background: var(--wait); }
+  .dot.stop { background: var(--stop); } .dot.idle { background: var(--idle); }
+  .dot.hollow { background: none; border: 1.5px solid var(--line-strong); }
+  .stem { width: 1px; flex: 1; background: var(--line); min-height: 16px; }
+  .tl .said { font-size: 13.5px; }
+  .tl .when { color: var(--ink-faint); font-size: 12px; margin-top: 1px; font-variant-numeric: tabular-nums; }
+  .tl .quote { color: var(--ink-soft); font-style: italic; }
+  .logfoot { margin-top: 13px; font-size: 12.5px; color: var(--ink-faint); font-style: italic; }
+
+  /* ---- edit page (variants B and C) -------------------------------------- */
+
+  .formsec { margin-bottom: 20px; }
+  .formsec > h2 { font-size: 15px; margin: 0 0 3px; letter-spacing: -.01em; }
+  .formsec > .lede { color: var(--ink-soft); font-size: 13px; margin-bottom: 11px; }
+  .flist { display: grid; gap: 13px; }
+  .fld { display: grid; gap: 4px; }
+  .fld > label { font-size: 12.5px; font-weight: 600; }
+  .fld .hint { font-size: 12px; color: var(--ink-faint); }
+  .savebar { display: flex; gap: 9px; align-items: center; }
+
+  /* ---- variant switcher -------------------------------------------------- */
+
+  .switcher {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 22px; z-index: 60;
+    display: flex; align-items: center; gap: 5px; background: var(--raised);
+    border: 1px solid var(--line-strong); border-radius: 999px; padding: 6px 8px; box-shadow: var(--shadow-lg);
+    max-width: calc(100vw - 32px);
+  }
+  .switcher button {
+    border: 0; background: var(--sunken); color: var(--ink); border-radius: 999px;
+    width: 30px; height: 30px; cursor: pointer; font-size: 15px; line-height: 1; flex: none;
+  }
+  .switcher button:hover { background: var(--accent-soft); color: var(--accent); }
+  .switcher .label { display: flex; align-items: center; gap: 8px; padding: 0 8px; font-size: 13px; min-width: 0; }
+  .switcher .key {
+    background: var(--accent); color: var(--on-accent); font-weight: 700; border-radius: 7px;
+    width: 22px; height: 22px; display: grid; place-items: center; font-size: 12px; flex: none;
+  }
+  .switcher .hint { color: var(--ink-faint); font-size: 11.5px; padding-right: 6px; }
+  @media (max-width: 700px) { .switcher .hint { display: none; } }
+</style>
+
+<div class="appbar">
+  <div class="wrap">
+    <div class="brand">Lineup<span>.</span></div>
+    <nav class="nav">
+      <a href="#">Catalog</a>
+      <a href="#">Lineup</a>
+      <a href="#">Proposals</a>
+      <a href="#">Roles</a>
+    </nav>
+    <div class="whoami">
+      <span>Viewing as</span>
+      <select id="actor"></select>
+    </div>
+  </div>
+</div>
+
+<div class="picker">
+  <div class="wrap">
+    <label for="record">Record</label>
+    <select id="record"></select>
+    <span class="note" id="note"></span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="view"></div>
+</div>
+
+<div class="switcher" role="group" aria-label="Prototype variant">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span class="label"><span class="key" id="vkey">A</span><span id="vname"></span></span>
+  <button id="next" aria-label="Next variant">→</button>
+  <span class="hint">← → to cycle</span>
+</div>
+
+<script>
+/* ==========================================================================
+   Fixtures — hand-written, shaped to docs/schema/classes.sql + people.sql, and
+   continuous with the cast in the five prototypes already in this directory.
+
+   Deliberately exercises, because #62 asks about each:
+
+     · a course in `Approved` — the body gate shut, the assignment open beside it
+     · a course in `Revising` — the same page with the gate open, and no area
+       head yet, so #32's half-missing assignment is on screen
+     · a `Concluded` class — #17's "wrong instructor credited", the edit most
+       likely to be mistaken for a bug
+     · a class with a foreign seat-sharing tag, whose writer is another
+       programme's director (#25 / #30's sole scope exception)
+     · a roster with a gap at position 0 (#61) — the rows below are editable and
+       position 0 is not offered at all
+     · a proposal review in `Developing` (body open to its author) and one in
+       `Proposed` (body shut, assignment open to the director) — the case that
+       showed B and C are **the same page** on a review, since the body's writer
+       is `created_by` and the assignment's is the programme's director, so the
+       edit page is one section wide for all but the director who proposed
+     · a coordinator who is not a director, and a proposer who is neither
+   ========================================================================== */
+
+const PEOPLE = {
+  na2481: { name: "Nora Applebaum", pronouns: "she/her" },
+  tv1067: { name: "Theo Vance",     pronouns: "he/him"  },
+  pr3390: { name: "Priya Raman",    pronouns: "she/her" },
+  mo5512: { name: "Marcus Ola",     pronouns: "he/him"  },
+  ab9034: { name: "Amina Bello",    pronouns: "she/her" },
+  rc1129: { name: "Rui Chen",       pronouns: "they/them" },
+  jl8802: { name: "Jae Lin",        pronouns: null      },
+  so4410: { name: "Sam Okafor",     pronouns: "he/him"  },
+  di2288: { name: "Dilnoza Iskan",  pronouns: "she/her" },
+  // xq7742 deliberately absent — on a roster, and in a log, with no person row
+};
+
+const ACTORS = [
+  { netid: "pr3390", roles: ["coordinator", "program_director"], programs: ["ITP"],
+    label: "Priya Raman — coordinator + ITP director" },
+  { netid: "so4410", roles: ["coordinator"], programs: [],
+    label: "Sam Okafor — coordinator only" },
+  { netid: "na2481", roles: ["instructor", "area_head"], programs: [],
+    label: "Nora Applebaum — instructor + area head (PComp)" },
+  { netid: "di2288", roles: ["instructor"], programs: [],
+    label: "Dilnoza Iskan — instructor, proposed a course" },
+  { netid: "ab9034", roles: ["program_director"], programs: ["IMA"],
+    label: "Amina Bello — IMA director" },
+  { netid: "rc1129", roles: ["program_director", "instructor"], programs: ["LOWRES"],
+    label: "Rui Chen — LowRes director" },
+  { netid: "tv1067", roles: ["chair", "instructor"], programs: [],
+    label: "Theo Vance — chair (+ instructor)" },
+  { netid: "mo5512", roles: ["student"], programs: [],
+    label: "Marcus Ola — student" },
+];
+
+/* Who holds each directorship, so a refusal can name the person rather than
+   quote the matrix (#37, #41, #43). */
+const DIRECTORS = { ITP: ["pr3390"], IMA: ["ab9034"], LOWRES: ["rc1129"] };
+const COORDINATORS = ["pr3390", "so4410"];
+
+const TERMS = { "20251": "Spring 2025", "20253": "Fall 2025", "20261": "Spring 2026" };
+const PROGRAMS = { ITP: "ITP", IMA: "IMA", LOWRES: "LowRes" };
+
+const COMMITTED = ["Accepted","Scheduled","Published","Listed","Running","Evaluating","Concluded","Canceled"];
+
+const TONE = {
+  Slated:"idle", Staffed:"wait", Offered:"wait", Deferred:"wait", Declined:"stop", Dead:"stop",
+  Accepted:"live", Scheduled:"live", Published:"live", Listed:"live", Running:"live",
+  Evaluating:"idle", Concluded:"idle", Canceled:"stop",
+  Approved:"live", Revising:"wait", Retired:"idle",
+  Proposed:"wait", Developing:"wait", Rejected:"stop",
+};
+
+const MODES = ["In person", "Blended", "Online", "Low residency"];
+
+/* --- courses ------------------------------------------------------------ */
+
+const COURSES = [
+  { id:1, prog:"ITP", number:"ITPG-GT 2233", title:"Physical Computing", credits:4, edition:3,
+    state:"Approved", areaHead:"na2481",
+    description:"Physical Computing takes a hands-on approach to the way people and computers meet. Students build interactive devices from sensors, actuators and microcontrollers, working from the assumption that a computer is something you can touch, stand in front of, or wear.",
+    url:"https://itp.nyu.edu/physcomp/",
+    areas:[{p:"ITP",n:"Physical Interaction"}], cats:[{p:"ITP",n:"Core"}],
+    createdBy:"tv1067", createdAt:"2019-04-08T11:20", updatedBy:"pr3390", updatedAt:"2025-03-02T15:41" },
+
+  { id:4, prog:"ITP", number:"ITPG-GT 2043", title:"Sound in Space", credits:2, edition:2,
+    state:"Revising", areaHead:null,
+    description:"A studio on sound as a spatial material: rooms that listen, corridors that answer, and the difference between a speaker in a space and a space made of speakers.",
+    url:null,
+    areas:[], cats:[{p:"ITP",n:"Elective"}],
+    createdBy:"pr3390", createdAt:"2022-02-11T08:40", updatedBy:"pr3390", updatedAt:"2026-02-02T09:12" },
+
+  { id:3, prog:"ITP", number:"ITPG-GT 3011", title:"Speculative Objects", credits:2, edition:1,
+    state:"Approved", areaHead:null,
+    description:"A studio in design fiction: objects from futures that have not arrived, made well enough to be believed.",
+    url:null,
+    areas:[], cats:[{p:"ITP",n:"Elective"}],
+    createdBy:"pr3390", createdAt:"2026-01-15T09:02", updatedBy:null, updatedAt:null },
+
+  { id:6, prog:"LOWRES", number:"IMLR-GT 1500", title:"Machine Vision Intensive", credits:4, edition:1,
+    state:"Approved", areaHead:"jl8802",
+    description:"Two weeks in residence on cameras as instruments: what a machine sees, what it cannot, and what it makes up.",
+    url:null,
+    areas:[{p:"LOWRES",n:"Computer Vision"}], cats:[{p:"LOWRES",n:"Residency Intensive"}],
+    createdBy:"rc1129", createdAt:"2024-09-30T14:00", updatedBy:null, updatedAt:null },
+];
+
+/* Areas available to tag a course with, by programme (#7's typed `area` table). */
+const AREAS = {
+  ITP:    ["Physical Interaction", "Code & Media", "Design & Storytelling", "Sound"],
+  IMA:    ["Code & Media", "Foundations", "Interactive Narrative"],
+  LOWRES: ["Computer Vision", "Residency Intensive"],
+};
+const CATEGORIES = {
+  ITP:    ["Core", "Elective", "Thesis"],
+  IMA:    ["Foundations", "Elective", "Capstone"],
+  LOWRES: ["Residency Intensive", "Elective"],
+};
+
+/* --- offerings ---------------------------------------------------------- */
+
+const OFFERINGS = [
+  { id:101, course:1, term:"20253", section:"1", state:"Running",
+    roster:[{pos:0,netid:"na2481",by:"pr3390",at:"2025-03-04T13:02"},
+            {pos:1,netid:"rc1129",by:"pr3390",at:"2025-06-11T10:05"}],
+    cap:24, mode:"In person", call:"18441", sis:9032, url:null,
+    meetings:[
+      { kind:"weekly", day:"Mon", start:"18:30", end:"21:00", room:"370J-447" },
+      { kind:"weekly", day:"Wed", start:"15:20", end:"16:20", room:"370J-410" },
+    ],
+    foreignAreas:[{p:"IMA",n:"Code & Media",by:"ab9034",at:"2025-05-10T10:14"}],
+    foreignCats:[{p:"IMA",n:"Foundations",by:"ab9034",at:"2025-05-10T10:14"}],
+    createdBy:"pr3390", createdAt:"2025-03-04T12:58", updatedBy:"pr3390", updatedAt:"2025-08-28T16:12" },
+
+  /* #17's worked example, made openable: the term is over, the record is wrong,
+     and #8 put `Concluded` inside the operational class on purpose. */
+  { id:90, course:1, term:"20251", section:"1", state:"Concluded",
+    roster:[{pos:0,netid:"tv1067",by:"pr3390",at:"2024-10-02T11:00"},
+            {pos:1,netid:"jl8802",by:"pr3390",at:"2024-11-14T15:30"}],
+    cap:24, mode:"In person", call:"17220", sis:8811, url:null,
+    meetings:[{ kind:"weekly", day:"Tue", start:"18:30", end:"21:00", room:"370J-447" }],
+    foreignAreas:[], foreignCats:[],
+    createdBy:"pr3390", createdAt:"2024-10-01T09:15", updatedBy:"pr3390", updatedAt:"2025-05-19T11:02" },
+
+  { id:102, course:1, term:"20253", section:"2", state:"Slated",
+    roster:[], cap:24, mode:"In person", call:null, sis:null, url:null,
+    meetings:[{ kind:"weekly", day:"Tue", start:"18:30", end:"21:00", room:"370J-447" }],
+    foreignAreas:[], foreignCats:[],
+    createdBy:"pr3390", createdAt:"2025-03-04T13:00", updatedBy:null, updatedAt:null },
+
+  /* #61's case: `decline` DELETEd position 0 and left position 1 seated. */
+  { id:103, course:1, term:"20253", section:"3", state:"Declined",
+    roster:[{pos:1,netid:"jl8802",by:"pr3390",at:"2025-03-20T09:00"}],
+    cap:24, mode:"In person", call:null, sis:null, url:null,
+    meetings:[{ kind:"weekly", day:"Thu", start:"18:30", end:"21:00", room:"370J-447" }],
+    foreignAreas:[], foreignCats:[],
+    createdBy:"pr3390", createdAt:"2025-03-04T13:04", updatedBy:null, updatedAt:null },
+
+  { id:108, course:6, term:"20261", section:"1", state:"Accepted",
+    roster:[{pos:0,netid:"xq7742",by:"rc1129",at:"2025-06-02T11:00"}],
+    cap:14, mode:"Low residency", call:"20117", sis:11840, url:"https://lowres.nyu.edu/mvi",
+    meetings:[
+      { kind:"dates", from:"2026-01-05", to:"2026-01-16", start:"10:00", end:"16:00", room:"370J-Commons" },
+      { kind:"async" },
+    ],
+    foreignAreas:[{p:"ITP",n:"Physical Interaction",by:"pr3390",at:"2025-11-02T09:41"}],
+    foreignCats:[],
+    createdBy:"rc1129", createdAt:"2025-06-02T10:55", updatedBy:"rc1129", updatedAt:"2025-06-20T13:00" },
+];
+
+/* --- proposals and their per-programme reviews (#7, #42) ----------------- */
+
+const PROPOSALS = [
+  { id:11, title:"Critical Cartography", credits:4,
+    description:"Maps as arguments. Students build interactive maps and then take them apart, asking what each projection, colour ramp and omission is claiming.",
+    createdBy:"di2288", createdAt:"2026-01-20T14:05", updatedBy:"di2288", updatedAt:"2026-02-03T10:44" },
+];
+
+const REVIEWS = [
+  { id:31, proposal:11, prog:"ITP", state:"Developing", areaHead:"na2481",
+    areas:[{p:"ITP",n:"Design & Storytelling"}],
+    createdBy:"di2288", createdAt:"2026-01-20T14:05", updatedBy:"pr3390", updatedAt:"2026-02-01T16:20" },
+  { id:32, proposal:11, prog:"IMA", state:"Proposed", areaHead:null, areas:[],
+    createdBy:"di2288", createdAt:"2026-01-20T14:05", updatedBy:null, updatedAt:null },
+  { id:33, proposal:11, prog:"LOWRES", state:"Rejected", areaHead:"jl8802",
+    areas:[{p:"LOWRES",n:"Computer Vision"}],
+    createdBy:"di2288", createdAt:"2026-01-20T14:05", updatedBy:"rc1129", updatedAt:"2026-01-29T09:10" },
+];
+
+/* --- transition logs ---------------------------------------------------- */
+/* Exactly the seven stored columns, and **no genesis row** (#13). Nothing in
+   this file ever appends to these — that is the point of #17. */
+
+const LOG = {
+  "course:1": [
+    { event:"revise",  from:"Approved", to:"Revising", actor:"pr3390", subject:null, reason:"Adding a sensors unit for 2024", at:"2023-11-02T10:12" },
+    { event:"approve", from:"Revising", to:"Approved", actor:"na2481", subject:null, reason:null, at:"2023-11-20T16:40" },
+    { event:"revise",  from:"Approved", to:"Revising", actor:"pr3390", subject:null, reason:"Credits corrected, 2 to 4", at:"2025-01-14T09:05" },
+    { event:"approve", from:"Revising", to:"Approved", actor:"pr3390", subject:null, reason:null, at:"2025-01-28T11:30" },
+  ],
+  "course:4": [
+    { event:"revise",  from:"Approved", to:"Revising", actor:"pr3390", subject:null, reason:"Rewriting for the new studio", at:"2026-02-02T09:12" },
+  ],
+  "course:3": [],
+  "course:6": [],
+
+  "offering:101": [
+    { event:"staff",    from:"Slated",    to:"Staffed",   actor:"pr3390", subject:"na2481", reason:null, at:"2025-03-04T13:02" },
+    { event:"offer",    from:"Staffed",   to:"Offered",   actor:"pr3390", subject:"na2481", reason:null, at:"2025-03-04T13:03" },
+    { event:"accept",   from:"Offered",   to:"Accepted",  actor:"na2481", subject:"na2481", reason:null, at:"2025-03-06T08:47" },
+    { event:"schedule", from:"Accepted",  to:"Scheduled", actor:"pr3390", subject:null, reason:null, at:"2025-04-11T10:20" },
+    { event:"publish",  from:"Scheduled", to:"Published", actor:"pr3390", subject:null, reason:null, at:"2025-05-02T09:00" },
+    { event:"list",     from:"Published", to:"Listed",    actor:"pr3390", subject:null, reason:null, at:"2025-07-15T14:30" },
+    { event:"run",      from:"Listed",    to:"Running",   actor:"pr3390", subject:null, reason:null, at:"2025-09-02T09:00" },
+  ],
+  "offering:90": [
+    { event:"staff",    from:"Slated",    to:"Staffed",    actor:"pr3390", subject:"tv1067", reason:null, at:"2024-10-02T11:00" },
+    { event:"offer",    from:"Staffed",   to:"Offered",    actor:"pr3390", subject:"tv1067", reason:null, at:"2024-10-02T11:01" },
+    { event:"accept",   from:"Offered",   to:"Accepted",   actor:"tv1067", subject:"tv1067", reason:null, at:"2024-10-04T09:30" },
+    { event:"schedule", from:"Accepted",  to:"Scheduled",  actor:"pr3390", subject:null, reason:null, at:"2024-11-01T10:00" },
+    { event:"publish",  from:"Scheduled", to:"Published",  actor:"pr3390", subject:null, reason:null, at:"2024-11-20T09:00" },
+    { event:"list",     from:"Published", to:"Listed",     actor:"pr3390", subject:null, reason:null, at:"2024-12-10T14:00" },
+    { event:"run",      from:"Listed",    to:"Running",    actor:"pr3390", subject:null, reason:null, at:"2025-01-21T09:00" },
+    { event:"evaluate", from:"Running",   to:"Evaluating", actor:"pr3390", subject:null, reason:null, at:"2025-05-06T17:00" },
+    { event:"conclude", from:"Evaluating",to:"Concluded",  actor:"pr3390", subject:null, reason:null, at:"2025-05-19T11:02" },
+  ],
+  "offering:102": [],
+  "offering:103": [
+    { event:"staff",    from:"Slated",   to:"Staffed",  actor:"pr3390", subject:"tv1067", reason:null, at:"2025-03-04T13:05" },
+    { event:"offer",    from:"Staffed",  to:"Offered",  actor:"pr3390", subject:"tv1067", reason:null, at:"2025-03-04T13:06" },
+    { event:"defer",    from:"Offered",  to:"Deferred", actor:"tv1067", subject:null, reason:"Waiting on the sabbatical decision", at:"2025-03-10T11:15" },
+    { event:"withdraw", from:"Deferred", to:"Slated",   actor:"pr3390", subject:"tv1067", reason:"The section had to be confirmed by 1 April", at:"2025-04-01T09:30" },
+    { event:"staff",    from:"Slated",   to:"Staffed",  actor:"pr3390", subject:"ab9034", reason:null, at:"2025-04-03T10:00" },
+    { event:"offer",    from:"Staffed",  to:"Offered",  actor:"pr3390", subject:"ab9034", reason:null, at:"2025-04-03T10:01" },
+    { event:"decline",  from:"Offered",  to:"Declined", actor:"pr3390", subject:"ab9034", reason:"Clash with her IMA teaching load", at:"2025-04-09T17:22" },
+  ],
+  "offering:108": [
+    { event:"staff",  from:"Slated",  to:"Staffed",  actor:"rc1129", subject:"xq7742", reason:null, at:"2025-06-02T11:00" },
+    { event:"offer",  from:"Staffed", to:"Offered",  actor:"rc1129", subject:"xq7742", reason:null, at:"2025-06-02T11:01" },
+    { event:"accept", from:"Offered", to:"Accepted", actor:"xq7742", subject:"xq7742", reason:null, at:"2025-06-05T07:12" },
+  ],
+
+  "review:31": [
+    { event:"develop", from:"Proposed", to:"Developing", actor:"pr3390", subject:null, reason:"Needs a clearer distinction from Maps & Data", at:"2026-02-01T16:20" },
+  ],
+  "review:32": [],
+  "review:33": [
+    { event:"reject", from:"Proposed", to:"Rejected", actor:"rc1129", subject:null, reason:"Too close to Machine Vision Intensive for a one-year cohort", at:"2026-01-29T09:10" },
+  ],
+};
+
+/* --- the records this prototype can open -------------------------------- */
+
+const RECORDS = [
+  { key:"c1",  kind:"course",   id:1,
+    label:"Course · ITPG-GT 2233 Physical Computing — Approved",
+    note:"The body gate is shut and the assignment beside it is open. The two field classes on one page do not agree about state, which is the whole reason there are seven of them." },
+  { key:"c4",  kind:"course",   id:4,
+    label:"Course · ITPG-GT 2043 Sound in Space — Revising",
+    note:"Same page, gate open. No area head yet, so #32's half-missing assignment is on screen and #43's picker refusal has its cause here." },
+  { key:"o90", kind:"offering", id:90,
+    label:"Class · Physical Computing §1, Spring 2025 — Concluded",
+    note:"#17's worked example. The term is over, the wrong person is credited at position 0, and #8 put `Concluded` inside the operational class on purpose." },
+  { key:"o101",kind:"offering", id:101,
+    label:"Class · Physical Computing §1, Fall 2025 — Running",
+    note:"Six operational columns and two meeting rows in one class; a seat-sharing tag whose writer is IMA's director and not ITP's; a full roster." },
+  { key:"o103",kind:"offering", id:103,
+    label:"Class · Physical Computing §3, Fall 2025 — Declined",
+    note:"A co-instructor seated under a vacant position 0 (#61). The rows below are editable; position 0 is not offered to anyone, in any variant." },
+  { key:"o102",kind:"offering", id:102,
+    label:"Class · Physical Computing §2, Fall 2025 — Slated",
+    note:"Nothing filled in. What an edit surface looks like when there is nothing yet to edit." },
+  { key:"o108",kind:"offering", id:108,
+    label:"Class · Machine Vision Intensive §1, Spring 2026 — Accepted",
+    note:"LowRes: `dates` and `async` meeting rows, a lead with no `people` row, and an ITP tag on a LowRes class." },
+  { key:"c3",  kind:"course",   id:3,
+    label:"Course · ITPG-GT 3011 Speculative Objects — Approved, empty",
+    note:"No area, no head, no history. Every empty state an edit surface has to hold." },
+  { key:"c6",  kind:"course",   id:6,
+    label:"Course · IMLR-GT 1500 Machine Vision Intensive — LowRes",
+    note:"Open it as Priya Raman to see the scope refusal on a page where nothing at all is hers." },
+  { key:"r31", kind:"review",   id:31,
+    label:"Review · Critical Cartography — ITP, Developing",
+    note:"The proposal body is open to Dilnoza Iskan, who wrote it, and to nobody else. The review assignment beside it is ITP's director's." },
+  { key:"r32", kind:"review",   id:32,
+    label:"Review · Critical Cartography — IMA, Proposed",
+    note:"Same body, same author, gate shut — `Proposed` is not `Developing`. The assignment is open, because its gate is the wider one." },
+];
+
+/* ==========================================================================
+   Read model — assembled the way `getCoursePage` / `getOfferingPage` /
+   `getReviewPage` would assemble it server-side (#9), plus the in-memory
+   overrides this prototype writes so an edit can actually be watched to land.
+   ========================================================================== */
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+const courseOf   = id => COURSES.find(c => c.id === id);
+const offeringOf = id => OFFERINGS.find(o => o.id === id);
+const reviewOf   = id => REVIEWS.find(r => r.id === id);
+const proposalOf = id => PROPOSALS.find(p => p.id === id);
+
+/* The record a page is about, plus the programme it is scoped to. */
+function load(rec) {
+  if (rec.kind === "course")   { const c = courseOf(rec.id);   return { ...c, prog: c.prog }; }
+  if (rec.kind === "offering") { const o = offeringOf(rec.id); return { ...o, prog: courseOf(o.course).prog }; }
+  const r = reviewOf(rec.id);  return { ...r, proposalRow: proposalOf(r.proposal) };
+}
+const raw = rec => rec.kind === "course" ? courseOf(rec.id)
+                 : rec.kind === "offering" ? offeringOf(rec.id)
+                 : reviewOf(rec.id);
+
+const isChair      = a => a.roles.includes("chair");
+const isDirectorOf = (a, p) => a.roles.includes("program_director") && a.programs.includes(p);
+const isCoordinator= a => a.roles.includes("coordinator");
+/* #38's fourth read predicate: holds any role other than `student`. */
+const canAct       = a => a.roles.some(r => r !== "student");
+
+const nameOf = n => PEOPLE[n]?.name ?? n;
+const named  = n => PEOPLE[n]
+  ? `<span>${esc(PEOPLE[n].name)}</span>`
+  : `<span class="netid-fallback">${esc(n)}</span>`;
+
+function person(n, { lead = false, pronouns = false } = {}) {
+  const p = PEOPLE[n];
+  const pr = pronouns && p?.pronouns ? `<span class="pronouns">${esc(p.pronouns)}</span>` : "";
+  const mark = lead ? `<span class="lead-mark">lead</span>` : "";
+  return `${named(n)}${pr}${mark}`;
+}
+
+const directorName = p => (DIRECTORS[p] ?? []).map(nameOf).join(" or ") || `${PROGRAMS[p]}'s director`;
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmt(iso, { time = true } = {}) {
+  if (!iso) return "—";
+  const [d, t] = iso.split("T");
+  const [y, m, day] = d.split("-");
+  const date = `${Number(day)} ${MONTHS[Number(m) - 1]} ${y}`;
+  return time && t ? `${date}, ${t}` : date;
+}
+const fmtDate = iso => fmt(iso, { time: false });
+
+function meetingText(m) {
+  if (m.kind === "async") return "Asynchronous — no scheduled meeting";
+  if (m.kind === "dates") return `${fmtDate(m.from)} – ${fmtDate(m.to)}, ${m.start}–${m.end}`;
+  return `${m.day} ${m.start}–${m.end}`;
+}
+
+const stateChip = s => `<span class="state ${TONE[s]}">${esc(s)}</span>`;
+
+function chipFor(p, n, foreign) {
+  const label = foreign ? `${PROGRAMS[p]} · ${n}` : n;
+  return `<span class="chip ${p.toLowerCase()}">${esc(label)}</span>`;
+}
+
+/* ==========================================================================
+   FIELD CLASSES — the module every variant renders from.
+
+   #10's field-class map, made executable. Each class carries its column list,
+   its row collections, its role predicate and its state predicate, and the two
+   predicates are held apart because #28 ruled they are checked separately:
+   the state gates are **invariants** that bind the seed script too, and the
+   role gates are permissions the chair sits one OR-clause ahead of.
+   ========================================================================== */
+
+function classesFor(rec, r) {
+  if (rec.kind === "course")   return courseClasses(r);
+  if (rec.kind === "offering") return offeringClasses(r);
+  return reviewClasses(r);
+}
+
+function courseClasses(c) {
+  return [
+    {
+      key: "body", title: "Body", cls: "Course body — gated to Revising",
+      lede: "What the course is. The catalog reads this, and approving it is what `Approved` means.",
+      role: a => isDirectorOf(a, c.prog) || c.areaHead === a.netid,
+      roleWhy: `${directorName(c.prog)}, ${PROGRAMS[c.prog]}'s director${c.areaHead ? `, or ${nameOf(c.areaHead)}, this course's area head` : ""}, changes the body.`,
+      gate: c.state === "Revising",
+      gateWhy: `Only while the course is <b>Revising</b>. It is <b>${esc(c.state)}</b> — the body an approval signed off on does not move underneath it.`,
+      gatePointer: c.state === "Approved" ? "`revise` is in this rail." : null,
+      fields: [
+        { k:"title",       label:"Title",       type:"text" },
+        { k:"number",      label:"Course number", type:"text", mono:true },
+        { k:"credits",     label:"Credits",     type:"number" },
+        { k:"description", label:"Description", type:"textarea" },
+        { k:"url",         label:"URL",         type:"text", empty:"No page on file" },
+      ],
+      rows: null,
+    },
+    {
+      key: "assignment", title: "Assignment", cls: "Course assignment — state-blind",
+      lede: "Which area the course belongs to, and who signs off on it. Unlike the body, this moves in any state.",
+      role: a => isDirectorOf(a, c.prog),
+      roleWhy: `${directorName(c.prog)}, ${PROGRAMS[c.prog]}'s director, assigns the area and the head — alone. An area head signs off on a course; they do not choose who signs off on it.`,
+      gate: true, gateWhy: null,
+      fields: [
+        { k:"areaHead", label:"Area head", type:"person", empty:"Not assigned",
+          options: () => Object.keys(PEOPLE).filter(n => n !== "xq7742") },
+      ],
+      rows: {
+        key: "areas", title: "Areas", table: "course_area",
+        cols: ["Programme", "Area"],
+        get: () => c.areas,
+        cells: a => [chipFor(a.p, PROGRAMS[a.p], false), esc(a.n)],
+        addLabel: "Add an area",
+        options: () => (AREAS[c.prog] ?? []).filter(n => !c.areas.some(a => a.n === n)).map(n => ({ p: c.prog, n })),
+        empty: "No area on this course — it cannot be offered until one is set.",
+      },
+    },
+  ];
+}
+
+function offeringClasses(o) {
+  const c = courseOf(o.course);
+  const prog = c.prog;
+  /* #25 / #30's sole exception: the writer of a foreign tag is the director of
+     the **category's** programme, not the offering's. */
+  const foreignProgs = [...new Set([...o.foreignAreas.map(t => t.p), ...o.foreignCats.map(t => t.p)])];
+  return [
+    {
+      key: "operational", title: "Operational", cls: "Offering operational — state-blind, Concluded included",
+      lede: "How this section actually runs. Every one of these moves in every state, on purpose.",
+      role: a => isCoordinator(a) || isDirectorOf(a, prog),
+      roleWhy: `A coordinator, or ${directorName(prog)} as ${PROGRAMS[prog]}'s director, keeps the operational fields.`,
+      gate: true, gateWhy: null,
+      concluded: o.state === "Concluded",
+      fields: [
+        { k:"section", label:"Section number", type:"text", mono:true },
+        { k:"mode",    label:"Mode",           type:"select", options: () => MODES },
+        { k:"cap",     label:"Enrolment limit",type:"number" },
+        { k:"call",    label:"Call number",    type:"text", mono:true, empty:"Not issued" },
+        { k:"sis",     label:"SIS class no.",  type:"number", mono:true, empty:"Not issued" },
+        { k:"url",     label:"URL",            type:"text", empty:"No page on file" },
+      ],
+      rows: {
+        key: "meetings", title: "Meeting pattern", table: "offering_meeting",
+        cols: ["Kind", "When", "Room"],
+        get: () => o.meetings,
+        cells: m => [`<span class="mono">${esc(m.kind)}</span>`, esc(meetingText(m)),
+                     m.room ? esc(m.room) : `<span class="none">—</span>`],
+        addLabel: "Add a meeting",
+        options: () => [
+          { kind:"weekly", day:"Fri", start:"12:00", end:"14:30", room:"370J-410", _label:"weekly · Fri 12:00–14:30 · 370J-410" },
+          { kind:"async", _label:"async · no scheduled meeting" },
+        ],
+        empty: "No meeting pattern. #43 asks for one at creation, so this is a row that was deleted, not one never set.",
+      },
+    },
+    {
+      key: "seats", title: "Seat sharing", cls: "Seat-sharing tags — state-blind",
+      lede: "Another programme's students may take this class. The tag records that they may; it never says how many.",
+      role: a => foreignProgs.length
+        ? foreignProgs.some(p => isDirectorOf(a, p))
+        : Object.keys(PROGRAMS).some(p => p !== prog && isDirectorOf(a, p)),
+      roleWhy: foreignProgs.length
+        ? `The <b>tag's own</b> programme decides. ${foreignProgs.map(p => `${nameOf(DIRECTORS[p][0])} directs ${PROGRAMS[p]}`).join("; ")} — and ${PROGRAMS[prog]}'s director does not write it, which is the map's one exception to scope following the record.`
+        : `Whoever directs the programme whose students would be let in. Not ${PROGRAMS[prog]}'s — the tag's.`,
+      gate: true, gateWhy: null,
+      inverted: true,
+      fields: [],
+      rows: {
+        key: "foreign", title: "Shared with", table: "offering_area + offering_requirement_category",
+        cols: ["Tag", "Granted"],
+        get: () => [...o.foreignAreas.map(t => ({ ...t, kind:"area" })),
+                    ...o.foreignCats.map(t => ({ ...t, kind:"category" }))],
+        cells: t => [
+          `${chipFor(t.p, t.n, true)} <span class="grant">${esc(t.kind)}</span>`,
+          `${esc(nameOf(t.by))}, ${fmtDate(t.at)}`,
+        ],
+        addLabel: "Share seats with another programme",
+        options: () => Object.keys(PROGRAMS).filter(p => p !== prog)
+          .flatMap(p => (AREAS[p] ?? []).map(n => ({ p, n, kind:"area" })))
+          .filter(t => !o.foreignAreas.some(x => x.p === t.p && x.n === t.n)),
+        empty: "Not shared with any other programme.",
+      },
+    },
+    {
+      key: "roster", title: "Roster", cls: "Roster, positions 1..n — state-blind, every state",
+      lede: "Who teaches it. Position 0 is the lead and is not a field — it moves through `staff` and `unstaff` or not at all (#15, #61).",
+      role: a => isDirectorOf(a, prog),
+      roleWhy: `${directorName(prog)}, ${PROGRAMS[prog]}'s director, alone. A coordinator keeps the operational fields on this page and does not name people to a teaching role (#61).`,
+      gate: true, gateWhy: null,
+      fields: [],
+      rows: {
+        key: "roster", title: "Instructors", table: "offering_instructor",
+        cols: ["Pos", "Person", "Seated"],
+        get: () => [...o.roster].sort((a, b) => a.pos - b.pos),
+        cells: r => [
+          `<span class="num mono">${r.pos}</span>`,
+          person(r.netid, { lead: r.pos === 0, pronouns: true }),
+          `${esc(nameOf(r.by))}, ${fmtDate(r.at)}`,
+        ],
+        fixed: r => r.pos === 0,
+        fixedWhy: "Position 0 moves through `staff` / `unstaff`, never as a field write.",
+        addLabel: "Add a co-instructor",
+        options: () => Object.keys(PEOPLE)
+          .filter(n => !o.roster.some(r => r.netid === n))
+          .map(n => ({ netid: n })),
+        empty: o.roster.length === 0 && o.state !== "Slated"
+          ? "Nobody is seated on this section."
+          : "No instructor yet.",
+      },
+    },
+  ];
+}
+
+function reviewClasses(r) {
+  const p = r.proposalRow;
+  return [
+    {
+      key: "proposalBody", title: "Proposal body", cls: "Proposal body — gated to Developing",
+      lede: "One body, reviewed by every programme it was proposed to. Editing it here changes what all of them are reading.",
+      role: a => p.createdBy === a.netid,
+      roleWhy: `Only ${nameOf(p.createdBy)}, who proposed it, may rewrite the body. A director asks for changes by moving the review to <b>Developing</b>; they do not make them.`,
+      gate: r.state === "Developing",
+      gateWhy: `Only while this review is <b>Developing</b>. It is <b>${esc(r.state)}</b> — a body under consideration does not move while it is being considered.`,
+      gatePointer: r.state === "Proposed" ? "`develop` is in this rail." : null,
+      shared: true,
+      fields: [
+        { k:"title",       label:"Title",       type:"text",     on:"proposal" },
+        { k:"credits",     label:"Credits",     type:"number",   on:"proposal" },
+        { k:"description", label:"Description", type:"textarea", on:"proposal" },
+      ],
+      rows: null,
+    },
+    {
+      key: "reviewAssignment", title: "Assignment", cls: "Review assignment — gated to Proposed / Developing",
+      lede: "This programme's area and head for this proposal — set before `approve`, and carried onto the course the approval mints (#32).",
+      role: a => isDirectorOf(a, r.prog),
+      roleWhy: `${directorName(r.prog)}, ${PROGRAMS[r.prog]}'s director, sets this programme's area and head.`,
+      gate: ["Proposed", "Developing"].includes(r.state),
+      gateWhy: `Only while the review is <b>Proposed</b> or <b>Developing</b>. It is <b>${esc(r.state)}</b> — the verdict is in.`,
+      gatePointer: null,
+      fields: [
+        { k:"areaHead", label:"Area head", type:"person", empty:"Not assigned",
+          options: () => Object.keys(PEOPLE).filter(n => n !== "xq7742") },
+      ],
+      rows: {
+        key: "areas", title: "Areas", table: "course_proposal_review_area",
+        cols: ["Programme", "Area"],
+        get: () => r.areas,
+        cells: a => [chipFor(a.p, PROGRAMS[a.p], false), esc(a.n)],
+        addLabel: "Add an area",
+        options: () => (AREAS[r.prog] ?? []).filter(n => !r.areas.some(a => a.n === n)).map(n => ({ p: r.prog, n })),
+        empty: "No area proposed for this programme yet.",
+      },
+    },
+  ];
+}
+
+/* --- the permission answer, assembled the way #28's writer assembles it --- */
+
+function verdict(fc, actor) {
+  /* The chair is one OR-clause ahead of the permission check and of nothing
+     else (#34) — never the state gate, which is an invariant. */
+  const roleOk = isChair(actor) || fc.role(actor);
+  const gateOk = fc.gate;
+  return {
+    ok: roleOk && gateOk,
+    roleOk, gateOk,
+    /* #38: someone holding no acting role sees no controls **and no refusals**. */
+    speak: canAct(actor),
+  };
+}
+
+/* ==========================================================================
+   Mutation — in memory only. Every variant writes through here so that the
+   thing #17 left behind is visible: `updated_at` / `updated_by` move, and the
+   history below the fold does not grow by a line.
+   ========================================================================== */
+
+function touch(rec, actorNetid, target) {
+  const row = target ?? raw(rec);
+  row.updatedBy = actorNetid;
+  row.updatedAt = nowStamp();
+  LAST_WRITE = { key: rec.key, at: Date.now() };
+}
+function nowStamp() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+let LAST_WRITE = null;
+
+/* Where a field's value actually lives — the proposal body sits on the shared
+   `course_proposal` row while everything else sits on the record itself. */
+function holder(rec, fc) {
+  const r = raw(rec);
+  if (rec.kind === "review" && fc.shared) return proposalOf(r.proposal);
+  return r;
+}
+
+function setField(rec, fc, key, value) {
+  const row = holder(rec, fc);
+  row[key] = value;
+  touch(rec, ACTOR().netid, row);
+}
+function addRow(rec, fc, value) {
+  const row = holder(rec, fc);
+  const rd = fc.rows;
+  if (rd.key === "foreign") row.foreignAreas.push({ ...value, by: ACTOR().netid, at: nowStamp() });
+  else if (rd.key === "roster") {
+    const next = Math.max(0, ...row.roster.map(r => r.pos)) + 1;
+    row.roster.push({ pos: Math.max(next, 1), netid: value.netid, by: ACTOR().netid, at: nowStamp() });
+  }
+  else row[rd.key].push(value);
+  touch(rec, ACTOR().netid, row);
+}
+function removeRow(rec, fc, idx) {
+  const row = holder(rec, fc);
+  const rd = fc.rows;
+  const list = rd.get();
+  const victim = list[idx];
+  if (rd.key === "foreign") {
+    const pool = victim.kind === "area" ? row.foreignAreas : row.foreignCats;
+    pool.splice(pool.findIndex(t => t.p === victim.p && t.n === victim.n), 1);
+  } else if (rd.key === "roster") {
+    row.roster.splice(row.roster.findIndex(r => r.pos === victim.pos), 1);
+  } else {
+    row[rd.key].splice(row[rd.key].indexOf(victim), 1);
+  }
+  touch(rec, ACTOR().netid, row);
+}
+
+/* ==========================================================================
+   Shared fragments
+   ========================================================================== */
+
+/* Transitions — copied unchanged from #41's prototype so the rail is the rail
+   the ticket settled, and an edit control can be judged beside it. */
+const OFFERING_EVENTS = {
+  Slated:["staff","kill"], Staffed:["offer","unstaff","kill"],
+  Offered:["accept","decline","withdraw","defer"], Deferred:["accept","decline","withdraw"],
+  Accepted:["schedule","decline","cancel"], Declined:["retry","kill"],
+  Scheduled:["publish","decline","cancel"], Published:["list","decline","cancel"],
+  Listed:["run","cancel"], Running:["evaluate","cancel"],
+  Evaluating:["conclude"], Canceled:["retry","kill"], Concluded:[], Dead:[],
+};
+const LEAD_ONLY = ["accept","decline","defer"];
+const leadOf = o => o.roster.find(r => r.pos === 0)?.netid ?? null;
+
+function offeringActions(actor, o) {
+  const c = courseOf(o.course);
+  const lead = leadOf(o);
+  return (OFFERING_EVENTS[o.state] ?? []).map(ev => {
+    if (LEAD_ONLY.includes(ev)) {
+      if (lead === actor.netid) return { ev, ok:true };
+      if (!lead) return { ev, ok:false, why:"No lead instructor to answer for this section" };
+      return { ev, ok:false, why:`Only ${nameOf(lead)}, the lead instructor, can ${ev} this` };
+    }
+    if (isChair(actor)) return { ev, ok:true };
+    if (isDirectorOf(actor, c.prog) || isCoordinator(actor)) return { ev, ok:true };
+    return { ev, ok:false, why:`${PROGRAMS[c.prog]} sections are ${PROGRAMS[c.prog]}'s director's to move` };
+  });
+}
+function courseActions(actor, c) {
+  const evs = c.state === "Revising" ? ["approve","retire"]
+            : c.state === "Retired"  ? [] : ["revise","retire"];
+  const live = OFFERINGS.filter(o => o.course === c.id &&
+    ["Slated","Staffed","Offered","Accepted","Deferred","Scheduled","Published","Listed","Running"].includes(o.state));
+  return evs.map(ev => {
+    if (ev === "retire" && live.length) {
+      const list = live.map(o => `§${o.section} ${TERMS[o.term]}`).join(", ");
+      return { ev, ok:false, why:`${live.length} section${live.length > 1 ? "s are" : " is"} still live — ${list}` };
+    }
+    if (isChair(actor)) return { ev, ok:true };
+    if (isDirectorOf(actor, c.prog)) return { ev, ok:true };
+    if (ev === "approve" && c.areaHead === actor.netid) return { ev, ok:true };
+    return { ev, ok:false, why:`${PROGRAMS[c.prog]} courses are ${PROGRAMS[c.prog]}'s director's to change` };
+  });
+}
+function reviewActions(actor, r) {
+  const evs = r.state === "Proposed" ? ["approve","reject","develop"]
+            : r.state === "Developing" ? ["approve","reject"] : [];
+  return evs.map(ev => {
+    if (isChair(actor)) return { ev, ok:true };
+    if (isDirectorOf(actor, r.prog) || r.areaHead === actor.netid) return { ev, ok:true };
+    return { ev, ok:false, why:`${PROGRAMS[r.prog]}'s verdict is ${PROGRAMS[r.prog]}'s to give` };
+  });
+}
+
+function actionsFor(rec, actor, r) {
+  if (rec.kind === "course")   return courseActions(actor, r);
+  if (rec.kind === "offering") return offeringActions(actor, r);
+  return reviewActions(actor, r);
+}
+
+function actionBlock(actions) {
+  if (!actions.length) return `<span class="none">No moves from here.</span>`;
+  const btns = actions.map((a, i) => a.ok
+    ? `<button class="vbtn${i === 0 ? " primary" : ""}" type="button">${esc(a.ev)}</button>` : "").join("");
+  const why = actions.filter(a => !a.ok).map(a =>
+    `<span class="refusal"><b>${esc(a.ev)}</b> — ${esc(a.why)}</span>`).join("");
+  const none = btns ? "" : `<div class="refusal" style="margin-bottom:8px;border:0;padding-left:0">Nothing here is yours to fire.</div>`;
+  return `${none}${btns ? `<div class="actbar">${btns}</div>` : ""}${why ? `<div class="refusals">${why}</div>` : ""}`;
+}
+
+/* A refusal block for a field class. Both predicates are reported when both
+   fail, because #28 checks them separately and a reader who is told only one
+   walks into the other. */
+function refusalBlock(fc, v) {
+  if (!v.speak || v.ok) return "";
+  const out = [];
+  if (!v.roleOk) out.push(`<span class="refusal"><span class="lede">Not yours</span>${fc.roleWhy}</span>`);
+  if (!v.gateOk) out.push(`<span class="refusal"><span class="lede">Not now</span>${fc.gateWhy}${
+    fc.gatePointer ? ` <span style="color:var(--ink-faint)">${esc(fc.gatePointer)}</span>` : ""}</span>`);
+  return `<div class="refusals">${out.join("")}</div>`;
+}
+
+/* --- reading a value ---------------------------------------------------- */
+
+function valueOf(rec, fc, f) {
+  const row = holder(rec, fc);
+  return row[f.k];
+}
+function renderValue(rec, fc, f) {
+  const raw = valueOf(rec, fc, f);
+  if (raw === null || raw === undefined || raw === "")
+    return `<span class="none">${esc(f.empty ?? "Not set")}</span>`;
+  if (f.type === "person") return person(raw, { pronouns: true });
+  if (f.type === "textarea") return `<div class="desc">${esc(raw)}</div>`;
+  const cls = [f.mono ? "mono" : "", f.type === "number" ? "num" : ""].filter(Boolean).join(" ");
+  return cls ? `<span class="${cls}">${esc(raw)}</span>` : esc(raw);
+}
+
+/* --- history (sentences, #41) ------------------------------------------- */
+
+const SAID = {
+  staff:"seated the lead instructor", unstaff:"vacated the lead instructor's seat",
+  offer:"offered the section to", accept:"accepted the section", decline:"declined the section",
+  defer:"asked for more time", withdraw:"withdrew the offer to", schedule:"scheduled it",
+  publish:"published it", list:"listed it", run:"started it running", evaluate:"sent it to evaluation",
+  conclude:"concluded it", cancel:"cancelled it", retry:"put it back in play", kill:"killed the record",
+  revise:"opened it for revision", approve:"approved it", retire:"retired it",
+  reject:"rejected it", develop:"sent it back for development",
+};
+function sentence(r) {
+  const verb = SAID[r.event] ?? r.event;
+  const obj = ["offer","withdraw"].includes(r.event) && r.subject ? ` ${nameOf(r.subject)}` : "";
+  const who = ["staff"].includes(r.event) && r.subject ? `, ${nameOf(r.subject)},` : "";
+  return `<b>${nameOf(r.actor)}</b> ${esc(verb)}${who}${esc(obj)}`;
+}
+function history(rec, r) {
+  const rows = LOG[`${rec.kind}:${rec.id}`] ?? [];
+  const first = `<div class="tl">
+    <div class="dotcol"><span class="dot hollow"></span><span class="stem"></span></div>
+    <div><div class="said">${named(r.createdBy)} created it</div>
+    <div class="when">${fmt(r.createdAt)}</div></div></div>`;
+  const body = rows.map(x => `<div class="tl">
+    <div class="dotcol"><span class="dot ${TONE[x.to] ?? "idle"}"></span><span class="stem"></span></div>
+    <div><div class="said">${sentence(x)}${x.reason ? ` — <span class="quote">“${esc(x.reason)}”</span>` : ""}</div>
+    <div class="when">${fmt(x.at)}</div></div></div>`).join("");
+  const note = LAST_WRITE && LAST_WRITE.key === rec.key
+    ? `<div class="logfoot">You just changed a field, and this list is exactly as long as it was.
+       #17 deleted the transition a field write used to fire, so <b>${esc(rows.length)}</b> rows is what
+       the log holds and what it will keep holding. The rail's <i>last changed</i> is the whole trace.</div>`
+    : `<div class="logfoot">Field writes never appear here (#17). Only transitions do.</div>`;
+  return `<div class="card"><h2>History</h2><div class="body">${first}${body}${note}</div></div>`;
+}
+
+/* ==========================================================================
+   Rail
+   ========================================================================== */
+
+function rail(rec, r, actor, { edits = null, editing = null } = {}) {
+  if (editing) {
+    return `<div class="rail">
+      <div class="sec"><h3>Editing</h3>
+        <div style="font-size:13.5px;margin-bottom:11px">${esc(editing.title)}</div>
+        <div class="savebar">
+          <button class="vbtn primary plain" data-act="save">Save changes</button>
+          <button class="vbtn plain" data-act="cancel">Cancel</button>
+        </div>
+      </div>
+      ${editing.locked ? `<div class="sec"><h3>Not yours to change here</h3>${editing.locked}</div>` : ""}
+      <div class="sec"><h3>Trace</h3>
+        <div class="prov">Saving sets <b>updated_by</b> and <b>updated_at</b> and writes no log row (#17).</div>
+      </div>
+    </div>`;
+  }
+  const acts = actionsFor(rec, actor, r);
+  const showActions = canAct(actor);
+  const prov = `<div class="prov"><b>Created</b> ${nameOf(r.createdBy)}, ${fmt(r.createdAt)}</div>` +
+    (r.updatedBy ? `<div class="prov" style="margin-top:4px"><b>Last changed</b> ${nameOf(r.updatedBy)}, ${fmt(r.updatedAt)}</div>` : "");
+  return `<div class="rail">
+    <div class="sec"><h3>Status</h3>${stateChip(r.state)}</div>
+    ${showActions ? `<div class="sec"><h3>What you may do</h3>${actionBlock(acts)}</div>` : ""}
+    ${edits ?? ""}
+    <div class="sec"><h3>Provenance</h3>${prov}</div>
+  </div>`;
+}
+
+/* ==========================================================================
+   Record header
+   ========================================================================== */
+
+function header(rec, r) {
+  if (rec.kind === "course") return `<div class="hdr">
+    <div class="kicker">Course · ${esc(PROGRAMS[r.prog])}</div>
+    <h1>${esc(r.title)}</h1>
+    <div class="sub"><span class="mono">${esc(r.number)}</span><span>·</span><span>${esc(r.credits)} credits</span>
+    <span>·</span><span>edition ${esc(r.edition)}</span></div></div>`;
+  if (rec.kind === "offering") {
+    const c = courseOf(r.course);
+    return `<div class="hdr">
+      <div class="kicker">Class · ${esc(PROGRAMS[r.prog])} · ${esc(TERMS[r.term])}</div>
+      <h1>${esc(c.title)} <span style="color:var(--ink-faint);font-weight:400">§${esc(r.section)}</span></h1>
+      <div class="sub"><span class="mono">${esc(c.number)}</span><span>·</span><span>${esc(c.credits)} credits</span></div></div>`;
+  }
+  const p = r.proposalRow;
+  return `<div class="hdr">
+    <div class="kicker">Proposal review · ${esc(PROGRAMS[r.prog])}</div>
+    <h1>${esc(p.title)}</h1>
+    <div class="sub"><span>Proposed by ${nameOf(p.createdBy)}</span><span>·</span>
+    <span>${esc(p.credits)} credits</span><span>·</span>
+    <span>${REVIEWS.filter(x => x.proposal === p.id).length} programmes reviewing</span></div></div>`;
+}
+
+/* ==========================================================================
+   VARIANT A — In place
+   The value is the control. No route, no form, no page-level Save.
+   ========================================================================== */
+
+let OPEN_FIELD = null;   // "classKey:fieldKey" currently being edited in place
+let OPEN_ADD   = null;   // "classKey" whose add-a-row line is open
+
+function variantA(rec, r, actor) {
+  const cards = classesFor(rec, r).map(fc => {
+    const v = verdict(fc, actor);
+    const rows = [];
+    for (const f of fc.fields) {
+      const editing = OPEN_FIELD === `${fc.key}:${f.k}`;
+      const val = editing ? inlineEditor(rec, fc, f) : `
+        <div class="vrow">
+          <div class="val">${renderValue(rec, fc, f)}</div>
+          ${v.ok ? `<button class="pencil" data-open="${fc.key}:${f.k}" title="Change this">✎</button>` : ""}
+        </div>`;
+      rows.push(`<div class="k">${esc(f.label)}</div><div class="v">${val}</div>`);
+    }
+    const body = [
+      fc.fields.length ? `<div class="fields">${rows.join("")}</div>` : "",
+      fc.rows ? rowBlock(rec, fc, v, { inline: true }) : "",
+      refusalBlock(fc, v),
+    ].filter(Boolean).join("");
+    return card(fc, body, { showClass: true });
+  }).join("");
+  return page(rec, r, actor, cards, rail(rec, r, actor));
+}
+
+function inlineEditor(rec, fc, f) {
+  const val = valueOf(rec, fc, f) ?? "";
+  const id = `${fc.key}:${f.k}`;
+  let input;
+  if (f.type === "textarea") input = `<textarea class="txt" data-in="${id}">${esc(val)}</textarea>`;
+  else if (f.type === "select") input = `<select class="txt" data-in="${id}">${
+    f.options().map(o => `<option${o === val ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  else if (f.type === "person") input = `<select class="txt" data-in="${id}">
+    <option value="">— nobody —</option>${
+    f.options().map(n => `<option value="${esc(n)}"${n === val ? " selected" : ""}>${esc(nameOf(n))}</option>`).join("")}</select>`;
+  else input = `<input class="txt${f.type === "number" ? " short" : ""}" type="${f.type === "number" ? "number" : "text"}" value="${esc(val)}" data-in="${id}">`;
+  return `<div class="editbox">${input}
+    <div class="row">
+      <button class="vbtn primary plain" data-save="${id}">Save</button>
+      <button class="vbtn plain" data-cancel="1">Cancel</button>
+    </div></div>`;
+}
+
+/* ==========================================================================
+   Row collections — shared by every variant, because rows are the same
+   interaction wherever they are reached from: a list you add to and take from.
+   ========================================================================== */
+
+function rowBlock(rec, fc, v, { inline = false, editable = null } = {}) {
+  const rd = fc.rows;
+  const list = rd.get();
+  const may = editable === null ? v.ok : editable;
+  const adding = OPEN_ADD === fc.key;
+
+  const head = fc.fields.length
+    ? `<div style="margin-top:16px;margin-bottom:8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);font-weight:700">
+        ${esc(rd.title)} <span class="mono" style="font-weight:400;text-transform:none;letter-spacing:0">${esc(rd.table)}</span></div>` : "";
+
+  if (!list.length && !adding)
+    return `${head}<div class="empty"><b>${esc(rd.title)}</b>${esc(rd.empty)}</div>${may ? addLine(fc, rd) : ""}`;
+
+  const body = list.map((row, i) => {
+    const fixed = rd.fixed?.(row);
+    const cells = rd.cells(row).map(c => `<td>${c}</td>`).join("");
+    const act = !may ? "" : fixed
+      ? `<td class="act"><span class="none" style="font-size:12px">not a field</span></td>`
+      : `<td class="act"><button class="x" data-del="${fc.key}:${i}" title="Remove">×</button></td>`;
+    return `<tr>${cells}${act}</tr>`;
+  }).join("");
+
+  const fixedNote = may && list.some(row => rd.fixed?.(row))
+    ? `<div class="refusal" style="margin-top:9px"><b>Position 0</b> — ${esc(rd.fixedWhy)}</div>` : "";
+
+  return `${head}<table class="rows">
+    <thead><tr>${rd.cols.map(c => `<th>${esc(c)}</th>`).join("")}${may ? "<th></th>" : ""}</tr></thead>
+    <tbody>${body}</tbody></table>${fixedNote}${may ? (adding ? addPicker(fc, rd) : addLine(fc, rd)) : ""}`;
+}
+
+function addLine(fc, rd) {
+  return `<div class="addline"><button class="vbtn" data-add="${fc.key}">+ ${esc(rd.addLabel)}</button></div>`;
+}
+function addPicker(fc, rd) {
+  const opts = rd.options();
+  if (!opts.length)
+    return `<div class="addline"><span class="none">Nothing left to add.</span>
+      <button class="vbtn plain" data-cancel="1" style="margin-left:8px">Cancel</button></div>`;
+  const label = o => o._label ?? (o.netid ? nameOf(o.netid) : o.p && o.n ? `${PROGRAMS[o.p]} · ${o.n}` : o.n ?? JSON.stringify(o));
+  return `<div class="addline" style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+    <select class="txt" style="max-width:320px" data-addsel="${fc.key}">
+      ${opts.map((o, i) => `<option value="${i}">${esc(label(o))}</option>`).join("")}
+    </select>
+    <button class="vbtn primary plain" data-addgo="${fc.key}">Add</button>
+    <button class="vbtn plain" data-cancel="1">Cancel</button>
+  </div>`;
+}
+
+/* ==========================================================================
+   VARIANT B — One edit page per record
+   The rail gains `Edit`, opening a single full page that asks everything you
+   may change at once — #43's shape for creation, applied to editing.
+   ========================================================================== */
+
+function variantB(rec, r, actor) {
+  if (ROUTE.page === "edit") return editPageB(rec, r, actor);
+
+  const cards = classesFor(rec, r).map(fc => card(fc, readOnlyBody(rec, fc), { showClass: true })).join("");
+  const classes = classesFor(rec, r);
+  const anyOpen = classes.some(fc => verdict(fc, actor).ok);
+  const railEdits = !canAct(actor) ? "" : `<div class="sec"><h3>Changes</h3>${
+    anyOpen
+      ? `<div class="editlist"><div class="item">
+          <button data-goto="all">Edit this ${rec.kind === "offering" ? "class" : rec.kind === "course" ? "course" : "review"}</button>
+          <span class="prov" style="color:var(--ink-faint)">${classes.filter(fc => verdict(fc, actor).ok).length} of ${classes.length} sections are yours</span>
+        </div></div>`
+      : `<div class="refusal" style="border:0;padding-left:0">Nothing on this page is yours to change.</div>
+         ${classes.map(fc => refusalBlock(fc, verdict(fc, actor))).join("")}`
+  }</div>`;
+  return page(rec, r, actor, cards, rail(rec, r, actor, { edits: railEdits }));
+}
+
+function editPageB(rec, r, actor) {
+  const classes = classesFor(rec, r);
+  const open = classes.filter(fc => verdict(fc, actor).ok);
+  const shut = classes.filter(fc => !verdict(fc, actor).ok);
+
+  /* Keyed on the **record**, not on whether the operational class happens to be
+     the one open to you. Every class on a `Concluded` class page is state-blind,
+     so a director editing only the roster is correcting a finished term too. */
+  const caution = (rec.kind === "offering" && r.state === "Concluded") ? concludedCaution() : "";
+  /* B commits one Save across every class open to you, and on a review one of
+     those tables is **shared with the other programmes reviewing** — so the one
+     page has to say whose body it is about to rewrite. */
+  const shared = open.some(fc => fc.shared) ? sharedBodyCaution(r) : "";
+  const secs = open.map(fc => `
+    <div class="formsec">
+      <h2>${esc(fc.title)}</h2>
+      <div class="lede">${fc.lede}</div>
+      ${fc.fields.length ? `<div class="flist">${fc.fields.map(f => formField(rec, fc, f)).join("")}</div>` : ""}
+      ${fc.rows ? rowBlock(rec, fc, { ok: true }, { editable: true }) : ""}
+    </div>`).join("");
+
+  const locked = shut.map(fc =>
+    `<div style="margin-bottom:11px"><div style="font-size:12.5px;font-weight:600;margin-bottom:2px">${esc(fc.title)}</div>
+     ${refusalBlock(fc, verdict(fc, actor)) || `<span class="prov">Not yours.</span>`}</div>`).join("");
+
+  return `${crumb(rec, r)}
+  <div class="page">
+    <div>
+      <div class="hdr">
+        <div class="kicker">Editing</div>
+        <h1>${esc(recordTitle(rec, r))}</h1>
+        <div class="sub">Everything you may change, on one page. One Save commits the lot.</div>
+      </div>
+      ${caution}${shared}
+      ${secs || `<div class="empty"><b>Nothing to edit</b>None of this record's field classes is open to you.</div>`}
+    </div>
+    ${rail(rec, r, actor, { editing: { title: recordTitle(rec, r), locked } })}
+  </div>`;
+}
+
+function formField(rec, fc, f) {
+  const val = valueOf(rec, fc, f) ?? "";
+  const id = `${fc.key}:${f.k}`;
+  let input;
+  if (f.type === "textarea") input = `<textarea class="txt" data-in="${id}">${esc(val)}</textarea>`;
+  else if (f.type === "select") input = `<select class="txt" data-in="${id}">${
+    f.options().map(o => `<option${o === val ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  else if (f.type === "person") input = `<select class="txt" data-in="${id}">
+    <option value="">— nobody —</option>${
+    f.options().map(n => `<option value="${esc(n)}"${n === val ? " selected" : ""}>${esc(nameOf(n))}</option>`).join("")}</select>`;
+  else input = `<input class="txt${f.type === "number" ? " short" : ""}" type="${f.type === "number" ? "number" : "text"}" value="${esc(val)}" data-in="${id}">`;
+  return `<div class="fld"><label>${esc(f.label)}</label>${input}
+    ${f.empty && !val ? `<div class="hint">${esc(f.empty)}</div>` : ""}</div>`;
+}
+
+function sharedBodyCaution(r) {
+  const others = REVIEWS.filter(x => x.proposal === r.proposal && x.id !== r.id).map(x => PROGRAMS[x.prog]);
+  return `<div class="caution"><b>This body is the proposal's, not this review's.</b> ${
+    others.length ? `${esc(others.join(" and "))} ${others.length > 1 ? "are" : "is"} reading the same words` : "No other programme is reading it"
+  }, and saving here changes what they see. The assignment below it belongs to ${esc(PROGRAMS[r.prog])} alone.</div>`;
+}
+
+function concludedCaution() {
+  return `<div class="caution"><b>This class has concluded.</b> Changes here correct the record of a term that
+    is over; they do not change what happened, and nothing about the class's progress moves.
+    #8 left this open deliberately — the case it exists for is the wrong instructor being credited.</div>`;
+}
+
+/* ==========================================================================
+   VARIANT C — Section by section
+   Every section carries its own Edit, opening a small full page for that field
+   class alone. One page = one writer = one state rule.
+   ========================================================================== */
+
+function variantC(rec, r, actor) {
+  if (ROUTE.page === "edit") return editPageC(rec, r, actor);
+
+  const cards = classesFor(rec, r).map(fc => {
+    const v = verdict(fc, actor);
+    const ctl = !v.speak ? ""
+      : v.ok ? `<span class="spacer"></span><button class="vbtn plain" data-goto="${fc.key}" style="padding:3px 11px;font-size:12.5px">Edit</button>`
+             : "";
+    return card(fc, readOnlyBody(rec, fc) + refusalBlock(fc, v), { showClass: true, control: ctl });
+  }).join("");
+  return page(rec, r, actor, cards, rail(rec, r, actor));
+}
+
+function editPageC(rec, r, actor) {
+  const fc = classesFor(rec, r).find(x => x.key === ROUTE.scope);
+  if (!fc) { ROUTE = { page: "record", scope: null }; return VARIANTS[VI].render(rec, r, actor); }
+  const v = verdict(fc, actor);
+  const caution = fc.concluded ? concludedCaution() : "";
+  const shared = fc.shared
+    ? `<div class="caution">This body is <b>shared with every programme reviewing the proposal</b>.
+       ${REVIEWS.filter(x => x.proposal === r.proposal).map(x => PROGRAMS[x.prog]).join(", ")} are all reading it.</div>` : "";
+  return `${crumb(rec, r)}
+  <div class="page">
+    <div>
+      <div class="hdr">
+        <div class="kicker">Editing · ${esc(fc.cls)}</div>
+        <h1>${esc(fc.title)} — ${esc(recordTitle(rec, r))}</h1>
+        <div class="sub">${fc.lede}</div>
+      </div>
+      ${caution}${shared}
+      ${v.ok ? `
+        ${fc.fields.length ? `<div class="flist" style="margin-bottom:18px">${fc.fields.map(f => formField(rec, fc, f)).join("")}</div>` : ""}
+        ${fc.rows ? rowBlock(rec, fc, v, { editable: true }) : ""}`
+      : `<div class="empty"><b>Not open to you</b>This page has a URL, so it answers.</div>${refusalBlock(fc, v)}`}
+    </div>
+    ${rail(rec, r, actor, { editing: { title: fc.title, locked: "" } })}
+  </div>`;
+}
+
+/* ==========================================================================
+   VARIANT D — In the rail
+   The record carries no controls at all. The rail lists the changes you may
+   make beneath the transitions you may fire, refused the same way.
+   ========================================================================== */
+
+function variantD(rec, r, actor) {
+  if (ROUTE.page === "edit") return editPageC(rec, r, actor);
+
+  const cards = classesFor(rec, r).map(fc => card(fc, readOnlyBody(rec, fc), { showClass: true })).join("");
+  const classes = classesFor(rec, r);
+  const railEdits = !canAct(actor) ? "" : `<div class="sec"><h3>Changes you may make</h3>
+    <div class="editlist">${classes.map(fc => {
+      const v = verdict(fc, actor);
+      return `<div class="item">${
+        v.ok ? `<button data-goto="${fc.key}">${esc(changeVerb(rec, fc))}</button>`
+             : `<div class="dead">${esc(changeVerb(rec, fc))}</div>${refusalBlock(fc, v)}`}</div>`;
+    }).join("")}</div></div>`;
+  return page(rec, r, actor, cards, rail(rec, r, actor, { edits: railEdits }));
+}
+
+const CHANGE_VERB = {
+  body: "Rewrite the course body",
+  assignment: "Assign the area and head",
+  operational: "Change how this section runs",
+  seats: "Share seats with another programme",
+  roster: "Change the co-instructors",
+  proposalBody: "Rewrite the proposal",
+  reviewAssignment: "Assign this programme's area and head",
+};
+const changeVerb = (rec, fc) => CHANGE_VERB[fc.key] ?? `Edit the ${fc.title.toLowerCase()}`;
+
+/* ==========================================================================
+   Shared page frame
+   ========================================================================== */
+
+function card(fc, body, { showClass = false, control = "" } = {}) {
+  return `<div class="card">
+    <h2>${esc(fc.title)}${showClass ? `<span class="cls">${esc(fc.cls)}</span>` : ""}${control}</h2>
+    <div class="body">${body}</div></div>`;
+}
+
+function readOnlyBody(rec, fc) {
+  const rows = fc.fields.map(f =>
+    `<div class="k">${esc(f.label)}</div><div class="v">${renderValue(rec, fc, f)}</div>`).join("");
+  return [
+    fc.fields.length ? `<div class="fields">${rows}</div>` : "",
+    fc.rows ? rowBlock(rec, fc, { ok: false }, { editable: false }) : "",
+  ].filter(Boolean).join("");
+}
+
+function recordTitle(rec, r) {
+  if (rec.kind === "course") return r.title;
+  if (rec.kind === "offering") return `${courseOf(r.course).title} §${r.section}, ${TERMS[r.term]}`;
+  return `${r.proposalRow.title} — ${PROGRAMS[r.prog]}`;
+}
+
+function crumb(rec, r) {
+  return `<div class="crumb"><a data-back="1">← ${esc(recordTitle(rec, r))}</a>
+    <span style="color:var(--ink-faint)">/ editing</span></div>`;
+}
+
+function page(rec, r, actor, cards, railHtml) {
+  const canRead = rec.kind !== "offering" || canAct(actor) || COMMITTED.includes(r.state);
+  if (!canRead) return `<div class="page"><div><div class="empty" style="margin-top:26px">
+    <b>Not available</b>There is nothing to show at this address.</div></div><div></div></div>`;
+  return `<div class="page"><div>${header(rec, r)}${cards}${history(rec, r)}</div>${railHtml}</div>`;
+}
+
+/* ==========================================================================
+   Driver
+   ========================================================================== */
+
+/* B first — it is the settled answer, and the file opens on it. A, C and D
+   follow as the primary source it was chosen against (#41's convention). */
+const VARIANTS = [
+  { key:"B", name:"One edit page — settled", render: variantB },
+  { key:"A", name:"In place",                render: variantA },
+  { key:"C", name:"Section by section",      render: variantC },
+  { key:"D", name:"In the rail",             render: variantD },
+];
+
+let VI = 0;
+let AI = 0;
+let RK = RECORDS[0].key;
+let ROUTE = { page: "record", scope: null };
+
+const ACTOR = () => ACTORS[AI];
+const RECORD = () => RECORDS.find(x => x.key === RK);
+
+const $ = s => document.querySelector(s);
+
+function reset() { OPEN_FIELD = null; OPEN_ADD = null; ROUTE = { page: "record", scope: null }; }
+
+function render() {
+  const rec = RECORD();
+  const r = load(rec);
+  const actor = ACTOR();
+  $("#vkey").textContent = VARIANTS[VI].key;
+  $("#vname").textContent = VARIANTS[VI].name;
+  $("#note").textContent = rec.note;
+  /* Variant A has no edit route at all — switching to it from one drops you back. */
+  if (VARIANTS[VI].key === "A" && ROUTE.page === "edit") ROUTE = { page: "record", scope: null };
+  $("#view").innerHTML = VARIANTS[VI].render(rec, r, actor);
+}
+
+/* --- pickers ------------------------------------------------------------ */
+
+$("#actor").innerHTML = ACTORS.map((a, i) => `<option value="${i}">${esc(a.label)}</option>`).join("");
+$("#record").innerHTML = RECORDS.map(x => `<option value="${esc(x.key)}">${esc(x.label)}</option>`).join("");
+
+$("#actor").addEventListener("change", e => { AI = Number(e.target.value); reset(); render(); });
+$("#record").addEventListener("change", e => { RK = e.target.value; reset(); render(); });
+/* Switching variant returns to the record. The four disagree about which edit
+   routes exist at all, so carrying one across is carrying it into a variant
+   that may not have it. */
+$("#prev").addEventListener("click", () => { VI = (VI + VARIANTS.length - 1) % VARIANTS.length; reset(); render(); });
+$("#next").addEventListener("click", () => { VI = (VI + 1) % VARIANTS.length; reset(); render(); });
+addEventListener("keydown", e => {
+  if (e.target.matches("input, textarea, select")) return;
+  if (e.key === "ArrowLeft")  $("#prev").click();
+  if (e.key === "ArrowRight") $("#next").click();
+});
+
+/* --- one delegated handler for every variant ---------------------------- */
+
+$("#view").addEventListener("click", e => {
+  const rec = RECORD();
+  const r = load(rec);
+  const classes = classesFor(rec, r);
+  const find = k => classes.find(c => c.key === k);
+  const t = e.target.closest("[data-open],[data-save],[data-cancel],[data-add],[data-addgo],[data-del],[data-goto],[data-back],[data-act]");
+  if (!t) return;
+
+  if (t.dataset.open) { OPEN_FIELD = t.dataset.open; OPEN_ADD = null; return render(); }
+  if (t.dataset.cancel) { OPEN_FIELD = null; OPEN_ADD = null; return render(); }
+
+  if (t.dataset.save) {
+    const [ck, fk] = t.dataset.save.split(":");
+    const fc = find(ck), f = fc.fields.find(x => x.k === fk);
+    const el = $(`[data-in="${CSS.escape(t.dataset.save)}"]`);
+    let val = el.value;
+    if (f.type === "number") val = val === "" ? null : Number(val);
+    if (val === "") val = null;
+    setField(rec, fc, f.k, val);
+    OPEN_FIELD = null;
+    return render();
+  }
+
+  if (t.dataset.add) { OPEN_ADD = t.dataset.add; OPEN_FIELD = null; return render(); }
+  if (t.dataset.addgo) {
+    const fc = find(t.dataset.addgo);
+    const sel = $(`[data-addsel="${CSS.escape(t.dataset.addgo)}"]`);
+    const opt = fc.rows.options()[Number(sel.value)];
+    const { _label, ...clean } = opt;
+    addRow(rec, fc, clean);
+    OPEN_ADD = null;
+    return render();
+  }
+  if (t.dataset.del) {
+    const [ck, i] = t.dataset.del.split(":");
+    removeRow(rec, find(ck), Number(i));
+    return render();
+  }
+
+  if (t.dataset.goto) { ROUTE = { page: "edit", scope: t.dataset.goto }; OPEN_ADD = null; return render(); }
+  if (t.dataset.back) { reset(); return render(); }
+
+  if (t.dataset.act === "cancel") { reset(); return render(); }
+  if (t.dataset.act === "save") {
+    /* Commit every open input on the page, then leave. One save, one
+       `updated_at`, no log row — which is the point B and C are making. */
+    document.querySelectorAll("[data-in]").forEach(el => {
+      const [ck, fk] = el.dataset.in.split(":");
+      const fc = find(ck); if (!fc) return;
+      const f = fc.fields.find(x => x.k === fk); if (!f) return;
+      let val = el.value;
+      if (f.type === "number") val = val === "" ? null : Number(val);
+      if (val === "") val = null;
+      setField(rec, fc, f.k, val);
+    });
+    reset();
+    return render();
+  }
+});
+
+render();
+</script>
