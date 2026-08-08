@@ -979,8 +979,14 @@ function offeringClasses(o) {
         ],
         addLabel: "Share seats with another programme",
         options: () => Object.keys(PROGRAMS).filter(p => p !== prog)
-          .flatMap(p => (AREAS[p] ?? []).map(n => ({ p, n, kind:"area" })))
-          .filter(t => !o.foreignAreas.some(x => x.p === t.p && x.n === t.n)),
+          .flatMap(p => [
+            ...(AREAS[p] ?? []).map(n => ({ p, n, kind:"area" })),
+            ...(CATEGORIES[p] ?? []).map(n => ({ p, n, kind:"category" })),
+          ])
+          .filter(t => t.kind === "area"
+            ? !o.foreignAreas.some(x => x.p === t.p && x.n === t.n)
+            : !o.foreignCats.some(x => x.p === t.p && x.n === t.n)
+          ),
         empty: "Not shared with any other programme.",
       },
     },
@@ -1342,9 +1348,7 @@ function variantA(rec, r, actor) {
       const editing = OPEN_FIELD === `${fc.key}:${f.k}`;
       const val = editing ? inlineEditor(rec, fc, f) : `
         <div class="vrow">
-          <div class="val">${renderValue(rec, fc, f)}</div>
-          ${v.ok ? `<button class="pencil" data-open="${fc.key}:${f.k}" title="Change this">✎</button>` : ""}
-        </div>`;
+          ${v.ok ? `<button class="pencil" data-open="${fc.key}:${f.k}" title="Change this" aria-label="Change ${esc(f.label)}">✎</button>` : ""}
       rows.push(`<div class="k">${esc(f.label)}</div><div class="v">${val}</div>`);
     }
     const body = [
@@ -1398,8 +1402,7 @@ function rowBlock(rec, fc, v, { inline = false, editable = null } = {}) {
     const cells = rd.cells(row).map(c => `<td>${c}</td>`).join("");
     const act = !may ? "" : fixed
       ? `<td class="act"><span class="none" style="font-size:12px">not a field</span></td>`
-      : `<td class="act"><button class="x" data-del="${fc.key}:${i}" title="Remove">×</button></td>`;
-    return `<tr>${cells}${act}</tr>`;
+      : `<td class="act"><button class="x" data-del="${fc.key}:${i}" title="Remove" aria-label="Remove row">×</button></td>`;
   }).join("");
 
   const fixedNote = may && list.some(row => rd.fixed?.(row))
@@ -1734,9 +1737,10 @@ $("#view").addEventListener("click", e => {
   if (t.dataset.back) { reset(); return render(); }
 
   if (t.dataset.act === "cancel") { reset(); return render(); }
-  if (t.dataset.act === "save") {
-    /* Commit every open input on the page, then leave. One save, one
-       `updated_at`, no log row — which is the point B and C are making. */
+    const stamp = nowStamp();
+    const actorNetid = ACTOR().netid;
+    const touched = new Set();
+
     document.querySelectorAll("[data-in]").forEach(el => {
       const [ck, fk] = el.dataset.in.split(":");
       const fc = find(ck); if (!fc) return;
@@ -1744,8 +1748,14 @@ $("#view").addEventListener("click", e => {
       let val = el.value;
       if (f.type === "number") val = val === "" ? null : Number(val);
       if (val === "") val = null;
-      setField(rec, fc, f.k, val);
+
+      const row = holder(rec, fc);
+      row[f.k] = val;
+      touched.add(row);
     });
+
+    touched.forEach(row => { row.updatedBy = actorNetid; row.updatedAt = stamp; });
+    LAST_WRITE = { key: rec.key, at: Date.now() };
     reset();
     return render();
   }
