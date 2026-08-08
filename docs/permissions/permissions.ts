@@ -107,6 +107,23 @@ export const ROLE_KIND: Readonly<Record<Role, RoleKind>> = {
  * program_code)` is a composite foreign key into `course` and the create path
  * derives `program_code` from the course rather than taking it as an argument. Only
  * `program_director(offering.program_code)` appears below.
+ *
+ * **Two of these carry a state, and they are the first that do** (#65). Until #65 a
+ * relationship was a row that either exists or does not; #32 came closest with *a
+ * review with no assigned head has nobody holding it*, but that is a row **missing**,
+ * not a row **dormant**. The two `… of a review that is Developing` arms below hold a
+ * row that exists and stops conferring anything when the review moves off
+ * `Developing`.
+ *
+ * This is deliberate and it is where the condition had to go. #28 split a field rule
+ * into a state predicate that **names no actor** and a role predicate that does, and
+ * that filing is what stops the chair re-homing a course. *Whose own review is
+ * `Developing`* is a state whose answer depends on who is asking, so it cannot sit in
+ * a `StateGate` without making the actorless half name an actor. #4 already lets the
+ * relationship vary by actor, so it rides here instead. The `StateGate` on the
+ * Proposal body class keeps the weaker actorless floor — *at least one review is
+ * `Developing`* — which is what `created_by` writes under, an author having no review
+ * of their own.
  */
 export type Relationship =
   | "flat"
@@ -114,10 +131,12 @@ export type Relationship =
   | "program_director(offering.program_code)"
   | "program_director(course.program_code)"
   | "program_director(course_proposal_review.program_code)"
+  | "program_director(course_proposal_review.program_code) of a review that is `Developing`"
   | "program_director(requirement_category.program_code)"
   | "program_director(area.program_code)"
   | "course.area_head"
-  | "course_proposal_review.area_head";
+  | "course_proposal_review.area_head"
+  | "course_proposal_review.area_head of a review that is `Developing`";
 
 /**
  * One arm of a permission.
@@ -215,16 +234,13 @@ export type Act = {
 export const COURSE_PROPOSAL_REVIEW_MATRIX = [
   {
     act: "create proposal — mints one review per requested program, in one transaction",
-    // NARROW DEFAULT, pending #65. #8's table reads `instructor`,
-    // `program_director`, `area_head` — flat. #42 and #43 both state `instructor`
-    // alone, #43 arguing it from #4's conjunction model and #34's
-    // capability/qualification split: *directing is not a superset of teaching*.
-    // Neither said it was amending #8. #56 took the narrow reversible subset on
-    // #28's own precedent for its Tier 3 default, under #8's *under-grants are
-    // loud, over-grants are silent*. Widening is this one line.
-    routes: [{ role: "instructor", via: "flat" }],
-    settledBy: ["#8", "#43", "#65 (open)"],
-    note: "There is no requested-programs table: a review row *is* the request (#10). The create form mints a proposal plus one review per program checked (#43).",
+    routes: [
+      { role: "instructor", via: "flat" },
+      { role: "program_director", via: "flat" },
+      { role: "area_head", via: "flat" },
+    ],
+    settledBy: ["#8", "#65"],
+    note: "**#8's table, restored by #65** after #43 and #42 had narrowed it to `instructor` alone. The narrowing had no ruling behind it: #43's own body states *#8 already wrote both — proposing is the `instructor` role*, which is a misquote of the row, so its resolution's *directing is not a superset of teaching* is a sound derivation from a premise #8 never wrote. It never saw the wide reading and so never weighed it. **All three arms are flat because the act is flat by construction** — at create time there is no proposal, no review and no course, so nothing exists for any relationship to scope to. Under #34 all three are *qualifications*, normally scoped by a relationship; on create none of them can be, `instructor` included. Any objection to a flat director arm therefore applies word-for-word to the flat instructor arm nobody disputes. Third instance of #61's shape — a later package restating a #8 row narrower than #8 wrote it — and the third resolved for the table, after #61 and #32. **The requester confirmed every ITP/IMA/LowRes director teaches**, so the two added arms grant nobody today, and took them anyway: an empty set is a fixture fact rather than a rule, and #11 refuses role-narrowing. The chair already proposes by `CHAIR_BYPASS` without holding `instructor`, so *only teachers may propose* was never a live principle. There is no requested-programs table: a review row *is* the request (#10). The create form mints a proposal plus one review per program checked (#43).",
   },
   {
     act: "develop / approve / reject",
@@ -539,11 +555,17 @@ export const FIELD_CLASSES = [
   },
   {
     name: "Proposal body",
-    // NARROW DEFAULT, pending #65 — see the create-proposal row of
-    // COURSE_PROPOSAL_REVIEW_MATRIX. #8's table reads `created_by`, a director of
-    // any requested program, or `area_head`; #10's field-class map, #42 and #62 all
-    // read `created_by` alone.
-    writers: [{ row: "course_proposal.created_by" }],
+    writers: [
+      { row: "course_proposal.created_by" },
+      {
+        role: "program_director",
+        via: "program_director(course_proposal_review.program_code) of a review that is `Developing`",
+      },
+      {
+        role: "area_head",
+        via: "course_proposal_review.area_head of a review that is `Developing`",
+      },
+    ],
     stateGate: {
       gate: "states",
       machine: "course_proposal_review",
@@ -554,8 +576,8 @@ export const FIELD_CLASSES = [
       "course_proposal.description",
       "course_proposal.credits",
     ],
-    settledBy: ["#8", "#10", "#65 (open)"],
-    note: "Gating on `Developing` gives `develop` a job exactly as `revise` has one: a typo fix after submission costs a `develop`, which is what *submitted for review* should mean (#8). The body is **shared across every review of the proposal**, so one program's `develop` opens an edit that changes what every other program is reading — and it can change after another program has already approved and minted from it, since the mint copies (#7). #42 made both pages state that drift; #62 made the review edit page name whose body it is about to rewrite.",
+    settledBy: ["#8", "#10", "#32", "#65"],
+    note: "**Neither #8's table nor the narrow form — #65 took a third shape, and it is the one place that ticket did not simply restore #8.** #8's table reads `created_by`, a director of **any requested** program, or `area_head`; #10, #42 and #62 all read `created_by` alone. The table is residue: #8 overturned flat approval three lines above this row — *flat approval would let an ITP director dispose of the IMA review* — rewrote the `develop`/`approve`/`reject` row to be program-scoped, and left this one flat across every requested program, which reaches **further** than disposing of one review because it changes what all of them are reading. #32 read all three rows, program-scoped that one, and left this one behind. But pure `created_by` has a hole of its own: a director fires `develop` and can then edit nothing, so the job #8 gave `develop` shrinks to *hand it back to the proposer*. So the route is scoped to the review that opened the edit — ITP cannot rewrite the body merely because IMA asked for changes; ITP must `develop` its own review first. The area-head arm has a subject only because #32 invented `course_proposal_review.area_head`; before that it was subjectless, which is why #8's own line dropping area heads from the review *entirely* left it standing here unnoticed. **The `Developing` condition rides in the relationship and not in the `stateGate`** — see `Relationship`, and the amendment in the README. Gating on `Developing` gives `develop` a job exactly as `revise` has one: a typo fix after submission costs a `develop`, which is what *submitted for review* should mean (#8). The body is **shared across every review of the proposal**, so one program's `develop` opens an edit that changes what every other program is reading — and it can change after another program has already approved and minted from it, since the mint copies (#7). #42 made both pages state that drift; #62 made the review edit page name whose body it is about to rewrite. **Cost accepted, not overlooked**: #42 seeded *Critical Data Practice* as the fixture where a proposer who is also `review.area_head` writes and approves unsupervised; this makes that reachable **without being the proposer**, since an assigned head may now edit the body and then approve it.",
   },
   {
     name: "Review assignment",
@@ -764,6 +786,9 @@ export type Invariant = {
   rule: string;
   where: string;
   settledBy: readonly string[];
+  /** Matches `Act` and `FieldClass`; added by #65, which needed to say why one of
+   * these is stated more weakly than the rule a reader might expect. */
+  note?: string;
 };
 
 /**
@@ -806,6 +831,7 @@ export const INVARIANTS = [
     rule: "the proposal body is writable only while a review is `Developing`",
     where: "field-class state gate",
     settledBy: ["#8"],
+    note: "**Kept in this weak, actorless form deliberately** (#65). The two routes #65 added are each confined to a review *of their own program* that is `Developing`, which is a state whose answer depends on who is asking — so it would make this invariant name an actor, and #28's separation is what stops the chair re-homing a course. The per-review condition lives in the `Relationship` instead. This floor is what `created_by` writes under, an author having no review of their own.",
   },
   {
     rule: "`offering (course_id, program_code)` matches its course",
