@@ -11,11 +11,14 @@ Where a column exists because a ticket said so, the SQL comment names the ticket
 file records what ticket 10 itself decided, what it dropped, and the two places where it
 had to derive rather than apply.
 
-## Amendments since ticket 10
+## Amendments
 
 Ticket 10 settled the schema; later tickets may amend it, and each one is recorded here so
 the file is never the only place a change is visible. The same discipline
-`docs/machines/README.md` keeps for the lifecycles.
+`docs/machines/README.md` keeps for the lifecycles, and since
+[#50](https://github.com/nopivnick/lineup-prototype-03/issues/50) the rule every package
+follows — see [`docs/agents/spec-packages.md`](../agents/spec-packages.md). An amendment
+**replaces** what it overturns; it never stands beside it.
 
 - **`course.minted_from_review_id`** — added by
   [What do the proposals list and the review detail page show?](https://github.com/nopivnick/lineup-prototype-03/issues/42),

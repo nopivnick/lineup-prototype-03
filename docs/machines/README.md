@@ -9,6 +9,11 @@ below into *Decided*, linking the ticket that settled it. Never amend a machine
 without a closed ticket behind it — the decision lives in the ticket, and a change
 with no link is a decision nobody made.
 
+That discipline was this repo's first, and since
+[#50](https://github.com/nopivnick/lineup-prototype-03/issues/50) it is the rule every spec
+package follows — see [`docs/agents/spec-packages.md`](../agents/spec-packages.md). The
+*Standing principles* below are inherited by all six packages, not just by the machines.
+
 ## Standing principles
 
 Rules that came out of specific tickets but bind every later one. Apply them in this
