@@ -576,10 +576,11 @@ CREATE INDEX offering_term_idx   ON offering (term_code);
 CREATE INDEX offering_course_idx ON offering (course_id);
 
 -- ---------------------------------------------------------------------------
--- offering_instructor — issues/2, issues/15, issues/19, issues/34
+-- offering_instructor — issues/2, issues/15, issues/19, issues/34, issues/61
 -- ---------------------------------------------------------------------------
--- An **ordered roster**. Position 0 is the lead, and that position gates
--- `offer` / `accept` / `decline` / `defer`.
+-- **Two writers, split at position 0.** Position 0 is the lead, and that
+-- position gates `offer` / `accept` / `decline` / `defer`. Everything below it
+-- is a co-instructor, written by the ordinary field writer.
 --
 -- Occupancy of position 0 is what the `Staffed` state means, and `staff` /
 -- `unstaff` are never user-facing: one Server Action writes this row and sends
@@ -591,15 +592,47 @@ CREATE INDEX offering_course_idx ON offering (course_id);
 -- `decline` and `withdraw` are the only things that vacate it downstream, each a
 -- DELETE inside the transition's transaction.
 --
+-- **The field writer refuses any write naming position 0**, in every state
+-- (issues/61). Renumbering someone into 0 is not a field write, it is `staff`,
+-- and it goes through `applyTransition` or it does not happen. Without this the
+-- Roster class's state-blindness would be a licence to rewrite the lead of a
+-- `Published` section by UPDATE, which is the freeze issues/15 bought `Staffed`
+-- to protect.
+--
+-- **Below 0, `position` is a key and nothing else.** Order carries no meaning:
+-- there is no promotion, no reorder, and gaps are legal. Legacy had neither an
+-- order nor a lead to inherit — `section_x_instructor` is (section_id, net_id),
+-- no primary key, no ordering column. The number exists to name position 0, and
+-- the composite primary key is what makes *exactly one lead* unviolatable.
+--
+-- **Rows may sit below an empty position 0**, and not only by omission:
+-- `decline` and `withdraw` DELETE position 0 and leave everything under it, so
+-- `Declined.retry` lands in `Slated` holding co-instructors and no lead. A
+-- writer refusing that shape would be refusing what the machine's own edges
+-- produce. The read model therefore carries each row's `position` rather than
+-- indexing an array, and the Offering page states that the section cannot be
+-- offered to anyone whenever 0 is vacant (issues/61, amending issues/41).
+--
 -- The writer refuses a netid not holding `instructor` in `user_role` — **every**
 -- roster row, not just position 0 (standing principle 6) — and refuses a netid
 -- the `people` project does not know (issues/9: the writer checks, the read
 -- tolerates).
+--
+-- `granted_by` / `granted_at` are issues/13's creation rule applied to a row
+-- creation, exactly as on `offering_area` (issues/10) and for a stronger reason:
+-- a field write fires no transition since issues/17, so without them a person
+-- named to a paid teaching role is attributable to nobody. On a position-0 row
+-- they are redundant with the log's `subject_netid` and written anyway — the
+-- Creation class is *written once, by the creating path*, whichever path that
+-- is. Deletion stays untraced, per issues/10.
 
 CREATE TABLE offering_instructor (
-  offering_id  bigint  NOT NULL REFERENCES offering (offering_id),
-  position     integer NOT NULL CHECK (position >= 0),
-  netid        text    NOT NULL,
+  offering_id  bigint      NOT NULL REFERENCES offering (offering_id),
+  position     integer     NOT NULL CHECK (position >= 0),
+  netid        text        NOT NULL,
+
+  granted_by   text        NOT NULL,
+  granted_at   timestamptz NOT NULL DEFAULT now(),
 
   PRIMARY KEY (offering_id, position),
   UNIQUE (offering_id, netid)
