@@ -60,6 +60,18 @@ follows — see [`docs/agents/spec-packages.md`](../agents/spec-packages.md). An
   adds the two attribution columns for the reason `offering_area` has them — a child row
   created by a field write, with no log row behind it.
 
+- **The field-class map leaves this package** — by
+  [Transcribe the permission matrix and read tiers into `docs/permissions/`](https://github.com/nopivnick/lineup-prototype-03/issues/56),
+  executing the boundary call
+  [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50) made when it named the
+  six packages. The map is
+  [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s **third ruling** and
+  came here only because permissions had no directory; it now lives in
+  [`docs/permissions/permissions.ts`](../permissions/permissions.ts) as `FIELD_CLASSES`,
+  alongside the matrix whose field-write rows it is the operative form of. Nothing about any
+  class changed in the move. A pointer stays below, because a schema reader legitimately
+  wants it and *unwritable* is the default for a column with no class.
+
 ## Shape
 
 **21 tables. 20 in `classes`, 1 in `people`.**
@@ -180,30 +192,21 @@ drop them.
 
 ## The field-class map
 
+**Moved to [`docs/permissions/`](../permissions/README.md#the-field-class-map).**
+
 [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28) ruled that every column
-gets a field class and **a column with no class is unwritable**.
-[#8](https://github.com/nopivnick/lineup-prototype-03/issues/8) named seven columns, before
-most of these tables existed. Completing the map is the one place ticket 10 adds a rule
-rather than applying one.
+gets a field class and **a column with no class is unwritable**, and ticket 10 completed the
+map — the one place ticket 10 adds a rule rather than applying one.
+[#50](https://github.com/nopivnick/lineup-prototype-03/issues/50) then ruled it ticket 28's
+**third ruling**, homed here only because permissions had no directory yet, and
+[#56](https://github.com/nopivnick/lineup-prototype-03/issues/56) moved it when that
+directory was created. The table lives in
+[`docs/permissions/permissions.ts`](../permissions/permissions.ts) as `FIELD_CLASSES`, with
+each class's two predicates and the ticket that settled it.
 
-| Class | Who writes | Where |
-|---|---|---|
-| **Structural** | Nobody — an invariant, not a permission | `offering.course_id`, `offering.term_code`, `offering.program_code`, `course.program_code` |
-| **Machine-owned** | `applyTransition` only | every `snapshot` and `status`; `course.edition` |
-| **Creation** | Written once, by the creating path | every `created_at` / `created_by`; every `granted_by` / `granted_at` |
-| **Course body** — state-gated to `Revising` | Director of `course.program_code`, or `course.area_head` | `course.title`, `.description`, `.credits`, `.course_number`, `.url` |
-| **Course assignment** — state-blind | Director of `course.program_code` alone | `course.area_head`, `course_area` rows |
-| **Offering operational** — state-blind, `Concluded` included | Coordinator, or the offering's program director | `offering.section_number`, `.call_number`, `.sis_class_number`, `.url`, `.mode`, `.enrollment_limit`; `offering_meeting` rows |
-| **Seat-sharing tags** — state-blind | Director of the **category's** program | `offering_area`, `offering_requirement_category` rows |
-| **Roster — position 0** | Not a field class — `staff` / `unstaff` non-exposure | the `offering_instructor` row at position 0 |
-| **Roster — positions 1..n** — state-blind, every state | The offering's program director alone | `offering_instructor` rows below position 0 |
-| **Proposal body** — gated to `Developing` | `course_proposal.created_by` | `course_proposal.title`, `.description`, `.credits` |
-| **Review assignment** — gated to `Proposed` / `Developing` | Director of that review's program | `course_proposal_review.area_head`, `course_proposal_review_area` rows |
-| **Authorization** | `chair` alone | `user_role`, `program_director` rows |
-| **Timestamps** | The field writer, alongside any write above | every `updated_at` / `updated_by` |
-
-`updated_at` / `updated_by` are deliberately *not* their own class — they are a side effect
-of the writer, not something anyone chooses to set.
+The link stays because a schema reader legitimately wants it: every column in `classes.sql`
+and `people.sql` carries a class, and *unwritable* is the default for anything that does
+not.
 
 ## What legacy contributed, and what it did not
 
