@@ -6,7 +6,7 @@ is authoritative only for what it *means*.
 
 **There is no spec here.** No columns, no rules, no rendering. Those live in the six
 packages indexed by [`docs/README.md`](./docs/README.md), and a definition that started
-restating one would be the second copy
+restating one would be the second copy that
 [`docs/agents/spec-packages.md`](./docs/agents/spec-packages.md) forbids.
 
 **Several of these words are narrower than their ordinary meaning**, and a few are words
