@@ -319,25 +319,17 @@ the same drafting pass.
   entry carries a note saying why it is stated weakly, and `Invariant` gained an optional
   `note` to hold it, matching `Act` and `FieldClass`.
 
-## What #65 leaves for two open tickets
+## What #65 left for the prototypes
 
-Recorded here because `docs/prototypes/` has no ledger of its own yet — that is
-[#59](https://github.com/nopivnick/lineup-prototype-03/issues/59) — and writing an
-amendment into an HTML file with no ledger beside it puts it where no reader looks.
-
-- **`docs/prototypes/create-forms.html`** ([#43](https://github.com/nopivnick/lineup-prototype-03/issues/43))
-  shows an IMA director who holds no `instructor` role being refused the create control.
-  Under the restored row that person may propose. But the requester states every real
-  director teaches, so the **fixture cast is the fault**, not the page —
-  [#58](https://github.com/nopivnick/lineup-prototype-03/issues/58)'s subject.
-- **`docs/prototypes/field-edits.html`** ([#62](https://github.com/nopivnick/lineup-prototype-03/issues/62))
-  gains a proposal-body section for a director whose own review is `Developing`. No page
-  needs redrawing by hand: #62 settled that an edit page **renders only the field classes
-  open to you**, so the page is a function of `FIELD_CLASSES` and follows by its own stated
-  rule. #62's *decision* survives; **one of its reasons narrows** — it held that the
-  one-page shape "earns nothing on the review page" because the body's writer and the
-  review assignment's writer are the same person "only when a director proposes", and they
-  are now the same person whenever that review is `Developing`.
+**#65 reaches two settled screens**, both built on the narrow reading it overturned:
+`create-forms.html` ([#43](https://github.com/nopivnick/lineup-prototype-03/issues/43)) refuses
+a create control the restored row permits, and `field-edits.html`
+([#62](https://github.com/nopivnick/lineup-prototype-03/issues/62)) gains a proposal-body
+section on a review edit page. Neither page is redrawn, and **the disposition of both is
+recorded in [`docs/prototypes/README.md`](../prototypes/README.md)** — which is where it moved
+when [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59) gave that package its
+ledger. It was parked here only because writing an amendment into an HTML file with no ledger
+beside it puts it where no reader looks.
 
 ## Notes for the build effort
 

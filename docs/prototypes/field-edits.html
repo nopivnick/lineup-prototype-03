@@ -1,4 +1,4 @@
-<title>Where a field edit happens — four variants</title>
+<title>Where a field edit happens — four variants, B settled</title>
 
 <!--
   PROTOTYPE — throwaway. Answers issue #62, "Where does a field edit happen, and
@@ -133,6 +133,27 @@
 
   The "Viewing as" control is a prototype device for looking at what varies by
   role, not part of the page.
+
+  ---------------------------------------------------------------------------
+  AMENDED by #65, "Do program_director and area_head hold flat routes on
+  proposal creation and body edits?"
+  ---------------------------------------------------------------------------
+
+  **The Proposal body class has three writers, not one.** This file was built on
+  `course_proposal.created_by` alone; #65 restored #8's row — `created_by`, a
+  director of any requested programme, or the review's `area_head`, while at
+  least one review is `Developing`. So a review edit page opened by a director
+  whose own review is `Developing` gains a Proposal body section it does not
+  show here.
+
+  **No page needs redrawing by hand**, and #62's decision survives: B renders
+  only the field classes open to you, so the page is a function of
+  `FIELD_CLASSES` and follows by its own stated rule. **One of #62's reasons
+  narrows** — it held that the one-page shape "earns nothing on the review page"
+  because the body's writer and the review assignment's writer coincide "only
+  when a director proposes", and under #65 they coincide whenever that review is
+  `Developing`. The shape is still kept for consistency with the other two
+  pages; the argument for it is now weaker than #62 wrote it. See README.md.
 
   Not a data layer, not a framework, no persistence — a static approximation of
   Next.js + Mantine, built to be reacted to, not to be promoted. The cast is
