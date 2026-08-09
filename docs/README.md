@@ -37,14 +37,23 @@ through it.
 legacy MySQL dumps and one research subagent's findings on multi-database access. Read them
 if a package points you there.
 
-> **Package 5 is being written now.** It was settled in issue comments and is being
+> **Package 6 is being written now.** It was settled in issue comments and is being
 > transcribed into a package by
-> [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50)'s task tickets. Until it
-> closes, the settled content lives in the tickets it will cite.
+> [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50)'s last task ticket. Until
+> it closes, `prototypes/` has no ledger and the settled content lives in the tickets it will
+> cite.
 > Package 3 has landed — [#56](https://github.com/nopivnick/lineup-prototype-03/issues/56) —
 > and took the field-class map with it, out of `schema/`. Package 4 has landed —
 > [#57](https://github.com/nopivnick/lineup-prototype-03/issues/57) — and is where
-> `getActor()` and the four write paths are now written down.
+> `getActor()` and the four write paths are now written down. Package 5 has landed —
+> [#58](https://github.com/nopivnick/lineup-prototype-03/issues/58) — and holds the whole
+> seed world, driven through the machines rather than written as snapshots.
+>
+> **One decision is open**, and it is the only one:
+> [#69](https://github.com/nopivnick/lineup-prototype-03/issues/69) asks whether the seed may
+> write a roster row for a netid the `people` project does not know. `fixtures/` says what it
+> depends on and is written as [#49](https://github.com/nopivnick/lineup-prototype-03/issues/49)
+> ruled it, pending that ticket. Nothing else in the six packages waits on anything.
 
 ## What the build effort inherits
 
