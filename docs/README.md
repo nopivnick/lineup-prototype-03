@@ -13,10 +13,11 @@ tickets are linked throughout as provenance, not as required reading.
 
 Next.js + Mantine + mantine-datatable, two Supabase projects (`people` and `classes`),
 curated Postgres schemas, hand-written fixtures, a dev user-switcher with no login, and
-**seven screens**: a Catalog list, a term Lineup, a chair-only roles page, a Course detail
-page, an Offering detail page, a proposals list, and a proposal review page — plus two create
-forms. The Course, Offering and Course-proposal-review lifecycles persist as XState
-snapshots.
+**twelve views**: seven screens — a Catalog list, a term Lineup, a chair-only roles page, a
+Course detail page, an Offering detail page, a proposals list and a proposal review page —
+plus two create forms, plus three edit pages, one per record type, added by
+[#62](https://github.com/nopivnick/lineup-prototype-03/issues/62). The Course, Offering and
+Course-proposal-review lifecycles persist as XState snapshots.
 
 ## Read in this order
 
@@ -27,7 +28,7 @@ snapshots.
 | 3 | [`permissions/`](./permissions/) | the matrix, the read tiers, the field-class map, the invariants |
 | 4 | [`data-access/`](./data-access/) | the seven read modules, the four write paths, the identity seam |
 | 5 | [`fixtures/`](./fixtures/) | the seed content |
-| 6 | [`prototypes/`](./prototypes/) | what each screen displays — **variant D** in each file is the settled shape |
+| 6 | [`prototypes/`](./prototypes/) | what each screen displays — its README names the settled variant per file, and it is not always D |
 
 Start with `machines/README.md` regardless. Its **Standing principles** section is the
 reasoning six other packages inherit, and several decisions elsewhere are only legible
@@ -37,23 +38,23 @@ through it.
 legacy MySQL dumps and one research subagent's findings on multi-database access. Read them
 if a package points you there.
 
-> **Package 6 is being written now.** It was settled in issue comments and is being
-> transcribed into a package by
-> [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50)'s last task ticket. Until
-> it closes, `prototypes/` has no ledger and the settled content lives in the tickets it will
-> cite.
-> Package 3 has landed — [#56](https://github.com/nopivnick/lineup-prototype-03/issues/56) —
-> and took the field-class map with it, out of `schema/`. Package 4 has landed —
-> [#57](https://github.com/nopivnick/lineup-prototype-03/issues/57) — and is where
-> `getActor()` and the four write paths are now written down. Package 5 has landed —
-> [#58](https://github.com/nopivnick/lineup-prototype-03/issues/58) — and holds the whole
-> seed world, driven through the machines rather than written as snapshots.
+> **All six packages have landed**, the last four by
+> [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50)'s transcription tickets.
+> Package 3 — [#56](https://github.com/nopivnick/lineup-prototype-03/issues/56) — took the
+> field-class map with it, out of `schema/`. Package 4 —
+> [#57](https://github.com/nopivnick/lineup-prototype-03/issues/57) — is where `getActor()`
+> and the write paths are now written down. Package 5 —
+> [#58](https://github.com/nopivnick/lineup-prototype-03/issues/58) — holds the whole seed
+> world, driven through the machines rather than written as snapshots, as amended by
+> [#69](https://github.com/nopivnick/lineup-prototype-03/issues/69), which ruled that the seed
+> may **not** write a roster row for a netid `people` does not know. Package 6 —
+> [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59) — gave `prototypes/` the
+> ledger it had been missing, so which variant of each screen won is now recorded in the
+> directory rather than in a commit message.
 >
-> **One decision is open**, and it is the only one:
-> [#69](https://github.com/nopivnick/lineup-prototype-03/issues/69) asks whether the seed may
-> write a roster row for a netid the `people` project does not know. `fixtures/` says what it
-> depends on and is written as [#49](https://github.com/nopivnick/lineup-prototype-03/issues/49)
-> ruled it, pending that ticket. Nothing else in the six packages waits on anything.
+> **Nothing in the six packages waits on anything.** One ticket is still open on the map and
+> it adds no decision: [#60](https://github.com/nopivnick/lineup-prototype-03/issues/60) writes
+> `CONTEXT.md`, the glossary linked at the foot of this file.
 
 ## What the build effort inherits
 
