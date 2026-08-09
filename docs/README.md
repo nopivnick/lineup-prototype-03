@@ -52,9 +52,11 @@ if a package points you there.
 > ledger it had been missing, so which variant of each screen won is now recorded in the
 > directory rather than in a commit message.
 >
-> **Nothing in the six packages waits on anything.** One ticket is still open on the map and
-> it adds no decision: [#60](https://github.com/nopivnick/lineup-prototype-03/issues/60) writes
-> `CONTEXT.md`, the glossary linked at the foot of this file.
+> **Nothing in the six packages waits on anything**, and
+> [#60](https://github.com/nopivnick/lineup-prototype-03/issues/60) has since written
+> `CONTEXT.md`, the glossary linked at the foot of this file — the one artifact with no
+> package, because it is cross-cutting. Read it first: several words in these packages mean
+> something narrower than usual, and the excluded ones are defined there too.
 
 ## What the build effort inherits
 
