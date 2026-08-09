@@ -289,30 +289,45 @@ export const PEOPLE = [
 ] as const satisfies readonly PersonRow[];
 
 /**
- * **One netid with no `person` row.** #37 asked for a roster netid absent from
- * `people` and #41 for a history actor with no name on file; #49 supplied both with
- * one netid — a new hire ahead of the directory feed, which is exactly the reading
- * #38 refused to let a typo imitate.
+ * **One netid with no `person` row**, and since #69 it holds no roster row either.
+ *
+ * #49 supplied this netid as *a new hire ahead of the directory feed*, leading O4,
+ * O17 and O22. #69 found that story unwritable: a roster write refuses a netid the
+ * `people` project does not know (#9, restated by #61), and #28 makes an actorless
+ * rule bind the seed exactly as it binds the chair. The three leads were reassigned
+ * and the story inverted — the directory is **incomplete**, and the system tolerates
+ * that everywhere except where a write would commit the department to a paid
+ * appointment.
  *
  * The reads tolerate it by construction: `displayName` is nullable and a roster entry
  * is never dropped for want of a name (#9), so every view falls back to the netid,
  * which is a real identifier at NYU rather than a placeholder.
  *
- * **The write side is unsettled, and this package does not settle it** — see
- * `OPEN_AGAINST_THIS_PACKAGE`. `xq7742` holds position 0 on O4, O17 and O22, and
- * `FURTHER_INVARIANTS` in docs/permissions/permissions.ts carries *a roster write
- * refuses a netid the `people` project does not know*, which #9 wrote as a backstop
- * against seed scripts by name.
+ * **What this now renders is the invariant biting rather than being broken.** The
+ * roles page shows a person holding `instructor` who appears on no roster anywhere,
+ * because nothing may put them on one — the `user_role` writer never consults
+ * `people` and the roster writer is the only writer in the map that does.
+ *
+ * **The one cost, accepted by the requester under #69.** #37 asked for a roster netid
+ * absent from `people`, and a checked seed cannot produce one. So the Lineup's
+ * instructor column never falls back to a netid in the fixtures. The rendering stays
+ * and is still correct: the state is reachable in production, because nothing in the
+ * skeleton writes `people` (docs/schema/people.sql) and nothing cascades when the NYU
+ * feed drops a row. It is unreachable *by the seed*, not unreachable.
  */
 export const NETID_WITH_NO_PERSON_ROW = {
   netid: "xq7742",
-  holds: ["instructor"],
+  holds: ["instructor", "area_head"],
   appearsAs: [
-    "lead of O4, O17 and O22 (`offering_instructor` position 0)",
-    "the actor on O22's own `accept` — a history line naming nobody",
+    "the actor on R2's `develop` — a history line naming nobody (#41)",
+    "`review.area_head` on R2, rendered on the review page beside a name it cannot resolve",
     "author of P3, on a proposals list that names the proposer on every group header",
+    "a roles-page row holding `instructor` and leading nothing, which no other person in the cast is",
   ],
-  settledBy: ["#37", "#38", "#41", "#49"],
+  neverAppearsAs: [
+    "any `offering_instructor` row, at position 0 or below it — refused by #9's invariant for every roster row (#61)",
+  ],
+  settledBy: ["#37", "#38", "#41", "#49", "#69"],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -336,13 +351,20 @@ export type RoleGrantRow = {
 };
 
 /**
- * **Twenty `user_role` rows: one unchecked genesis grant and nineteen checked ones**,
- * every checked row written by `tv1067`, who is the only writer of this table (#34).
+ * **Twenty-one `user_role` rows: one unchecked genesis grant and twenty checked
+ * ones**, every checked row written by `tv1067`, who is the only writer of this
+ * table (#34).
  *
- * #49's prose says *the remaining 17*; its own cast table enumerates eighteen, and
- * #65's amendment below adds the nineteenth. The enumeration is authoritative — this
- * map resolves prose-against-table for the table four times over (#32, #61, #65), and
- * an arithmetic slip is the weakest form of the same disagreement.
+ * #49's prose says *the remaining 17*; its own cast table enumerates eighteen, #65's
+ * amendment below adds the nineteenth, and #69's `area_head` grant to `xq7742` the
+ * twentieth. The enumeration is authoritative — this map resolves prose-against-table
+ * for the table four times over (#32, #61, #65), and an arithmetic slip is the
+ * weakest form of the same disagreement.
+ *
+ * **`xq7742` holds two roles and can spend only one of them.** #69 closed the roster
+ * route for a netid `people` does not know, so the `instructor` grant is a
+ * qualification with nowhere to go and the `area_head` grant is what carries this
+ * person into a transition log at all.
  *
  * **`hs5540` holds `instructor` here, and #49 said otherwise** — the amendment #65
  * handed this ticket by name. #49 gave Hana no `instructor` so that #43's refusal of
@@ -395,14 +417,29 @@ export const ROLE_GRANTS = [
     grantedBy: "tv1067",
     grantedAt: "2019-08-19T09:01:00Z",
     checked: true,
-    note: "**Added by #58 under #65's direction.** #49 withheld this grant so a non-teaching director would be refused the propose control; #65 restored the flat `program_director` arm on that act, so the refusal no longer fires and the requester's *every real director teaches* makes the withholding a fixture fault. Hana teaches nothing in the fixtures, which is legal — the grant is a qualification, and #14 already establishes that holding one implies no live class.",
+    note: "**Added by #58 under #65's direction.** #49 withheld this grant so a non-teaching director would be refused the propose control; #65 restored the flat `program_director` arm on that act, so the refusal no longer fires and the requester's *every real director teaches* makes the withholding a fixture fault. #69 has since spent the grant: Hana leads O4, the LowRes intensive whose lead it reassigned, self-staffed on O3's precedent. She still holds nothing **live**, so the qualification-without-a-live-class point stands (#14).",
   },
   { netid: "ok3356", role: "advisor", grantedBy: "tv1067", grantedAt: "2022-01-10T09:00:00Z", checked: true },
   { netid: "rc1129", role: "instructor", grantedBy: "tv1067", grantedAt: "2021-09-01T09:00:00Z", checked: true },
   { netid: "dk2210", role: "coordinator", grantedBy: "tv1067", grantedAt: "2023-08-01T09:00:00Z", checked: true },
   { netid: "mo5512", role: "student", grantedBy: "tv1067", grantedAt: "2025-09-02T09:00:00Z", checked: true },
   { netid: "by6640", role: "student", grantedBy: "tv1067", grantedAt: "2025-09-02T09:01:00Z", checked: true },
-  { netid: "xq7742", role: "instructor", grantedBy: "tv1067", grantedAt: "2026-06-15T09:00:00Z", checked: true },
+  {
+    netid: "xq7742",
+    role: "instructor",
+    grantedBy: "tv1067",
+    grantedAt: "2026-06-15T09:00:00Z",
+    checked: true,
+    note: "**The qualification that cannot be spent.** #69 closed the roster route for this netid, so this row is now a person holding `instructor` who appears on no roster anywhere — which is the invariant rendered rather than contradicted. Nothing refuses the grant itself: the `user_role` writer never consults `people`, and the roles page is where that asymmetry is visible (#38).",
+  },
+  {
+    netid: "xq7742",
+    role: "area_head",
+    grantedBy: "tv1067",
+    grantedAt: "2026-01-05T09:00:00Z",
+    checked: true,
+    note: "**Added by #69** to buy back #41's history-line fixture, which the roster reassignment would otherwise have deleted along with nine log rows. Heads R2 and no course, so the `area_head` revoke is clean — #34's refusal is over `course.area_head` on a non-`Retired` course, and a review's head is not that.",
+  },
   { netid: "by6640", role: "instructor", grantedBy: "tv1067", grantedAt: "2026-09-01T09:00:00Z", checked: true },
 ] as const satisfies readonly RoleGrantRow[];
 
@@ -614,17 +651,18 @@ export const PROPOSALS = [
       {
         key: "R2",
         programCode: "IMA",
-        areaHead: "ab9034",
+        areaHead: "xq7742",
         areas: ["A5"],
         history: [
           {
             event: "develop",
-            actor: "ab9034",
+            actor: "xq7742",
             at: "2026-02-14T11:30:00Z",
             reason: "The outcomes overlap Creative Coding almost exactly. Please differentiate before we look again.",
           },
         ],
         endState: "Developing",
+        note: "**#69 moved this review's head** from `ab9034` to `xq7742`, which is where #41's *history line whose actor the directory does not know* now lives — the roster route having been closed. It is an act on #32's area-head arm by someone who is not the programme's director, and the only act anywhere in the fixtures whose actor renders as a bare netid.",
       },
       {
         key: "R3",
@@ -668,7 +706,7 @@ export const PROPOSALS = [
     credits: 2,
     createdBy: "xq7742",
     createdAt: "2026-01-28T09:40:00Z",
-    note: "A proposal whose author has **no name on file**, on a screen that names the proposer on every group header (#42). The proposals list is where `xq7742` renders without touching a roster.",
+    note: "A proposal whose author has **no name on file**, on a screen that names the proposer on every group header (#42). Since #69 closed the roster route, the proposals list is one of only three places `xq7742` renders at all — with the roles page and R2's `develop` line.",
     reviews: [
       { key: "R5", programCode: "IMA", areaHead: "ab9034", areas: ["A7"], history: [], endState: "Proposed" },
     ],
@@ -1679,14 +1717,14 @@ export const OFFERINGS = [
     sisClassNumber: 18690,
     enrollmentLimit: 14,
     mode: "Low residency",
-    roster: [{ position: 0, netid: "xq7742", grantedBy: "hs5540", grantedAt: "2025-09-05T10:15:00Z" }],
+    roster: [{ position: 0, netid: "hs5540", grantedBy: "hs5540", grantedAt: "2025-09-05T10:15:00Z" }],
     meetings: [
       { kind: "dates", startDate: "2026-01-12", endDate: "2026-01-23", startTime: "10:00", endTime: "16:00", room: "370J-Commons" },
     ],
     history: [
-      { event: "staff", actor: "hs5540", at: "2025-09-05T10:15:00Z", subject: "xq7742" },
-      { event: "offer", actor: "dk2210", at: "2025-09-08T10:15:00Z", subject: "xq7742" },
-      { event: "accept", actor: "xq7742", at: "2025-09-15T10:15:00Z", subject: "xq7742" },
+      { event: "staff", actor: "hs5540", at: "2025-09-05T10:15:00Z", subject: "hs5540" },
+      { event: "offer", actor: "dk2210", at: "2025-09-08T10:15:00Z", subject: "hs5540" },
+      { event: "accept", actor: "hs5540", at: "2025-09-15T10:15:00Z", subject: "hs5540" },
       { event: "schedule", actor: "dk2210", at: "2025-10-06T10:15:00Z" },
       { event: "publish", actor: "dk2210", at: "2025-10-20T10:15:00Z" },
       { event: "list", actor: "dk2210", at: "2025-11-03T10:15:00Z" },
@@ -1695,7 +1733,7 @@ export const OFFERINGS = [
       { event: "conclude", actor: "dk2210", at: "2026-02-16T10:15:00Z" },
     ],
     endState: "Concluded",
-    note: "The first LowRes intensive — a `dates` meeting rather than a `weekly` one, which is the first thing in the skeleton that **visibly differs** by program (#10). Lead is the netid with no `person` row; see `OPEN_AGAINST_THIS_PACKAGE`.",
+    note: "The first LowRes intensive — a `dates` meeting rather than a `weekly` one, which is the first thing in the skeleton that **visibly differs** by program (#10). **Lead reassigned by #69** from `xq7742` to Hana herself, the offering's own director self-staffing on O3's precedent: an unknown netid cannot hold a roster row at all. It also spends the `instructor` grant #65 restored to her, which nothing had spent.",
   },
   {
     key: "O5",
@@ -2020,19 +2058,19 @@ export const OFFERINGS = [
     sisClassNumber: 19108,
     enrollmentLimit: 14,
     mode: "In person",
-    roster: [{ position: 0, netid: "xq7742", grantedBy: "pr3390", grantedAt: "2026-06-16T10:40:00Z" }],
+    roster: [{ position: 0, netid: "ab9034", grantedBy: "pr3390", grantedAt: "2026-06-16T10:40:00Z" }],
     meetings: [{ kind: "weekly", dayOfWeek: 4, startTime: "15:20", endTime: "17:50", room: "370J-406" }],
     history: [
-      { event: "staff", actor: "pr3390", at: "2026-06-16T10:40:00Z", subject: "xq7742" },
-      { event: "offer", actor: "dk2210", at: "2026-06-18T10:40:00Z", subject: "xq7742" },
-      { event: "accept", actor: "xq7742", at: "2026-06-22T10:40:00Z", subject: "xq7742" },
+      { event: "staff", actor: "pr3390", at: "2026-06-16T10:40:00Z", subject: "ab9034" },
+      { event: "offer", actor: "dk2210", at: "2026-06-18T10:40:00Z", subject: "ab9034" },
+      { event: "accept", actor: "ab9034", at: "2026-06-22T10:40:00Z", subject: "ab9034" },
       { event: "schedule", actor: "dk2210", at: "2026-07-06T10:40:00Z" },
       { event: "publish", actor: "dk2210", at: "2026-07-20T10:40:00Z" },
       { event: "list", actor: "dk2210", at: "2026-08-03T10:40:00Z" },
       { event: "run", actor: "dk2210", at: "2026-09-08T10:40:00Z" },
     ],
     endState: "Running",
-    note: "The divergent ITP twin of C13, running under a lead with no `person` row — so the Lineup renders a `Running` class whose instructor cell falls back to a netid (#9's *the read tolerates and never hides*).",
+    note: "The divergent ITP twin of C13. **Lead reassigned by #69** from `xq7742` to Amina, staffed onto an ITP class by ITP's own director — the second time she leads outside IMA after O15, which is the cast shape her row was written for. The Lineup's fall-back-to-netid rendering it used to carry is now unexercised by fixtures and still correct; see `NETID_WITH_NO_PERSON_ROW`.",
   },
   {
     key: "O18",
@@ -2145,19 +2183,19 @@ export const OFFERINGS = [
     enrollmentLimit: 12,
     mode: "Low residency",
     url: "https://lowres.ima.nyu.edu/machine-vision/",
-    roster: [{ position: 0, netid: "xq7742", grantedBy: "hs5540", grantedAt: "2026-06-16T10:00:00Z" }],
+    roster: [{ position: 0, netid: "rc1129", grantedBy: "hs5540", grantedAt: "2026-06-16T10:00:00Z" }],
     meetings: [
       { kind: "dates", startDate: "2027-01-04", endDate: "2027-01-15", startTime: "10:00", endTime: "16:00", room: "370J-Commons" },
       { kind: "async" },
     ],
     seatSharing: [{ kind: "area", key: "A1", grantedBy: "pr3390", grantedAt: "2025-11-02T10:00:00Z" }],
     history: [
-      { event: "staff", actor: "hs5540", at: "2026-06-16T10:00:00Z", subject: "xq7742" },
-      { event: "offer", actor: "dk2210", at: "2026-06-18T10:00:00Z", subject: "xq7742" },
-      { event: "accept", actor: "xq7742", at: "2026-06-25T10:00:00Z", subject: "xq7742" },
+      { event: "staff", actor: "hs5540", at: "2026-06-16T10:00:00Z", subject: "rc1129" },
+      { event: "offer", actor: "dk2210", at: "2026-06-18T10:00:00Z", subject: "rc1129" },
+      { event: "accept", actor: "rc1129", at: "2026-06-25T10:00:00Z", subject: "rc1129" },
     ],
     endState: "Accepted",
-    note: "**The January intensive**, and **seat sharing in the other direction**: ITP's *Physical Interaction* on a LowRes class, written by ITP's director. Two meeting rows of two different kinds on one class — `dates` and `async` — which together with O4, O15 and O23 exercises all three of #10's kinds. The lead accepted the offer himself, so `xq7742` is a history actor as well as a roster netid.",
+    note: "**The January intensive**, and **seat sharing in the other direction**: ITP's *Physical Interaction* on a LowRes class, written by ITP's director. Two meeting rows of two different kinds on one class — `dates` and `async` — which together with O4, O15 and O23 exercises all three of #10's kinds. **Lead reassigned by #69** from `xq7742` to Rui, who led O18 — the same course, canceled the term before — so C13 reads as a class pulled in Fall and re-run in Spring under the same person. The lead accepted the offer themselves.",
   },
   {
     key: "O23",
@@ -2360,7 +2398,7 @@ export const FIELD_EDITS = [
     at: "2026-04-15T11:00:00Z",
     by: "pr3390",
     fieldClass: null,
-    note: "**Seed-only.** `area.name` sits in no field class, and #28's rule is that a column with no class is unwritable — so no control in the skeleton can perform this edit. It is seeded anyway on #49's own *rendered, never minted* precedent, which it set for `xq7742` and for Vera. See `SEED_ONLY`; this is a missing control rather than a missing rule, and it is not the same shape as the entry in `OPEN_AGAINST_THIS_PACKAGE`, which violates an invariant rather than lacking a screen.",
+    note: "**Seed-only.** `area.name` sits in no field class, and #28's rule is that a column with no class is unwritable — so no control in the skeleton can perform this edit. It is seeded anyway on #49's own *rendered, never minted* precedent, which #69 left standing on Vera's row after removing `xq7742` from it. See `SEED_ONLY`; this is a missing control rather than a missing rule, which is exactly the line #69 turned on — a row that violates an invariant is not a missing screen and does not belong here.",
   },
 ] as const satisfies readonly {
   table: string;
@@ -2416,7 +2454,7 @@ export const SEED_ORDER = [
 export const COUNTS = {
   people: 13,
   netidsWithoutAPersonRow: 1,
-  roleGrants: 20,
+  roleGrants: 21,
   programDirectorRows: 3,
   proposals: 23,
   reviews: 29,
@@ -2488,12 +2526,19 @@ export const REVOKE_COVERAGE = [
 
 /**
  * **Rendered, never minted** — states the seed can reach that no screen can create.
- * #49 set this precedent with `xq7742` and applied it to Vera; the `area` rename
- * joins them here.
+ * #49 set this precedent with `xq7742`; **#69 removed that instance and left the
+ * precedent standing**, so Vera's row is now the one it rests on and the `area`
+ * rename joins her.
  *
  * Flagged rather than removed, because in each case the missing piece is a control
  * and not a rule. A build effort that reads one of these as a bug should add the
  * screen, not edit the seed.
+ *
+ * **The line #69 turned on**, drawn by #58 and worth keeping in view: an entry here
+ * lacks a *control*, and no screen can produce it. A row that violates an *invariant*
+ * does not belong here at all — an invariant that binds the seed is not a missing
+ * screen, and that is why `xq7742`'s three roster rows became a ticket rather than a
+ * fourth entry.
  */
 export const SEED_ONLY = [
   {
@@ -2511,28 +2556,17 @@ export const SEED_ONLY = [
 ] as const;
 
 /**
- * **What this package could not settle, and did not.**
+ * **What this package could not settle.** Empty, and it closed rather than emptied:
+ * the one entry #58 raised was graduated as #69 and #69 has since settled it.
  *
  * #50's rule for the transcription tickets is that a transcription which finds itself
  * *deciding* something has found a ticket rather than a paragraph, and #65 is the
- * precedent: a package is the first reader forced to write **one** answer down.
+ * precedent: a package is the first reader forced to write **one** answer down. #58
+ * was the second, and #69 is what the finding became — see `AMENDMENTS`.
  *
- * Everything else in this file is #49's, #61's or #65's ruling carried over. This one
- * entry is a conflict between two closed tickets that no third ticket has resolved,
- * and the fixtures are written **as #49 ruled them** pending that resolution.
+ * Everything in this file is now #49's, #61's, #65's or #69's ruling carried over.
  */
-export const OPEN_AGAINST_THIS_PACKAGE = [
-  {
-    conflict:
-      "`xq7742` holds position 0 on O4, O17 and O22 while `people` has no row for that netid — and *a roster write refuses a netid the `people` project does not know* is a `FURTHER_INVARIANT` (#9, restated by #61), which under #28 binds the seed exactly as it binds the chair.",
-    why_it_is_not_the_seed_only_shape:
-      "Vera's row and the `area` rename lack a **control**; they violate nothing. These three roster rows violate an **invariant**, and #9 named the case outright — *in practice the netid arrives from a picker populated out of `people`, so this is a backstop against seed scripts and direct writes*. A seed script is precisely what this is.",
-    what_is_at_stake:
-      "#37 asked for a roster netid absent from `people` and #41 for the roster rendering that follows; #9's *the writer checks, the read tolerates* is what makes the read side safe. The state is real in production — a new hire ahead of the directory feed — and unreachable through a checked seed, because the seed writes `people` itself.",
-    settledBy: [],
-    graduatedAs: "#69",
-  },
-] as const;
+export const OPEN_AGAINST_THIS_PACKAGE = [] as const;
 
 /**
  * Amendments this package absorbs, recorded here as well as in the README so the
@@ -2557,6 +2591,18 @@ export const AMENDMENTS = [
     by: "#65",
     was: "`hs5540` held no `instructor`, so that #43's refusal of the propose control had a person behind it.",
     now: "**`hs5540` holds `instructor`.** #65 found #43's narrowing was a misquote of #8's row and restored `program_director` and `area_head` as flat create arms, so a non-teaching director is no longer refused and the requester states every real director teaches. The refusal still renders, on `dk2210`, `ok3356` and `mo5512`; and the two restored arms are exercised by `vm7781` and `jl8802`, who reach the control through them and through nothing else.",
+  },
+  {
+    amends: "#49",
+    by: "#69",
+    was: "`xq7742` led O4, O17 and O22 — *a new hire ahead of the directory feed*, holding position 0 on three offerings while `people` had no row for that netid.",
+    now: "**No roster row anywhere.** The leads are `hs5540` (O4, self-staffed on O3's precedent), `ab9034` (O17) and `rc1129` (O22, who also led O18 — the same course, canceled the term before). A roster write refuses a netid `people` does not know (#9, #61), and #28 makes an actorless rule bind the seed. The netid keeps P3's authorship and gains `area_head` on R2, which is where #41's history-line fixture now lives; #37's roster-netid fixture is **unsatisfiable by a checked seed** and was accepted as a cost rather than traded for.",
+  },
+  {
+    amends: "#49",
+    by: "#69",
+    was: "*Rendered, never minted* covered `xq7742`, and `SEED_ONLY` cited it as the precedent for Vera's row and the `area` rename.",
+    now: "**The precedent survives; `xq7742` is no longer an instance of it.** #58 had already drawn the line the other entries turn on — a seed-only fact lacks a **control**, where these three roster rows violated an **invariant**. `SEED_ONLY` keeps both remaining entries on their own merits and cites Vera rather than `xq7742`.",
   },
   {
     amends: "#42",

@@ -5,13 +5,14 @@ that `docs/machines/*.ts`, `docs/permissions/permissions.ts` and
 `docs/data-access/data-access.ts` are reference and nothing imports them. The build effort
 converts it into a seed script.
 
-It holds the whole seed world: 14 netids, 20 role grants, 23 proposals, 29 reviews, 17
+It holds the whole seed world: 14 netids, 21 role grants, 23 proposals, 29 reviews, 17
 courses, 28 classes and every transition that puts them where they are. It is the synthesis
 of [What are the seed fixtures?](https://github.com/nopivnick/lineup-prototype-03/issues/49)
 — one dense ticket that settled all twelve constraints it had inherited from eleven closed
 tickets and ruled the two that conflicted — as amended by
-[#61](https://github.com/nopivnick/lineup-prototype-03/issues/61) and
-[#65](https://github.com/nopivnick/lineup-prototype-03/issues/65), and transcribed by
+[#61](https://github.com/nopivnick/lineup-prototype-03/issues/61),
+[#65](https://github.com/nopivnick/lineup-prototype-03/issues/65) and
+[#69](https://github.com/nopivnick/lineup-prototype-03/issues/69), and transcribed by
 [Transcribe the seed fixtures into `docs/fixtures/`](https://github.com/nopivnick/lineup-prototype-03/issues/58).
 Every claim in the artifact names the ticket that settled it, per rule 2 of
 [`docs/agents/spec-packages.md`](../agents/spec-packages.md). This file records what the
@@ -149,6 +150,34 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   today* — in the fixtures they grant two people, which is the difference between an empty
   rule and a rendered one.
 
+- **`xq7742` holds no roster row, where #49 gave it three** — by
+  [May the seed write a roster row for a netid `people` does not know?](https://github.com/nopivnick/lineup-prototype-03/issues/69),
+  which is the conflict this transcription raised and could not settle. #49 seeded the netid
+  as *a new hire ahead of the directory feed*, leading O4, O17 and O22. That story needs an
+  **insert** the map forbids: *a roster write refuses a netid the `people` project does not
+  know* ([#9](https://github.com/nopivnick/lineup-prototype-03/issues/9), restated by #61),
+  and [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28) makes an actorless
+  rule bind the seed exactly as it binds the chair. The leads are now `hs5540` on **O4**
+  (self-staffed, on O3's precedent, which also spends the `instructor` grant #65 restored to
+  her and nothing had spent), `ab9034` on **O17** (staffed onto an ITP class by ITP's own
+  director — her second lead outside IMA after O15), and `rc1129` on **O22** (who led O18,
+  the same course canceled the term before, so C13 reads as pulled in Fall and re-run in
+  Spring under the same person). No count moves: `na2481` keeps five live roster rows and
+  nine headed courses, `hs4417` keeps a clean `instructor` revoke, and the offering-event
+  total is still **164**.
+
+- **`xq7742` gains `area_head` and heads R2** — by #69, and it is what the reassignment had
+  to buy back rather than a detail of it. All nine of the netid's transition-log rows sat on
+  those three offerings, so closing the roster route would have deleted
+  [#41](https://github.com/nopivnick/lineup-prototype-03/issues/41)'s *history line whose
+  actor the directory does not know* along with them, and no other netid can supply it. An
+  instructor acts only from position 0; an **area head** acts on
+  [#32](https://github.com/nopivnick/lineup-prototype-03/issues/32)'s
+  `approve`/`reject`/`develop` arm and needs no roster row. R2's head moves from `ab9034`,
+  who carries no counted head fact, and R2's `develop` is now the only act anywhere in the
+  fixtures whose actor renders as a bare netid. The `area_head` revoke stays **clean**:
+  #34's refusal is over `course.area_head` on a non-`Retired` course, and R2 mints nothing.
+
 - **`course.minted_from_review_id` is `NOT NULL`** — by #49 amending #42. Already carried in
   `docs/schema/classes.sql`; restated here because this package is what made it true.
 
@@ -213,34 +242,60 @@ no provenance columns at all and needs nothing.
 **4. The `area` rename is seed-only.** #49 lists ITP's *Networks* renamed by `pr3390` as one
 of #40's seven field edits. `area.name` sits in **no field class**, and #28's rule is that a
 column with no class is unwritable — so no control in the skeleton performs this edit. It is
-seeded anyway on #49's own **rendered, never minted** precedent, which that ticket set for
-`xq7742` and applied to Vera's directorless director role. The missing piece is a
-reference-data screen, which is a screen the skeleton does not contain, not a rule nobody
-wrote. Listed in `SEED_ONLY` beside the other two.
+seeded anyway on #49's own **rendered, never minted** precedent — which that ticket set for
+`xq7742` and applied to Vera's directorless director role, and which #69 has since left
+resting on Vera alone. The missing piece is a reference-data screen, which is a screen the
+skeleton does not contain, not a rule nobody wrote. Listed in `SEED_ONLY` beside the other
+two.
 
-## What this transcription could not settle
+## What this transcription could not settle, and how #69 settled it
 
-**One conflict, graduated as
-[May the seed write a roster row for a netid `people` does not know?](https://github.com/nopivnick/lineup-prototype-03/issues/69).**
+**`OPEN_AGAINST_THIS_PACKAGE` is empty, and it closed rather than emptied.** The one entry
+#58 raised was graduated as
+[May the seed write a roster row for a netid `people` does not know?](https://github.com/nopivnick/lineup-prototype-03/issues/69),
+and the ruling is above under **Amendments**. What is worth keeping here is why the answer
+went the way it did, because three of the arguments were not available to either #49 or #58.
 
-`xq7742` holds position 0 on O4, O17 and O22 while `people` has no row for that netid. But
-*a roster write refuses a netid the `people` project does not know* is a `FURTHER_INVARIANT`
-in [`docs/permissions/permissions.ts`](../permissions/permissions.ts)
-([#9](https://github.com/nopivnick/lineup-prototype-03/issues/9), restated by #61), and #28
-classifies an actorless rule as an invariant, which binds the chair *and the seed*.
-[#9](https://github.com/nopivnick/lineup-prototype-03/issues/9)'s own wording names the case
-outright — *in practice the netid arrives from a picker populated out of `people`, so this
-is a backstop against **seed scripts** and direct writes*.
+**The invariant wins, and it is the only rule in the map that consults `people`.** #9's
+refusal names the case outright — *in practice the netid arrives from a picker populated out
+of `people`, so this is a backstop against **seed scripts** and direct writes* — and a seed
+script is precisely what writes these rows. Narrowing it to a non-seed path would remove it
+from the one caller it was written for.
 
-**It is not the shape of the three entries in `SEED_ONLY`.** Those lack a *control*: no
-screen produces them and the missing piece is a screen. These three rows violate an
-*invariant*, and an invariant that binds the seed is not a missing screen. Drawing that line
-is what made this a ticket rather than a fourth derivation.
+**Why the `user_role` writer is right not to check, and the roster writer right to.** The
+same netid's `instructor` grant is `checked: true` and passes, because nothing makes the
+authorization writer consult `people` — [#38](https://github.com/nopivnick/lineup-prototype-03/issues/38)'s
+roles-page fixture *depends* on that. The asymmetry is real: a role grant is a capability
+with no external counterparty, where a position-0 roster row means the department is about
+to ask a named person to teach a paid class, which is the ground #61 already narrowed
+co-instructor writes on. A typo'd netid in `user_role` is a dead role nobody holds; a
+typo'd netid at position 0 is a class nobody is teaching that the system reports as staffed.
 
-The fixtures are written **as #49 ruled them** pending #69, and say so in
-`OPEN_AGAINST_THIS_PACKAGE`. What is at stake is #37's *a roster netid absent from `people`*
-and #41's rendering of it — not `xq7742` itself, who is also P3's author and O22's own
-`accept` actor, neither of which touches the check.
+**The escape hatch was weighed and refused on a fact about the domain.** `people` is not a
+table this system owns — [`docs/schema/people.sql`](../schema/people.sql) says *nothing in
+the skeleton writes a person: rows arrive from the seed, and in a real deployment from an
+NYU feed*. So the seed could have written the `person` row, driven every checked write, and
+deleted the row last, since nothing in the map governs a write to `people` at all. It was
+put to the requester and **declined**: the real ITP/IMA case is an adjunct arriving *late*
+to their netid, so a delete would tell the story backwards, which is the mislabelling move
+[#19](https://github.com/nopivnick/lineup-prototype-03/issues/19) refused by name and #38
+refused to let a typo imitate.
+
+**The cost, accepted rather than traded for.** #37 asked for *a roster netid absent from
+`people`* and a checked seed cannot produce one, so the Lineup's instructor column never
+falls back to a netid in the fixtures. That is a **finding about #37**, which asked for
+something the rules forbid — the two tickets had never cited each other. The rendering stays
+and is still correct: nothing cascades when the NYU feed drops someone already staffed, so
+the state is reachable in production and unreachable *by the seed*, which is not the same
+thing. What the fixtures render instead is the invariant **biting** — a person holding
+`instructor` who appears on no roster anywhere, because nothing may put them on one.
+
+**What the requester ruled out of scope**, recorded on the map: adjuncts who need to propose
+a class and be staffed **with no netid at all**. That is a larger shape than this ticket and
+one the data cannot hold — `netid` is `person`'s primary key and the only join between the
+two projects, so there is nothing to write in the roster row. The roster refusal is what
+blocks it, and the block is deliberate, so a later effort inherits a new way to name a
+person rather than a check to delete.
 
 This is the second time a transcription has caught a fork before a build effort did, after
 #61 — and the third package to find that
@@ -258,13 +313,28 @@ shelves and leaves the books on the floor* has teeth.
   statement of `applyTransition` and the standing principles this package reasons by.
 - **The rendering.** What a screen does with any of this is `docs/prototypes/`.
 
+  **Four prototypes still show `xq7742` on a roster** — `catalog-lineup-views.html`,
+  `course-offering-detail.html`, `field-edits.html` and `roles-page.html` — and #69 did not
+  rewrite them. They are demonstrations of a **rendering**, and the rendering they
+  demonstrate is still required: `displayName` stays nullable and a roster entry is still
+  never dropped for want of a name, because the NYU feed can drop someone already staffed.
+  What changed is which fixture reaches it, and this package is authoritative for that. A
+  build effort seeds from `fixtures.ts` and reads the prototypes for layout only.
+
 ## Accepted costs and exclusions
 
 - **The roles page's *programme with no director* empty state is not seeded and is not
   reachable at runtime.** Ruled, not overlooked. A later effort wanting it needs an
   un-appoint control, which is a screen decision this map has closed.
-- **Vera's director role with no programme is authored by the seed alone**, on `xq7742`'s
-  precedent. Same remark.
+- **Vera's director role with no programme is authored by the seed alone.** Same remark.
+  #49 set the *rendered, never minted* precedent on `xq7742` and applied it here; #69
+  removed that instance and left the precedent standing, so Vera's row is now what it rests
+  on. The line it turns on is #58's: an entry there lacks a **control**, and a row that
+  violates an **invariant** is not a missing screen.
+- **The Lineup's instructor column never falls back to a netid.** #37 asked for a roster
+  netid absent from `people`; #69 found a checked seed cannot write one. The rendering is
+  kept and is still correct — the state is reachable in production and not by the seed.
+  Nothing here is a signal to delete the null branch of `StitchedName`.
 - **The chair's bypass is exercised once, on a review** (P4), not on a class — the cost of
   ruling the LowRes conflict the other way.
 - **No person holds zero roles.** The row would render nothing a `student` does not, and
