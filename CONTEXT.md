@@ -352,7 +352,7 @@ exactly the machines' and that meaning is load-bearing. What the skeleton record
 *that* a row changed and by whom, never *what*. A later effort inherits a table to add, not
 a table to reshape.
 
-**`un_area_head`** — a legacy column, presumably *undergraduate area head*. It is a **lay
+**`un_area_head`** — a legacy column, someone who decidedly lacks the assigned area head's expertise. It is a **lay
 reviewer whose feedback is not a verdict** — a non-actor
 ([#4](https://github.com/nopivnick/lineup-prototype-03/issues/4),
 [#7](https://github.com/nopivnick/lineup-prototype-03/issues/7)). **Excluded**, and the
