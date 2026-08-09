@@ -2,9 +2,9 @@
 
 Six HTML files, one per screen ticket. They are **reference, not application code** — no
 data layer, no framework, no persistence, in the same sense that `docs/machines/*.ts` and
-`docs/permissions/permissions.ts` are reference and nothing imports them. Each is a static
-approximation of Next.js + Mantine + mantine-datatable, built to be reacted to. The build
-effort converts them; it does not lift them.
+`docs/permissions/permissions.ts` are reference artifacts (imported only by other `docs/**/*.ts`
+files for typechecking, not by runtime code). Each is a static approximation of Next.js + Mantine
++ mantine-datatable, built to be reacted to. The build effort converts them; it does not lift them.
 
 Each file holds **several variants and one settled shape**. The settled variant is the
 answer; the others are kept beside it as the primary source it was chosen from or against,
