@@ -335,7 +335,7 @@ unchecked failure mode, since a small program may have exactly one area head and
 leave certain proposals with no legal approver. **In scope and taken: the page states the
 coincidence** where a proposal's author is also the approving area head. It costs nothing and it
 makes the situation visible to anyone reading the record. `authorIsAreaHead` carries it in
-[`docs/data-access/`](../data-access/README.md).
+[`docs/data-access/data-access.ts`](../data-access/data-access.ts).
 
 ## Amendments
 
