@@ -931,12 +931,13 @@ to make ten, #17 removed `Revising` to make nine again. A count that survives tw
 unchanged is the one a diff cannot find, which is worth knowing about rule 2's method: it
 locates a hole by ticket coverage, not by arithmetic.
 
-**One artifact inaccuracy is recorded and not fixed.** `offering.machine.ts`'s `LIVE_STATES`
-comment reads *nine states, not the ten ticket 14 ruled on*; ticket 14 ruled on nine, and
-the ten was #15's. Rule 1 puts an artifact amendment behind its own closed ticket and #98
-asked for none, so this is recorded rather than fixed silently, per
-[#50](https://github.com/nopivnick/lineup-prototype-03/issues/50). The state set itself is
-correct in both files and no rule turns on it.
+**One artifact inaccuracy is recorded and not fixed, as
+[#100](https://github.com/nopivnick/lineup-prototype-03/issues/100).**
+`offering.machine.ts`'s `LIVE_STATES` comment reads *nine states, not the ten ticket 14
+ruled on*; ticket 14 ruled on nine, and the ten was #15's. Rule 1 puts an artifact amendment
+behind its own closed ticket and #98 asked for none, so this is recorded rather than fixed
+silently, per [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50). The state
+set itself is correct in both files and no rule turns on it.
 
 **What the sweep deliberately left.** A *Decided* entry saying what its ticket ruled at the
 time is a record and not a standing claim — ticket 6's `revisingFrom` and `wasAccepted`,
