@@ -36,13 +36,17 @@ export type OfferingState =
  * is live up to and including `Running`. The five excluded states are
  * `Declined`, `Canceled`, `Evaluating`, `Concluded` and `Dead`.
  *
- * Nine states, not the ten ticket 14 ruled on. `Revising` is gone from the
- * machine entirely — https://github.com/nopivnick/lineup-prototype-03/issues/17.
- * Ticket 14 had made it live *unconditionally*, whatever `revisingFrom` held,
- * partly to avoid reading context back out of the snapshot, and named that a
- * compromise. Deleting the state removes the compromise rather than vindicating
- * it: every state left in this set is live for a reason about that state alone,
- * and none of them needs context to decide.
+ * nine included `Revising` and did not include `Staffed`;
+ * https://github.com/nopivnick/lineup-prototype-03/issues/15 added `Staffed` to
+ * make ten, and
+ * https://github.com/nopivnick/lineup-prototype-03/issues/17 removed `Revising`
+ * to make nine again — so `Revising` is gone from the machine entirely, and the
+ * two nines are different sets. Ticket 14 had made it live *unconditionally*,
+ * whatever `revisingFrom` held, partly to avoid reading context back out of the
+ * snapshot, and named that a compromise. Deleting the state removes the
+ * compromise rather than vindicating it: every state left in this set is live
+ * for a reason about that state alone, and none of them needs context to
+ * decide.
  *
  * This is the single source of the definition. The query that builds a
  * `retire` event's `liveOfferings` spreads it into a `status IN (...)`, against
