@@ -178,11 +178,14 @@ export const NOBODY: readonly Route[] = [];
  * - fire an event the machine does not offer — `cancel` from `Slated` is refused for
  *   the chair as for anyone;
  * - violate an invariant — cannot create an offering whose course lacks an area and
- *   a head (#32), cannot `retry` against a `Retired` course (#14), cannot write the
- *   immutable Structural class, which #28 reclassified from a permission to an
- *   invariant on the test that it names no actor. That reclassification is the whole
- *   of what makes a superuser safe to add: #30's re-homing rule survives a chair
- *   *only because of where the rule was filed*;
+ *   a head (#32), cannot create one against a `Retired` course (#43), cannot `retry`
+ *   against a `Retired` course (#14) — the last two being **one contradiction guarded
+ *   at two doors**, neither replacing the other, and creation the door a chair is
+ *   likeliest to walk through, since #13 made it an act and not a transition, so it
+ *   writes no log row at all — cannot write the immutable Structural class, which #28
+ *   reclassified from a permission to an invariant on the test that it names no
+ *   actor. That reclassification is the whole of what makes a superuser safe to add:
+ *   #30's re-homing rule survives a chair *only because of where the rule was filed*;
  * - be named as the subject of a relationship they are not qualified for — standing
  *   principle 6 constrains the subject and names no actor, so it is an invariant too.
  *
@@ -863,6 +866,11 @@ export const FURTHER_INVARIANTS = [
     settledBy: ["#32", "#30"],
   },
   {
+    rule: "an Offering may not be created against a `Retired` Course",
+    where: "inside the offering create path — the second door onto `noLiveOfferings`",
+    settledBy: ["#43", "#14"],
+  },
+  {
     rule: "the area and area-head assignment is monotone — no write may leave the area set empty or the head null, and there is no unassign operation",
     where: "non-exposure at the action layer, `staff`/`unstaff`'s shape borrowed",
     settledBy: ["#32"],
@@ -875,7 +883,7 @@ export const FURTHER_INVARIANTS = [
   {
     rule: "a roster write refuses a netid the `people` project does not know",
     where: "inside the roster writer",
-    settledBy: ["#9", "#61"],
+    settledBy: ["#9", "#61", "#69"],
   },
   {
     rule: "the `user_role` writer refuses to remove the last `chair` row",
