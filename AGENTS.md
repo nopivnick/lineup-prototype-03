@@ -39,6 +39,23 @@ reference rather than application code — the build converts it rather than lif
 `npm run build` is `eslint . && next build` so that a page importing one fails the build.
 See `docs/data-access/README.md`.
 
+**The lifecycles and the rules are code now**, converted by
+[#76](https://github.com/nopivnick/lineup-prototype-03/issues/76). `lib/machines/*.machine.ts`
+holds the three machines and `lib/permissions.ts` the matrices, the thirteen field classes,
+the read tiers, the chair bypass and the invariants. Three things about them are structural
+rather than conventional:
+
+- `lib/permissions.ts` imports `server-only`, so a Client Component reaching for the rules
+  fails the build.
+- `fieldClassFor(column)` is total and returns an unwritable class for anything unclassified,
+  which is [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s *a column with
+  no field class is unwritable*.
+- `db/classes/schema.ts` builds each state `CHECK` from the machine's own state set, and
+  `db/machine-states.test.ts` asserts the applied migration agrees — `npm run test`, in CI.
+  That is the alarm [#13](https://github.com/nopivnick/lineup-prototype-03/issues/13) chose
+  over a `machine_version` column. When it fires, the fix is `npm run db:reset`; there are no
+  per-version snapshot migrations by construction.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

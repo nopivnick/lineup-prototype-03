@@ -2,7 +2,9 @@
 // invariant list, in one module.
 //
 // **Reference, not application code.** Nothing runs this and nothing imports it into
-// a running system — see docs/README.md. The build effort converts it.
+// a running system — see docs/README.md. The application's copy is lib/permissions.ts,
+// converted by #76; this file stays authoritative, and where the two disagree the copy
+// is wrong.
 //
 // One module is deliberate.
 // https://github.com/nopivnick/lineup-prototype-03/issues/28 put the matrix and the

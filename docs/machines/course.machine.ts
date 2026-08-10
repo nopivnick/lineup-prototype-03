@@ -1,4 +1,6 @@
-// Not yet wired into an application.
+// Reference, not application code. The application's copy is
+// lib/machines/course.machine.ts, converted by issues/76; this file stays
+// authoritative, and where the two disagree the copy is wrong.
 // Source of truth for the Course lifecycle while the map is being worked.
 // See docs/machines/README.md for what has been decided and what is still open.
 //
