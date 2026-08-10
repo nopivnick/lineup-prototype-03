@@ -28,7 +28,15 @@ import {
 import { MATRICES, NOBODY, type MachineName, type Route } from "@/lib/permissions";
 
 import { refuse, WriteRefused } from "./refusal";
-import { notYours, permitted, readActorFacts, type ActorFacts, type Subject } from "./rules";
+import {
+  holdsRole,
+  notYours,
+  peopleKnows,
+  permitted,
+  readActorFacts,
+  type ActorFacts,
+  type Subject,
+} from "./rules";
 import type { ClassesTx, Id, Netid } from "./transaction";
 
 // ---------------------------------------------------------------------------
@@ -259,7 +267,7 @@ async function moveOffering(
     // role is the qualification to teach. It names no actor, so the chair is
     // bound by it too, and a chair who does not hold `instructor` cannot be
     // staffed on a class.
-    if (!(await holdsInstructor(tx, event.netid))) {
+    if (!(await holdsRole(tx, event.netid, "instructor"))) {
       refuse(`${event.netid} cannot be given a class to teach without the instructor role.`);
     }
     // **A check, not a constraint** (issues/9, issues/61, issues/69): the netid
@@ -560,16 +568,3 @@ async function leadOf(tx: ClassesTx, offeringId: Id): Promise<Netid | null> {
   return row?.netid ?? null;
 }
 
-async function holdsInstructor(tx: ClassesTx, netid: Netid): Promise<boolean> {
-  const facts = await readActorFacts(tx, netid);
-  return facts.roles.has("instructor");
-}
-
-/** The one read in a write path that leaves the `classes` project (issues/9). */
-async function peopleKnows(netid: Netid): Promise<boolean> {
-  const rows = await peopleDb()
-    .select({ netid: person.netid })
-    .from(person)
-    .where(eq(person.netid, netid));
-  return rows.length > 0;
-}

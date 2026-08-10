@@ -28,6 +28,7 @@ import { applyTransition } from "./apply-transition";
 import { WriteRefused } from "./refusal";
 import {
   DATABASES_CONFIGURED,
+  refusalFrom,
   freshWorld,
   mintCourse,
   slateOffering,
@@ -444,13 +445,3 @@ async function logOf(offeringId: Id) {
     .orderBy(offeringTransition.offeringTransitionId);
 }
 
-/** The refusal itself, so a test can read the sentence it states. */
-async function refusalFrom(attempt: Promise<unknown>): Promise<WriteRefused> {
-  try {
-    await attempt;
-  } catch (thrown) {
-    if (thrown instanceof WriteRefused) return thrown;
-    throw thrown;
-  }
-  throw new Error("The write was not refused.");
-}

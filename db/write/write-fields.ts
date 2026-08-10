@@ -32,7 +32,15 @@ import {
 } from "@/lib/permissions";
 
 import { refusal, refuse, refuseAll, type Refusal } from "./refusal";
-import { notYours, permitted, readActorFacts, type ActorFacts, type Subject } from "./rules";
+import {
+  holdsRole,
+  notYours,
+  peopleKnows,
+  permitted,
+  readActorFacts,
+  type ActorFacts,
+  type Subject,
+} from "./rules";
 import type { ClassesTx, Id, Netid } from "./transaction";
 
 // ---------------------------------------------------------------------------
@@ -115,6 +123,16 @@ export async function writeFields(tx: ClassesTx, write: FieldWrite, actor: Netid
     }
   }
 
+  // A write may only name tables belonging to the record it opened. Naming
+  // another is a caller's mistake and not a rule anybody hit, so it throws
+  // rather than refusing.
+  for (const table of [...Object.keys(byTable(columns)), ...rows.map((row) => row.table)]) {
+    const owner = OWNED_BY[table];
+    if (owner && owner !== kindOf(write.record)) {
+      throw new Error(`A field write on ${kindOf(write.record)} may not name ${table}.`);
+    }
+  }
+
   const facts = await readActorFacts(tx, actor);
   const context = await load(tx, write.record);
   context.tagPrograms = await loadTagPrograms(tx, rows);
@@ -165,10 +183,19 @@ export async function writeFields(tx: ClassesTx, write: FieldWrite, actor: Netid
 
   for (const row of rows) {
     const table = tableNamed(row.table);
+    // The parent key is **derived from the record, never taken from the
+    // caller** — issues/30's move on `offering.program_code`, applied to the
+    // other half of the same problem. Without it the two predicates are checked
+    // against the record the actor opened while the row lands on whichever one
+    // its payload names: IMA's director, editing her own class, could write a
+    // meeting onto ITP's.
+    const parent = parentKey(row.table, context);
     if (row.op === "insert") {
-      await tx.insert(table).values(named(table, { ...row.values, ...provenance(row.table, actor) }));
+      await tx
+        .insert(table)
+        .values(named(table, { ...row.values, ...parent, ...provenance(row.table, actor) }));
     } else {
-      await tx.delete(table).where(keyMatch(table, row.key));
+      await tx.delete(table).where(keyMatch(table, { ...row.key, ...parent }));
     }
     touched.add(row.table);
   }
@@ -336,7 +363,7 @@ async function furtherInvariants(
       const netid = String(row.values.netid ?? "");
       // Standing principle 6 binds **every** roster row, not only position 0:
       // position is scope for events, the role is the qualification to teach.
-      if (!(await holds(tx, netid, "instructor"))) {
+      if (!(await holdsRole(tx, netid, "instructor"))) {
         refuse(`${netid} cannot be seated on a class without the instructor role.`);
       }
       // A check, not a constraint — the netid is in the other project (issues/9).
@@ -382,7 +409,7 @@ async function furtherInvariants(
   }
 
   if (fieldClass.name === "Authorization") {
-    await authorizationInvariants(tx, work, actor);
+    await authorizationInvariants(tx, work);
   }
 }
 
@@ -406,7 +433,7 @@ async function monotoneAssignment(
     // (issues/32, issues/34): a `course.area_head` naming someone without the
     // role is inert — it looks like an assignment, confers nothing, and reports
     // nothing.
-    if (typeof head === "string" && !(await holds(tx, head, "area_head"))) {
+    if (typeof head === "string" && !(await holdsRole(tx, head, "area_head"))) {
       refuse(`${head} cannot head an area without the area head role.`);
     }
   }
@@ -423,13 +450,13 @@ async function monotoneAssignment(
   }
 }
 
-async function authorizationInvariants(tx: ClassesTx, work: Work, _actor: Netid): Promise<void> {
+async function authorizationInvariants(tx: ClassesTx, work: Work): Promise<void> {
   for (const row of work.rows) {
     if (row.table === "program_director" && row.op === "insert") {
       // Appointing a director is **two writes**, the role then this row, and the
       // second refuses a netid without the first (standing principle 6).
       const netid = String(row.values.netid ?? "");
-      if (!(await holds(tx, netid, "program_director"))) {
+      if (!(await holdsRole(tx, netid, "program_director"))) {
         refuse(`${netid} cannot direct a program without the program director role.`);
       }
     }
@@ -648,6 +675,59 @@ function tableNamed(table: string): PgTable {
   return found;
 }
 
+/**
+ * Which record each table hangs off. `course_proposal` belongs to the review
+ * because the body is shared and the edit page is the review's (issues/62); the
+ * two authorization tables belong to no record at all (issues/34).
+ */
+const OWNED_BY: Readonly<Record<string, "a course" | "a class" | "a review" | "the roles page">> = {
+  course: "a course",
+  course_area: "a course",
+  course_proposal: "a review",
+  course_proposal_review: "a review",
+  course_proposal_review_area: "a review",
+  offering: "a class",
+  offering_area: "a class",
+  offering_instructor: "a class",
+  offering_meeting: "a class",
+  offering_requirement_category: "a class",
+  program_director: "the roles page",
+  user_role: "the roles page",
+};
+
+function kindOf(record: FieldWriteRecord): string {
+  if ("authorization" in record) return "the roles page";
+  return record.machine === "course" ? "a course" : record.machine === "offering" ? "a class" : "a review";
+}
+
+/**
+ * The parent key a row write inherits from its record, overwriting whatever the
+ * caller passed. `program_code` rides along on the two tables whose composite
+ * foreign key checks it against both ends (issues/25, issues/30), so a caller
+ * cannot claim one program's area for another's course.
+ */
+function parentKey(table: string, context: Context): Record<string, unknown> {
+  switch (table) {
+    case "course_area":
+      return {
+        course_id: expect(context.recordId, "course"),
+        program_code: context.course?.programCode,
+      };
+    case "course_proposal_review_area":
+      return {
+        course_proposal_review_id: expect(context.recordId, "review"),
+        program_code: context.review?.programCode,
+      };
+    case "offering_area":
+    case "offering_instructor":
+    case "offering_meeting":
+    case "offering_requirement_category":
+      return { offering_id: expect(context.recordId, "class") };
+    default:
+      return {};
+  }
+}
+
 function byTable(columns: Readonly<Record<string, unknown>>): Record<string, Record<string, unknown>> {
   const grouped: Record<string, Record<string, unknown>> = {};
   for (const [qualified, value] of Object.entries(columns)) {
@@ -788,12 +868,3 @@ async function stamp(tx: ClassesTx, touched: ReadonlySet<string>, context: Conte
 // Shared reads
 // ---------------------------------------------------------------------------
 
-async function holds(tx: ClassesTx, netid: Netid, role: Role): Promise<boolean> {
-  const rows = await tx.select({ role: userRole.role }).from(userRole).where(eq(userRole.netid, netid));
-  return rows.some((row) => row.role === role);
-}
-
-async function peopleKnows(netid: Netid): Promise<boolean> {
-  const rows = await peopleDb().select({ netid: person.netid }).from(person).where(eq(person.netid, netid));
-  return rows.length > 0;
-}

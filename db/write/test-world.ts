@@ -24,6 +24,7 @@ import { person } from "@/db/people/schema";
 import { applyTransition } from "./apply-transition";
 import { createOffering } from "./create-offering";
 import { createProposal } from "./create-proposal";
+import { WriteRefused } from "./refusal";
 import { writeToClasses, type Id } from "./transaction";
 import { writeFields } from "./write-fields";
 
@@ -282,4 +283,18 @@ export async function slateOffering(
     ),
   );
   return offeringId;
+}
+
+/**
+ * The refusal itself, so a test can read the sentence it states. A write that
+ * was **not** refused fails here rather than silently passing.
+ */
+export async function refusalFrom(attempt: Promise<unknown>): Promise<WriteRefused> {
+  try {
+    await attempt;
+  } catch (thrown) {
+    if (thrown instanceof WriteRefused) return thrown;
+    throw thrown;
+  }
+  throw new Error("The write was not refused.");
 }

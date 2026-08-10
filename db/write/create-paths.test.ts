@@ -21,7 +21,15 @@ import { applyTransition } from "./apply-transition";
 import { createOffering } from "./create-offering";
 import { createProposal } from "./create-proposal";
 import { WriteRefused } from "./refusal";
-import { A_MEETING, DATABASES_CONFIGURED, freshWorld, mintCourse, WHO, type World } from "./test-world";
+import {
+  A_MEETING,
+  DATABASES_CONFIGURED,
+  freshWorld,
+  mintCourse,
+  refusalFrom,
+  WHO,
+  type World,
+} from "./test-world";
 import { writeToClasses, type Id } from "./transaction";
 
 const classes = classesDb;
@@ -250,12 +258,3 @@ async function proposalCount(): Promise<number> {
   ).length;
 }
 
-async function refusalFrom(attempt: Promise<unknown>): Promise<WriteRefused> {
-  try {
-    await attempt;
-  } catch (thrown) {
-    if (thrown instanceof WriteRefused) return thrown;
-    throw thrown;
-  }
-  throw new Error("The write was not refused.");
-}

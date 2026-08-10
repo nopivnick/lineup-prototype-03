@@ -9,7 +9,14 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test } from "vitest";
 
-import { course, courseProposal, offeringArea, offeringInstructor, userRole } from "@/db/classes/schema";
+import {
+  course,
+  courseProposal,
+  offeringArea,
+  offeringInstructor,
+  offeringMeeting,
+  userRole,
+} from "@/db/classes/schema";
 import { classesDb } from "@/db/handles";
 
 import { applyTransition } from "./apply-transition";
@@ -17,6 +24,7 @@ import { createProposal } from "./create-proposal";
 import { WriteRefused } from "./refusal";
 import {
   DATABASES_CONFIGURED,
+  refusalFrom,
   freshWorld,
   mintCourse,
   slateOffering,
@@ -246,6 +254,45 @@ describe.skipIf(!DATABASES_CONFIGURED)("writeFields", () => {
     await coInstructor(offeringId, WHO.areaHead, WHO.itpDirector);
 
     expect((await rosterOf(offeringId)).map((row) => row.position)).toEqual([0, 1]);
+  });
+
+  test("a row lands on the record that was opened, whatever id its payload names", async () => {
+    const itp = await mintCourse(world, { courseNumber: "ITPG-GT 2233", programCode: "ITP" });
+    const itpOffering = await slateOffering(world, itp.courseId, { actor: WHO.itpDirector });
+    const ima = await mintCourse(world, { courseNumber: "IMNY-UT 105", programCode: "IMA" });
+    const imaOffering = await slateOffering(world, ima.courseId, { actor: WHO.imaDirector });
+
+    // IMA's director edits her **own** class, so the role gate is satisfied, and
+    // names ITP's offering id inside the row. The parent key is derived from the
+    // record rather than taken from her, so the write cannot leave her program.
+    await write(
+      {
+        record: { machine: "offering", id: imaOffering },
+        rows: [
+          {
+            table: "offering_meeting",
+            op: "insert",
+            values: { offering_id: itpOffering, kind: "async" },
+          },
+        ],
+      },
+      WHO.imaDirector,
+    );
+
+    expect(await meetingCountOf(itpOffering)).toBe(1);
+    expect(await meetingCountOf(imaOffering)).toBe(2);
+  });
+
+  test("a write may not name a table its record does not own", async () => {
+    const { courseId } = await mintCourse(world, { courseNumber: "ITPG-GT 2233" });
+    const offeringId = await slateOffering(world, courseId);
+
+    await expect(
+      write(
+        { record: { machine: "offering", id: offeringId }, columns: { "course.area_head": WHO.areaHead } },
+        WHO.chair,
+      ),
+    ).rejects.toThrow(/may not name course/);
   });
 
   // --- Seat sharing: the one scope that points away from the record ---------
@@ -520,17 +567,17 @@ async function rosterOf(offeringId: Id) {
     .orderBy(offeringInstructor.position);
 }
 
+async function meetingCountOf(offeringId: Id): Promise<number> {
+  return (
+    await classes()
+      .select({ id: offeringMeeting.offeringMeetingId })
+      .from(offeringMeeting)
+      .where(eq(offeringMeeting.offeringId, offeringId))
+  ).length;
+}
+
 async function rolesOf(netid: string): Promise<string[]> {
   const rows = await classes().select({ role: userRole.role }).from(userRole).where(eq(userRole.netid, netid));
   return rows.map((row) => row.role).sort();
 }
 
-async function refusalFrom(attempt: Promise<unknown>): Promise<WriteRefused> {
-  try {
-    await attempt;
-  } catch (thrown) {
-    if (thrown instanceof WriteRefused) return thrown;
-    throw thrown;
-  }
-  throw new Error("The write was not refused.");
-}

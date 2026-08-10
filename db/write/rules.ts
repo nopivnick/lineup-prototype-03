@@ -3,6 +3,8 @@ import "server-only";
 import { eq } from "drizzle-orm";
 
 import { programDirector, userRole } from "@/db/classes/schema";
+import { peopleDb } from "@/db/handles";
+import { person } from "@/db/people/schema";
 import type { Role, Route } from "@/lib/permissions";
 
 import { refusal, type Refusal } from "./refusal";
@@ -45,13 +47,37 @@ export async function readActorFacts(tx: ClassesTx, netid: Netid): Promise<Actor
   };
 }
 
-/** Whether a netid holds a role, read inside the transaction like everything else. */
+/**
+ * Whether a **subject** holds a role — standing principle 6's half of the model
+ * (issues/34): the writer of a relationship refuses a subject who does not hold
+ * the role that relationship scopes. Read inside the transaction like everything
+ * else, and used by `applyTransition`'s `staff` and by the field writer's roster
+ * and assignment classes.
+ */
 export async function holdsRole(tx: ClassesTx, netid: Netid, role: Role): Promise<boolean> {
   const rows = await tx
     .select({ role: userRole.role })
     .from(userRole)
     .where(eq(userRole.netid, netid));
   return rows.some((row) => row.role === role);
+}
+
+/**
+ * **The one read in a write path that leaves the `classes` project** (issues/9,
+ * issues/61, issues/69).
+ *
+ * A **check, not a constraint**, and it has to be described that way: it cannot
+ * join the transaction, because the transaction is on the other database, so a
+ * window exists between check and write. Against a recovery path of reseed that
+ * is the right trade. On the way **out** the read tolerates and never hides — a
+ * roster entry is never dropped for want of a name.
+ */
+export async function peopleKnows(netid: Netid): Promise<boolean> {
+  const rows = await peopleDb()
+    .select({ netid: person.netid })
+    .from(person)
+    .where(eq(person.netid, netid));
+  return rows.length > 0;
 }
 
 /**
