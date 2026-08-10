@@ -87,8 +87,9 @@ export const machine = setup({
   },
   // **No guards at all**, and both absences are deletions rather than omissions.
   // `hasLead` is gone because `Staffed` encodes the same fact as a state, so
-  // `offer` is unreachable without a lead (issues/15); the eight `was*` guards
-  // went with the `Revising` state (issues/17).
+  // `offer` is unreachable without a lead (issues/15); the seven `was*` guards
+  // went with the `Revising` state (issues/17) — seven, not `RevisableState`'s
+  // eight, because `approve` defaulted to `Slated` unguarded.
   //
   // The one constraint this lifecycle cannot express is asserted in
   // `applyTransition`: **`retry` is refused when the Course is `Retired`**
