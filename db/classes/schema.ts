@@ -11,27 +11,9 @@
  *
  *   * Surrogate keys are `bigint GENERATED ALWAYS AS IDENTITY`. Readable in a
  *     URL and in a `psql` session, where a UUID would be defending a door
- *     issues/11 opened on purpose.
- *
- *     **A derivation, recorded rather than silently narrowed.** issues/10 gives
- *     one reason for `bigint` over `integer`: "it is what Drizzle surfaces as
- *     `string`, which `LiveOffering.id` in course.machine.ts already assumes."
- *     That is not true of the 0.45 line the same package pins. `bigint()` takes
- *     exactly two modes — `number`, which maps through `Number()`, and `bigint`,
- *     which maps through `BigInt()`. Neither is `string`, and the mode is the
- *     only lever: the identity builder is not reachable from `customType`.
- *
- *     `number` is chosen over `bigint`. Both need a `String()` at the read
- *     module where a row becomes a `LiveOffering`, so neither honours the
- *     package's sentence; `number` survives `JSON.stringify` across the
- *     Server/Client Component boundary and reads as `1` in a fixture, where
- *     `bigint` throws there and reads as `1n`. The DDL is `bigint` either way,
- *     which is the part issues/10 was authoritative over. The exactness `number`
- *     gives up arrives at 2^53 ids.
- *
- *     Filed as issues/93, which is where the mode gets ratified or overturned
- *     and where the two false sentences in `docs/schema/` get amended. This
- *     paragraph shrinks to a pointer once it closes.
+ *     issues/11 opened on purpose. `mode: "number"` throughout, ratified by
+ *     issues/93 — which is also where the reasoning lives, and where the reason
+ *     issues/10 gave for `bigint` over `integer` was corrected.
  *   * Fixed value sets are `text` plus a CHECK, never a native `ENUM`
  *     (issues/6): a generated column's expression must be IMMUTABLE and
  *     text→enum casts are only STABLE, and a CHECK is one line to widen or

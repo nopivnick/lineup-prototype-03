@@ -11,8 +11,12 @@
 -- Conventions applied throughout, each from a closed ticket:
 --
 --   * Surrogate keys are `bigint GENERATED ALWAYS AS IDENTITY`. Readable in a
---     URL, and surfaced as `string` in TypeScript, which is what
---     `LiveOffering.id` in course.machine.ts already assumes.
+--     URL, and `bigint` rather than `integer` because widening a primary key
+--     after the fact rewrites the table and every column referencing it, where
+--     the four extra bytes cost nothing now. How the key surfaces in TypeScript
+--     is no part of that reason — Drizzle maps it to a `number`, and a read
+--     module puts a `String()` where a row becomes a `LiveOffering`. Both
+--     amended by issues/93, which corrected the reason issues/10 gave.
 --   * Fixed value sets are `text` plus a CHECK, never a native `ENUM`. issues/6
 --     forced this for `status` (a generated column's expression must be
 --     IMMUTABLE, and text→enum casts are only STABLE), and the role list has
