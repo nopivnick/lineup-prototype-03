@@ -319,6 +319,49 @@ the same drafting pass.
   entry carries a note saying why it is stated weakly, and `Invariant` gained an optional
   `note` to hold it, matching `Act` and `FieldClass`.
 
+- **`FURTHER_INVARIANTS` gains a sixth entry, and the roster entry gains a third citation**
+  — by [`docs/permissions/` omits the create-path invariant #43 settled](https://github.com/nopivnick/lineup-prototype-03/issues/96).
+  **No rule changes and no writer behaves differently.** Both rules were already settled,
+  and both were already stated in prose elsewhere in the map; what was wrong was the
+  **list**, which is this package's operative form.
+
+  **An Offering may not be created against a `Retired` Course**, settled by
+  [#43](https://github.com/nopivnick/lineup-prototype-03/issues/43) completing a rule
+  [#14](https://github.com/nopivnick/lineup-prototype-03/issues/14) left half-drawn. **The
+  argument is not restated here.** It landed in
+  [`docs/machines/README.md`](../machines/README.md), under *The Offering create path
+  refuses a `Retired` course*, which is where a reader should go for why `retire`'s guard
+  had a door on the other side, why the rule stays out of the schema, and why the create
+  path is the worse of the two doors. What this package owed it was a **row in the list**,
+  and that is what it now has.
+
+  **The `CHAIR_BYPASS` bullet now names it**, between its two neighbours. That was the tell
+  #96 found: the bullet enumerated #32's gate and #14's `retry` refusal and skipped the rule
+  sitting between them, in the one place a reader checks what a chair cannot do, for the
+  door a chair is likeliest to walk through. Ruled here rather than inherited, because #96
+  left it open.
+
+  **[#69](https://github.com/nopivnick/lineup-prototype-03/issues/69) joins the roster
+  entry's `settledBy`.** #9 and #61 stated the rule; #69 is the ticket that ruled on the
+  case the seed hits — the seed may **not** write a roster row for a netid `people` does
+  not know — which is what `docs/README.md` already records. The Roster positions 1..n
+  field-class note keeps `#9` alone: the invariant list is the operative form of that rule
+  and is where the ticket coverage has to be complete.
+
+  **How it was found is the point.** #43 appeared nowhere in `permissions.ts` while
+  `docs/machines/README.md` carried the rule as a full ledger entry — and amended its own
+  count of cross-entity invariants from two to three under a section named for this
+  package's rule, *Permission enforcement lives in one TypeScript module*, while the module
+  itself never picked it up. That is exactly the hole rule 2 of
+  [`docs/agents/spec-packages.md`](../agents/spec-packages.md)
+  exists to make findable by diffing ticket coverage. It had teeth because
+  [#76](https://github.com/nopivnick/lineup-prototype-03/issues/76) had already shipped
+  `lib/permissions.ts` carrying both entries: the copy asserted something its authority did
+  not, which #76's own header says is the copy being wrong. Recorded as a ticket rather than
+  fixed silently, per [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50).
+  **The invariant lists in the two files now agree**, entry for entry and citation for
+  citation, modulo the copy's `issues/n` style — so `lib/permissions.ts` needs no edit.
+
 ## What #65 left for the prototypes
 
 **#65 reaches two settled screens**, both built on the narrow reading it overturned:
