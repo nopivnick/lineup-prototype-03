@@ -11,7 +11,7 @@ narrower than usual.
 ```
 npm install
 cp .env.example .env.local     # fill in four connection strings
-npm run db:reset               # drop, migrate both projects, reseed
+npm run db:reset               # drop, migrate both projects (seeds once db/seed.ts exists)
 npm run dev
 ```
 

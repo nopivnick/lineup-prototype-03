@@ -74,7 +74,8 @@ async function drop(urlVariable: string): Promise<void> {
 function run(command: string, args: string[]): void {
   const result = spawnSync(command, args, { stdio: "inherit", shell: false });
   if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(" ")} exited with ${result.status ?? "a signal"}`);
+    const detail = result.status ?? (result.signal ? `signal ${result.signal}` : "unknown");
+    throw new Error(`${command} ${args.join(" ")} exited with ${detail}`);
   }
 }
 
