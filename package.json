@@ -2,6 +2,9 @@
   "name": "lineup-prototype-03",
   "private": true,
   "description": "The ITP/IMA catalog walking skeleton. Built from the spec in docs/ — see docs/README.md.",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "eslint . && next build",
