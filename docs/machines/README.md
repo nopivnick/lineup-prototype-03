@@ -171,9 +171,10 @@ states are live, everything up to and including `Running`, exported as `LIVE_STA
 from `offering.machine.ts`. The five excluded are `Declined`, `Canceled`, `Evaluating`,
 `Concluded` and `Dead`. `Canceled` had to be excluded or the guard would be satisfiable
 only by `kill` → `Dead`, destroying exactly the data ticket 2 preserved; `Evaluating`
-because it is a closed backwater that can never re-enter the forward path. Ticket 14
-ruled on ten: it also made `Revising` live *unconditionally*, whatever `revisingFrom`
-held, and ticket 17 has since deleted the state — see *Offering `revise` and `approve`
+because it is a closed backwater that can never re-enter the forward path. **The nine are
+not ticket 14's nine**: its set counted `Revising`, live *unconditionally* whatever
+`revisingFrom` held, and ticket 17 has since deleted the state — the number survives only
+because ticket 15's `Staffed` had joined in between. See *Offering `revise` and `approve`
 are deleted, and so is `Revising`* below.
 
 The guard is **blind to term**. The state set already filters honest history — a
@@ -627,12 +628,10 @@ where a state asserts something about that field's content* — is a statement a
 with no actor in it. Those writes carry two predicates, ANDed: a state predicate binding
 everyone including the seed script, and a role predicate binding the actor.
 
-**Three invariants stay out of the database.** The count is of invariants and not of
-*cross-entity* ones: two of the three are cross-entity — the counter
-[#43](https://github.com/nopivnick/lineup-prototype-03/issues/43)'s entry keeps when it
-calls its own addition the second — and the third is non-exposure rather than a check. Two
-are carried by the machine files themselves; the third is carried by this README, creation
-firing no event for a comment to sit beside.
+**Three invariants stay out of the database** — invariants, not *cross-entity* ones: two of
+the three are cross-entity, and `staff` / `unstaff` is non-exposure rather than a check. Two
+are carried by the machine files themselves; the create path is carried by this README,
+creation firing no event for a comment to sit beside.
 
 `retry` against a `Retired` Course needs a cross-table read, so only a trigger could hold
 it — rejected by tickets 13 and 30 on *where would a reader find it* — and it is a
@@ -881,16 +880,15 @@ That makes it the **fourth actorless invariant to land in a writer rather than t
 and the second cross-entity one. It sits beside `retry` against a `Retired` Course rather
 than replacing it — they guard the same contradiction at two different doors. *Permission
 enforcement lives in one TypeScript module* counted two invariants before this one and
-counts three now;
-[#98](https://github.com/nopivnick/lineup-prototype-03/issues/98) is what moved that count
-into the sentence, this entry having first appended it beside one.
+counts three now — a correction this entry first appended beside that sentence and
+[#98](https://github.com/nopivnick/lineup-prototype-03/issues/98) moved into it.
 
 **No machine is amended** — checked explicitly against all three files. Creation fires no
 event, so there is no transition to comment on, which is the whole reason the rule has to
 live in prose here rather than beside an edge. `course.machine.ts`'s `retire` already
 carries the guard this completes.
 
-### The invariant count is stated once, and says what it counts
+### The invariant count says what it counts, and the sweep clears two more
 
 [`docs/machines/README.md` corrects its invariant count beside the sentence rather than in
 it](https://github.com/nopivnick/lineup-prototype-03/issues/98) is a documentation ticket.
@@ -915,16 +913,30 @@ is left alone at the entries that made it — *the third* in
 [#32](https://github.com/nopivnick/lineup-prototype-03/issues/32)'s and *the fourth* in
 #43's are counts at the time of writing, which is what a ledger is for.
 
-**The sweep found two more of the shape, and both are fixed.** `noLiveOfferings` had its
-live count moved to nine when
-[#17](https://github.com/nopivnick/lineup-prototype-03/issues/17) deleted `Revising`, and
-left the clause explaining why `Revising` was live standing in the enumeration the count
-introduces — the same defect exactly. And ticket 19's entry still said `offer` and `accept`
-deliberately carry no `subject_netid`, which
+**The sweep found two more, both rule 3's shape with the correction further away rather
+than beside.** The `noLiveOfferings` entry still explained why `Revising` was live, inside
+an enumeration [#17](https://github.com/nopivnick/lineup-prototype-03/issues/17) had emptied
+of that state, with the correction 250 lines below. And ticket 19's entry still said `offer`
+and `accept` deliberately carry no `subject_netid`, which
 [#41](https://github.com/nopivnick/lineup-prototype-03/issues/41) overturned and which the
 `subject_netid` sentence in ticket 15's entry, one entry above it, already stated
 correctly — so the body contradicted itself. Both now give the current answer and point at
 the entry that changed it.
+
+**Neither was a mis-stated count, and one of them proves a count can be right by
+accident.** *Nine states are live* has stood unedited since ticket 14 wrote it, and it was
+true then and is true now of **different sets** — ticket 14's nine held `Revising` and no
+`Staffed`, [#15](https://github.com/nopivnick/lineup-prototype-03/issues/15) added `Staffed`
+to make ten, #17 removed `Revising` to make nine again. A count that survives two amendments
+unchanged is the one a diff cannot find, which is worth knowing about rule 2's method: it
+locates a hole by ticket coverage, not by arithmetic.
+
+**One artifact inaccuracy is recorded and not fixed.** `offering.machine.ts`'s `LIVE_STATES`
+comment reads *nine states, not the ten ticket 14 ruled on*; ticket 14 ruled on nine, and
+the ten was #15's. Rule 1 puts an artifact amendment behind its own closed ticket and #98
+asked for none, so this is recorded rather than fixed silently, per
+[#50](https://github.com/nopivnick/lineup-prototype-03/issues/50). The state set itself is
+correct in both files and no rule turns on it.
 
 **What the sweep deliberately left.** A *Decided* entry saying what its ticket ruled at the
 time is a record and not a standing claim — ticket 6's `revisingFrom` and `wasAccepted`,
@@ -935,9 +947,8 @@ and #17's entry says so in one place. The test applied was whether a sentence re
 `docs/permissions/README.md`'s account of how #96 was found describes the parenthetical as
 it stood and is left alone for the same reason.
 
-**No machine is amended, and no comment is** — checked explicitly against all three files,
-and `offering.machine.ts` already carries the nine-states correction in its own
-`LIVE_STATES` comment, which is where this file's version of it was wrong.
+**No machine is amended, and no comment is** — checked explicitly against all three files.
+Nothing here is a rule, so there is nothing for an artifact to carry.
 
 ## Open questions
 
