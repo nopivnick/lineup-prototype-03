@@ -171,9 +171,10 @@ states are live, everything up to and including `Running`, exported as `LIVE_STA
 from `offering.machine.ts`. The five excluded are `Declined`, `Canceled`, `Evaluating`,
 `Concluded` and `Dead`. `Canceled` had to be excluded or the guard would be satisfiable
 only by `kill` → `Dead`, destroying exactly the data ticket 2 preserved; `Evaluating`
-because it is a closed backwater that can never re-enter the forward path; `Revising`
-is live *unconditionally*, whatever `revisingFrom` holds, because an offering being
-edited right now is the in-flight work retirement would contradict.
+because it is a closed backwater that can never re-enter the forward path. Ticket 14
+ruled on ten: it also made `Revising` live *unconditionally*, whatever `revisingFrom`
+held, and ticket 17 has since deleted the state — see *Offering `revise` and `approve`
+are deleted, and so is `Revising`* below.
 
 The guard is **blind to term**. The state set already filters honest history — a
 properly run offering ends `Concluded` or `Dead` — so time-blindness only catches rows
@@ -296,9 +297,11 @@ the present. The transition log is its home. Consequently `LIVE_STATES` and
 withdrawn offer means the department still intends to run the class.
 
 `withdraw` joins `subject_netid`, forced by ticket 15's rule: the transaction deletes the
-roster row, so without it the withdrawn instructor survives nowhere. `offer` and `accept`
-deliberately do **not** carry one — the roster row survives those, and position 0 is frozen
-from `Offered` onward, so the roster answers "who is the lead" directly.
+roster row, so without it the withdrawn instructor survives nowhere. Ticket 19 exempted
+`offer` and `accept`, the roster row surviving those and position 0 being frozen from
+`Offered` onward, so the roster answered "who is the lead" directly. **Ticket 41 has since
+overturned that** — the roster survives the event but not the offering — and both events
+carry one now; see *`offer` and `accept` gain `subject_netid`* below.
 
 Two things were ruled **out of scope** rather than settled, both because they are properties
 of the system and not of this event: a free-text **reason** on the log row (`cancel` and
@@ -624,16 +627,24 @@ where a state asserts something about that field's content* — is a statement a
 with no actor in it. Those writes carry two predicates, ANDed: a state predicate binding
 everyone including the seed script, and a role predicate binding the actor.
 
-The two cross-entity invariants these files already carry stay **out** of the database.
-(Three since [#43](https://github.com/nopivnick/lineup-prototype-03/issues/43) — see *The
-Offering create path refuses a `Retired` course* below, which lands the same way and for
-the same reasons.)
+**Three invariants stay out of the database.** The count is of invariants and not of
+*cross-entity* ones: two of the three are cross-entity — the counter
+[#43](https://github.com/nopivnick/lineup-prototype-03/issues/43)'s entry keeps when it
+calls its own addition the second — and the third is non-exposure rather than a check. Two
+are carried by the machine files themselves; the third is carried by this README, creation
+firing no event for a comment to sit beside.
+
 `retry` against a `Retired` Course needs a cross-table read, so only a trigger could hold
 it — rejected by tickets 13 and 30 on *where would a reader find it* — and it is a
 transition rule, so it belongs where a reader looks for transition rules, inside
-`applyTransition`. `staff` / `unstaff` never being user-facing is **non-exposure rather
-than a check**: ticket 15's *divergence has no code path* is made structural by the action
-layer exposing a narrower event union than `applyTransition` accepts.
+`applyTransition`. **The Offering create path refuses a `Retired` Course** for the same
+reasons and lands the same way, settled by
+[#43](https://github.com/nopivnick/lineup-prototype-03/issues/43) completing a rule
+[#14](https://github.com/nopivnick/lineup-prototype-03/issues/14) left half-drawn — see
+*The Offering create path refuses a `Retired` course* below. `staff` / `unstaff` never
+being user-facing is **non-exposure rather than a check**: ticket 15's *divergence has no
+code path* is made structural by the action layer exposing a narrower event union than
+`applyTransition` accepts.
 
 **Two amendments land on the machines' surroundings.** The check moves **inside**
 `applyTransition`, so ticket 13's "thin auth wrapper" becomes an actor-resolution wrapper
@@ -867,15 +878,66 @@ holds [#32](https://github.com/nopivnick/lineup-prototype-03/issues/32)'s area-a
 gate, so it reads a row it has in hand and costs one comparison.
 
 That makes it the **fourth actorless invariant to land in a writer rather than the schema**,
-and the second cross-entity one. The count in *Permission enforcement lives in one
-TypeScript module* reads "the two cross-entity invariants these files already carry"; it is
-three now, and the new one sits beside `retry` against a `Retired` Course rather than
-replacing it — they guard the same contradiction at two different doors.
+and the second cross-entity one. It sits beside `retry` against a `Retired` Course rather
+than replacing it — they guard the same contradiction at two different doors. *Permission
+enforcement lives in one TypeScript module* counted two invariants before this one and
+counts three now;
+[#98](https://github.com/nopivnick/lineup-prototype-03/issues/98) is what moved that count
+into the sentence, this entry having first appended it beside one.
 
 **No machine is amended** — checked explicitly against all three files. Creation fires no
 event, so there is no transition to comment on, which is the whole reason the rule has to
 live in prose here rather than beside an edge. `course.machine.ts`'s `retire` already
 carries the guard this completes.
+
+### The invariant count is stated once, and says what it counts
+
+[`docs/machines/README.md` corrects its invariant count beside the sentence rather than in
+it](https://github.com/nopivnick/lineup-prototype-03/issues/98) is a documentation ticket.
+**No rule changed, no machine changed, and no invariant was added or removed** — the three
+invariants, and the ticket that added the third, were all settled already, and
+[`docs/permissions/`](../permissions/README.md) had picked the third one up in
+[#96](https://github.com/nopivnick/lineup-prototype-03/issues/96). What was wrong was this
+file: [#43](https://github.com/nopivnick/lineup-prototype-03/issues/43)'s correction was
+**appended in parentheses** beside the sentence it corrected, which rule 3 of
+[`docs/agents/spec-packages.md`](../agents/spec-packages.md) forbids, and the enumeration
+that sentence introduces was left naming two.
+
+**The count is of invariants, not of cross-entity ones**, which is the prior question the
+fix had to answer. The old wording promised *cross-entity* and then named one cross-entity
+check and one non-exposure rule, so "two" was never a count of what followed it — the
+sentence was loose before #43 arrived, and the parenthetical inherited the looseness. Three
+counts what the paragraph is about: the invariants this package carries that stay out of
+the database. **The cross-entity count is two and is unchanged**, which is the counter #43's
+own entry keeps when it calls its addition *the second cross-entity one*. The *actorless
+invariant to land in a writer* counter is a third one, map-wide rather than scoped here, and
+is left alone at the entries that made it — *the third* in
+[#32](https://github.com/nopivnick/lineup-prototype-03/issues/32)'s and *the fourth* in
+#43's are counts at the time of writing, which is what a ledger is for.
+
+**The sweep found two more of the shape, and both are fixed.** `noLiveOfferings` had its
+live count moved to nine when
+[#17](https://github.com/nopivnick/lineup-prototype-03/issues/17) deleted `Revising`, and
+left the clause explaining why `Revising` was live standing in the enumeration the count
+introduces — the same defect exactly. And ticket 19's entry still said `offer` and `accept`
+deliberately carry no `subject_netid`, which
+[#41](https://github.com/nopivnick/lineup-prototype-03/issues/41) overturned and which the
+`subject_netid` sentence in ticket 15's entry, one entry above it, already stated
+correctly — so the body contradicted itself. Both now give the current answer and point at
+the entry that changed it.
+
+**What the sweep deliberately left.** A *Decided* entry saying what its ticket ruled at the
+time is a record and not a standing claim — ticket 6's `revisingFrom` and `wasAccepted`,
+ticket 15's `RevisableState` and `wasStaffed`, ticket 21's *one entry each*. Every one of
+them is a thing [#17](https://github.com/nopivnick/lineup-prototype-03/issues/17) deleted,
+and #17's entry says so in one place. The test applied was whether a sentence reads as
+*ticket N ruled X* or as *X is the rule*; only the second kind was touched.
+`docs/permissions/README.md`'s account of how #96 was found describes the parenthetical as
+it stood and is left alone for the same reason.
+
+**No machine is amended, and no comment is** — checked explicitly against all three files,
+and `offering.machine.ts` already carries the nine-states correction in its own
+`LIVE_STATES` comment, which is where this file's version of it was wrong.
 
 ## Open questions
 
