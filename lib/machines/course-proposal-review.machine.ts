@@ -32,7 +32,9 @@ export const machine = setup({
       | { type: "develop" }
       // **The seam.** The one event in either Course-side machine that is not
       // only a transition: one transaction moves this review to `Approved` and
-      // **mints a `course`** in this program's catalog (issues/7).
+      // **mints a `course`** in this program's catalog (issues/7) — the same
+      // pattern as `staff` writing an `offering_instructor` row alongside its
+      // own event (issues/15).
       //
       // The mint **copies** the proposal's body rather than referencing it,
       // because variants in different programs are meant to diverge — they get

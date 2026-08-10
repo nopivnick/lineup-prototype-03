@@ -60,9 +60,9 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 
-import { COURSE_STATES } from "../../lib/machines/course.machine";
-import { REVIEW_STATES } from "../../lib/machines/course-proposal-review.machine";
-import { OFFERING_STATES } from "../../lib/machines/offering.machine";
+import { COURSE_STATES } from "@/lib/machines/course.machine";
+import { REVIEW_STATES } from "@/lib/machines/course-proposal-review.machine";
+import { OFFERING_STATES } from "@/lib/machines/offering.machine";
 
 /**
  * **The legal state sets come off the machines** (issues/76), which is the

@@ -36,8 +36,10 @@ export const machine = setup({
       // and the action layer exposes a narrower event union than
       // `applyTransition` accepts — so a roster that disagrees with the state
       // has no code path. That writer refuses a netid without the `instructor`
-      // role (standing principle 6) and one the `people` project does not know
-      // (issues/9).
+      // role — standing principle 6, which binds every roster row and not only
+      // position 0, since position is scope for *events* while the role is the
+      // qualification to teach (issues/34) — and one the `people` project does
+      // not know (issues/9, issues/69).
       | { type: "staff" }
       | { type: "unstaff" }
       // The asking. Carries `subject_netid` on its log row since issues/41: the

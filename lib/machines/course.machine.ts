@@ -23,8 +23,10 @@ import type { LiveState } from "./offering.machine";
  * render "Fall 2025 — Scheduled" as a link.
  *
  * `id` is a `string` and the row's key is a `number`, so the read module that
- * builds this puts a `String()` at the boundary (issues/93). The lead instructor
- * is deliberately absent: naming them would need a roster join.
+ * builds this puts a `String()` at the boundary (issues/93). `termCode` is the
+ * `char(5)` term code (issues/3), camel-cased here against the schema's
+ * `term_code`. The lead instructor is deliberately absent: naming them would
+ * need a roster join, and the roster is relational (issues/15).
  */
 export type LiveOffering = {
   id: string;
@@ -38,8 +40,8 @@ export const machine = setup({
     events: {} as
       // The Course machine's guard is the only guard in the map, and it does not
       // query: the caller runs the query and hands the result over. Context
-      // would persist the answer inside the snapshot, where it goes stale the
-      // moment any offering transitions (standing principle 2).
+      // would persist the answer inside the snapshot (issues/6), where it goes
+      // stale the moment any offering transitions (standing principle 2).
       | { type: "retire"; liveOfferings: LiveOffering[] }
       // **The only revision in the system.** Revising the Course — title,
       // description, credits, the curriculum record — invalidates the approval
@@ -62,7 +64,8 @@ export const machine = setup({
       // **It bumps `course.edition`**, and it is the only thing that does. A
       // stored copy of a fact `course_transition` already holds, legal under
       // standing principle 1 by the exemption route — `applyTransition` writes
-      // both in one transaction (issues/10). On `approve` and not on `revise`,
+      // both in one transaction, the shape `staff` and `Staffed` established
+      // (issues/10, issues/15). On `approve` and not on `revise`,
       // because an edition is a thing that was published and stood, so the
       // number never has to go backwards.
       | { type: "approve" },

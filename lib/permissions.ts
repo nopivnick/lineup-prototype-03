@@ -344,15 +344,24 @@ export const OFFERING_MATRIX = [
 ] as const satisfies readonly Act<OfferingAct>[];
 
 /**
+ * The three machines, named. `MATRICES` is keyed by it and a `StateGate` names
+ * one, so the two cannot disagree about how many machines there are — issues/7
+ * added the third, and a fourth would break both places at once rather than one
+ * of them silently.
+ */
+export type MachineName = "course" | "offering" | "course_proposal_review";
+
+/**
  * The three matrices by machine, so a writer holding a machine name can find the
- * rules without a `switch` that a fourth machine would silently outgrow. The
- * keys match `StateGate`'s `machine` field.
+ * rules without a `switch` a fourth machine would silently outgrow. **New in the
+ * conversion** (issues/76): the artifact exports the three tables and nothing
+ * that indexes them, because nothing there had to look one up.
  */
 export const MATRICES = {
   course: COURSE_MATRIX,
   offering: OFFERING_MATRIX,
   course_proposal_review: COURSE_PROPOSAL_REVIEW_MATRIX,
-} as const;
+} as const satisfies Record<MachineName, readonly Act<string>[]>;
 
 /**
  * `student` and `advisor` hold nothing across all three matrices and across
@@ -394,11 +403,7 @@ export type StateGate =
   /** Writable in every state, `Concluded` / `Canceled` / `Dead` included. */
   | { gate: "state-blind" }
   /** Writable only while the record is in one of these states. */
-  | {
-      gate: "states";
-      machine: "course" | "offering" | "course_proposal_review";
-      states: readonly string[];
-    }
+  | { gate: "states"; machine: MachineName; states: readonly string[] }
   /** No field-write path exists at all. */
   | { gate: "no-field-write" };
 
@@ -410,11 +415,17 @@ export type FieldClass = {
   columns: readonly string[];
   /**
    * Columns this class claims by bare name in **every** table — the operative
-   * form of the artifact's *every `created_at` / `created_by`*. Consulted after
-   * `columns`, so a qualified name always wins.
+   * form of the artifact's *every `created_at` / `created_by`* (issues/76).
+   * Consulted after `columns`, so a qualified name always wins and a table that
+   * ever needs its own rule for one of these can have it.
    */
   columnNames?: readonly string[];
-  /** Child *rows* rather than columns; written by a row writer, not the field writer. */
+  /**
+   * Child **rows** rather than columns, written by a row writer and not by the
+   * field writer. Split out of the artifact's `columns`, which mixes the two in
+   * prose (issues/76), so that `fieldClassFor` indexes only things that are
+   * actually columns.
+   */
   rows?: readonly string[];
   settledBy: readonly string[];
   note?: string;
@@ -628,17 +639,14 @@ export const UNCLASSIFIED = {
 /** The same thirteen, widened off their literal types so they can be indexed. */
 const CLASSES: readonly FieldClass[] = FIELD_CLASSES;
 
-const CLASS_BY_COLUMN = new Map<string, FieldClass>(
-  CLASSES.flatMap((fieldClass) =>
-    fieldClass.columns.map((column) => [column, fieldClass] as const),
-  ),
-);
+function indexBy(keysOf: (fieldClass: FieldClass) => readonly string[]) {
+  return new Map<string, FieldClass>(
+    CLASSES.flatMap((fieldClass) => keysOf(fieldClass).map((key) => [key, fieldClass] as const)),
+  );
+}
 
-const CLASS_BY_COLUMN_NAME = new Map<string, FieldClass>(
-  CLASSES.flatMap((fieldClass) =>
-    (fieldClass.columnNames ?? []).map((name) => [name, fieldClass] as const),
-  ),
-);
+const CLASS_BY_COLUMN = indexBy((fieldClass) => fieldClass.columns);
+const CLASS_BY_COLUMN_NAME = indexBy((fieldClass) => fieldClass.columnNames ?? []);
 
 /**
  * The field class governing one column, named `table.column`. **Total by
