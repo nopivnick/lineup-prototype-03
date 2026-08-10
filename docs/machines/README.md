@@ -1,7 +1,15 @@
 # State machines
 
 The Course-proposal-review, Course and Offering lifecycles. These files are **reference,
-not application code** — nothing imports them yet.
+not application code** — nothing imports them into the running system.
+
+**The application has its own copies**, converted by
+[#76](https://github.com/nopivnick/lineup-prototype-03/issues/76): `lib/machines/*.machine.ts`,
+the same three lifecycles as code the app runs. `db/classes/schema.ts` builds each `CHECK`
+constraint from the state set they export, and `db/machine-states.test.ts` — the ~15-line
+test [#13](https://github.com/nopivnick/lineup-prototype-03/issues/13) called for — asserts
+in CI that the applied migration still agrees with them. These files stay authoritative;
+where the two disagree the copy is wrong.
 
 They **track the wayfinder map**: when a map ticket decides something about a
 lifecycle, the machine is amended and the resolved item moves from *Open questions*

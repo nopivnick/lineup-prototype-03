@@ -26,6 +26,23 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
 
+  # The alarm for a machine changed without a migration behind it (#13, #76).
+  # `db/machine-states.test.ts` asserts that each CHECK constraint in the applied
+  # migration admits exactly the states its machine declares — the detection
+  # mechanism that replaced a `machine_version` column, in a map where renaming
+  # an occupied state invalidates every persisted snapshot. It reads SQL and
+  # TypeScript and needs no database, which is why it can run here.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run test
+
   # `npm run build` is `eslint . && next build`, in that order and on purpose:
   # ESLint is what makes a page importing a database handle **fail the build**
   # rather than merely warn (#9, #75). Next 16 does not lint during `next build`

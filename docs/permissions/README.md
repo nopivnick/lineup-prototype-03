@@ -340,6 +340,15 @@ beside it puts it where no reader looks.
   crosses to the client as data;
   [#9](https://github.com/nopivnick/lineup-prototype-03/issues/9) owns where the read
   predicates are *applied*, and `docs/data-access/` is where that lands.
+- **The application's copy is `lib/permissions.ts`**, converted by
+  [#76](https://github.com/nopivnick/lineup-prototype-03/issues/76). It carries an
+  `import "server-only"`, which makes the bullet above structural rather than a convention —
+  a Client Component that reaches for the rules fails the build. Two things there are
+  operative where they are prose here: each matrix row lists the **event names** it covers,
+  typed against the machine's own event union, so a renamed event is a compiler error; and
+  `fieldClassFor(column)` is **total**, returning an `UNCLASSIFIED` class whose writers are
+  `NOBODY`, which is what makes [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s
+  *a column with no class is unwritable* true by construction rather than by discipline.
 - **Two rules have no boolean form**, and their rendering lives in `docs/prototypes/`, not
   here — `getReviewPage`'s two fidelities and the record-level refusal on a detail page. See
   `RENDERED_ELSEWHERE`.

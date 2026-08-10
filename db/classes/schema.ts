@@ -22,7 +22,8 @@
  *     generated `status` column (issues/6). The CHECK is written against
  *     `snapshot->>'value'` rather than against the generated column — identical
  *     in effect, and it avoids depending on whether a generated column may be
- *     referenced in a CHECK.
+ *     referenced in a CHECK. Its value set is the machine's own, imported below
+ *     rather than restated (issues/76).
  *
  * CHECK bodies and generated expressions are written as literal SQL rather than
  * interpolated column references, so they read the same here as in the
@@ -59,14 +60,29 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 
-/** The fourteen Offering states, from `docs/machines/offering.machine.ts`. */
-const OFFERING_STATES = `'Slated', 'Staffed', 'Offered', 'Accepted', 'Declined', 'Deferred', 'Scheduled', 'Published', 'Listed', 'Running', 'Evaluating', 'Canceled', 'Concluded', 'Dead'`;
+import { COURSE_STATES } from "../../lib/machines/course.machine";
+import { REVIEW_STATES } from "../../lib/machines/course-proposal-review.machine";
+import { OFFERING_STATES } from "../../lib/machines/offering.machine";
 
-/** The three Course states, from `docs/machines/course.machine.ts`. */
-const COURSE_STATES = `'Approved', 'Revising', 'Retired'`;
+/**
+ * **The legal state sets come off the machines** (issues/76), which is the
+ * database's half of the arrangement issues/13 settled: the schema holds a
+ * second copy of each state set, and `db/machine-states.test.ts` asserts that
+ * the *applied migration* still agrees with the machine. Building the CHECK
+ * bodies from the exported lists rather than restating them here leaves exactly
+ * one hand-written copy — the migration — which is the one the test reads and
+ * the one the database actually has.
+ *
+ * The lists are in each machine's own declaration order, so a state added or
+ * renamed produces a migration whose diff reads like the lifecycle.
+ */
+const OFFERING_STATE_LIST = stateList(OFFERING_STATES);
+const COURSE_STATE_LIST = stateList(COURSE_STATES);
+const REVIEW_STATE_LIST = stateList(REVIEW_STATES);
 
-/** The four review states, from `docs/machines/course-proposal-review.machine.ts`. */
-const REVIEW_STATES = `'Proposed', 'Developing', 'Approved', 'Rejected'`;
+function stateList(states: readonly string[]): string {
+  return states.map((state) => `'${state}'`).join(", ");
+}
 
 // ===========================================================================
 // Reference data
@@ -305,7 +321,7 @@ export const courseProposalReview = pgTable(
     updatedBy: text("updated_by"),
   },
   (t) => [
-    check("course_proposal_review_status", sql`snapshot->>'value' IN (${sql.raw(REVIEW_STATES)})`),
+    check("course_proposal_review_status", sql`snapshot->>'value' IN (${sql.raw(REVIEW_STATE_LIST)})`),
     foreignKey({
       name: "course_proposal_review_proposal_fk",
       columns: [t.courseProposalId],
@@ -411,7 +427,7 @@ export const course = pgTable(
   (t) => [
     check("course_credits", sql`credits > 0`),
     check("course_edition", sql`edition >= 1`),
-    check("course_status", sql`snapshot->>'value' IN (${sql.raw(COURSE_STATES)})`),
+    check("course_status", sql`snapshot->>'value' IN (${sql.raw(COURSE_STATE_LIST)})`),
     foreignKey({
       name: "course_minted_from_review_fk",
       columns: [t.mintedFromReviewId],
@@ -533,7 +549,7 @@ export const offering = pgTable(
   },
   (t) => [
     check("offering_enrollment_limit", sql`enrollment_limit > 0`),
-    check("offering_status", sql`snapshot->>'value' IN (${sql.raw(OFFERING_STATES)})`),
+    check("offering_status", sql`snapshot->>'value' IN (${sql.raw(OFFERING_STATE_LIST)})`),
     unique("offering_course_term_section").on(t.courseId, t.termCode, t.sectionNumber),
     foreignKey({
       name: "offering_course_fk",
@@ -758,8 +774,8 @@ export const offeringTransition = pgTable(
     at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("offering_transition_from_state", sql`from_state IN (${sql.raw(OFFERING_STATES)})`),
-    check("offering_transition_to_state", sql`to_state IN (${sql.raw(OFFERING_STATES)})`),
+    check("offering_transition_from_state", sql`from_state IN (${sql.raw(OFFERING_STATE_LIST)})`),
+    check("offering_transition_to_state", sql`to_state IN (${sql.raw(OFFERING_STATE_LIST)})`),
     index("offering_transition_offering_idx").on(t.offeringId, t.at),
   ],
 );
@@ -790,8 +806,8 @@ export const courseTransition = pgTable(
     at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("course_transition_from_state", sql`from_state IN (${sql.raw(COURSE_STATES)})`),
-    check("course_transition_to_state", sql`to_state IN (${sql.raw(COURSE_STATES)})`),
+    check("course_transition_from_state", sql`from_state IN (${sql.raw(COURSE_STATE_LIST)})`),
+    check("course_transition_to_state", sql`to_state IN (${sql.raw(COURSE_STATE_LIST)})`),
     index("course_transition_course_idx").on(t.courseId, t.at),
   ],
 );
@@ -825,11 +841,11 @@ export const courseProposalReviewTransition = pgTable(
   (t) => [
     check(
       "course_proposal_review_transition_from_state",
-      sql`from_state IN (${sql.raw(REVIEW_STATES)})`,
+      sql`from_state IN (${sql.raw(REVIEW_STATE_LIST)})`,
     ),
     check(
       "course_proposal_review_transition_to_state",
-      sql`to_state IN (${sql.raw(REVIEW_STATES)})`,
+      sql`to_state IN (${sql.raw(REVIEW_STATE_LIST)})`,
     ),
     foreignKey({
       name: "course_proposal_review_transition_review_fk",

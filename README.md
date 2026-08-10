@@ -64,12 +64,30 @@ write a `WHERE` clause at all, because they never hold a handle. See
 `drizzle()` is handed no schema, so `db.query.<table>` does not exist on the object. Every
 read is core `select()` / `leftJoin()`.
 
+## The lifecycles and the rules
+
+The three machines are [`lib/machines/*.machine.ts`](./lib/machines) and the permission model
+is [`lib/permissions.ts`](./lib/permissions.ts) — real modules the app imports, converted from
+the spec, which stays authoritative. `lib/permissions.ts` is `server-only`: a Client Component
+that imports it fails the build, and the client renders from a permitted-action set the server
+ships as data.
+
+State persists as an XState snapshot in a `jsonb` column, projected by a generated, indexed
+`status` column. Each state `CHECK` is written against `snapshot->>'value'`, and
+`db/classes/schema.ts` builds its value set from the machine, so the only hand-written copy is
+the migration. [`db/machine-states.test.ts`](./db/machine-states.test.ts) asserts the applied
+migration still admits exactly the states its machine declares — **the alarm for a machine
+changed without a migration behind it**, in place of a `machine_version` column. When it
+fires, reseed: `npm run db:reset`. There are no per-version snapshot migrations by
+construction.
+
 ## Checks
 
 ```
 npm run typecheck    # tsc over docs/**/*.ts — the spec, not the app
 npm run lint         # includes the no-handle-in-a-page rule
+npm run test         # the machine-state CHECK test; needs no database
 npm run build        # lint, then next build
 ```
 
-CI runs `typecheck` and `build` on every push to `main` and every pull request.
+CI runs `typecheck`, `test` and `build` on every push to `main` and every pull request.

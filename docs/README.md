@@ -6,6 +6,11 @@ There *is* an application beside it now, scaffolded by
 [#75](https://github.com/nopivnick/lineup-prototype-03/issues/75); `../README.md` says how
 to run it. Everything below still holds.
 
+Two packages now have application code beside them, converted rather than lifted by
+[#76](https://github.com/nopivnick/lineup-prototype-03/issues/76): the three lifecycles are
+`lib/machines/*.machine.ts` and the permission model is `lib/permissions.ts`. The artifacts
+here stay authoritative, and where the two disagree these files win.
+
 It is the output of
 [Map: a buildable spec for the ITP/IMA catalog walking skeleton](https://github.com/nopivnick/lineup-prototype-03/issues/1),
 a wayfinder map of thirty closed tickets, and it exists to be built from **in a single
@@ -77,12 +82,16 @@ door with RLS on the grounds that it was opened on purpose. **That deployment ne
 protection** — Vercel deployment protection or equivalent. This is the one inherited
 constraint that is a live risk rather than a design note.
 
-**You owe a ~15-line test.** It asserts that the `CHECK` constraint's value set equals the
+**You owe a ~15-line test** — **paid** by
+[#76](https://github.com/nopivnick/lineup-prototype-03/issues/76), and it lives in
+`db/machine-states.test.ts`. It asserts that the `CHECK` constraint's value set equals the
 machine's exported state union.
 [#13](https://github.com/nopivnick/lineup-prototype-03/issues/13) made this the detection
 mechanism for a machine change that invalidates persisted snapshots, in place of a
-`machine_version` column. Write it against `snapshot->>'value'`, not against the generated
-`status` column — see `schema/README.md`.
+`machine_version` column. It is written against `snapshot->>'value'`, not against the
+generated `status` column — see `schema/README.md` — and it reads the applied **migration**,
+so a machine changed without one behind it fails in CI. `npm run test`, on every push and
+pull request.
 
 **Reseed is the recovery path**, not a migration function. When a machine change
 invalidates a snapshot, `db:reset`. Per-version snapshot migration functions are out of
