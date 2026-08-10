@@ -72,6 +72,29 @@ follows — see [`docs/agents/spec-packages.md`](../agents/spec-packages.md). An
   class changed in the move. A pointer stays below, because a schema reader legitimately
   wants it and *unwritable* is the default for a column with no class.
 
+- **The reason given for `bigint` over `integer` was false, and is replaced** — by
+  [`docs/schema/` justifies `bigint` with a Drizzle behaviour that does not exist](https://github.com/nopivnick/lineup-prototype-03/issues/93),
+  found while [#75](https://github.com/nopivnick/lineup-prototype-03/issues/75) turned this
+  schema into TypeScript and made the claim checkable. Ticket 10 gave *one* reason — *"it is
+  what Drizzle surfaces as `string`"* — and no configuration of the pinned `drizzle-orm`
+  0.45 line produces that: `bigint()` takes exactly two modes, `number` (through `Number()`)
+  and `bigint` (through `BigInt()`), and the mode is the only lever, because
+  `generatedAlwaysAsIdentity()` is not reachable from `customType`. The string is a
+  **postgres.js** fact, true of the driver before Drizzle's mapper touches it. The reason is
+  now the widening cost above; the sentence in `classes.sql`'s conventions header is amended
+  the same way. **The DDL does not change** — surrogate keys are `bigint GENERATED ALWAYS AS
+  IDENTITY` under either mode, and ticket 10's other grounds for `bigint` are untouched.
+
+- **The Drizzle mode is `number`** — ruled by the same ticket, ratifying what
+  [#75](https://github.com/nopivnick/lineup-prototype-03/issues/75) shipped. Neither mode
+  gives the `string` the package assumed, so both need a `String()` at the read module where
+  a row becomes a `LiveOffering`; the tie breaks on everything else. A `number` crosses the
+  Server→Client Component boundary, where a `bigint` throws — `JSON.stringify` refuses
+  one — and reads as `1` in a fixture rather than `1n`. What it gives up is exactness above
+  2^53 ids, which the department's twenty-year catalog does not approach. Reversibility does
+  not break this tie for once: the mode is a one-word edit per column with no migration
+  behind it in **either** direction, since the DDL is the same under both.
+
 ## Shape
 
 **21 tables. 20 in `classes`, 1 in `people`.**
@@ -95,8 +118,13 @@ then it costs two connection pairs and buys the FK-less discipline
 readable in a URL and in a `psql` session, and the unguessability a UUID buys would be
 defending a door [#11](https://github.com/nopivnick/lineup-prototype-03/issues/11) opened
 on purpose and [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28) declined
-to close. `bigint` rather than `integer` for one reason: it is what Drizzle surfaces as
-`string`, which `LiveOffering.id` in `course.machine.ts` already assumes.
+to close. `bigint` rather than `integer` because widening a primary key after the fact
+rewrites the table and every column that references it, where the four extra bytes cost
+nothing now — the reason ticket 10 should have given, put here by
+[#93](https://github.com/nopivnick/lineup-prototype-03/issues/93). **How the key surfaces
+in TypeScript is no part of it**, which is what ticket 10 got wrong: Drizzle maps it to a
+`number`, and a read module puts a `String()` where a row becomes a `LiveOffering`, whose
+`id` in `course.machine.ts` is a `string`.
 
 **`course` gets a real primary key.** The legacy table declared only a non-unique `KEY
 course_id` while `lineup_official` declared a foreign key to it — tolerated by MySQL,
