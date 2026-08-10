@@ -1,0 +1,7 @@
+/*
+ * Layer order, declared before either stylesheet is parsed. Both Mantine and
+ * mantine-datatable ship `styles.layer.css` variants precisely so an app can
+ * order them here rather than relying on import order.
+ * https://icflorescu.github.io/mantine-datatable/getting-started
+ */
+@layer mantine, mantine-datatable;
