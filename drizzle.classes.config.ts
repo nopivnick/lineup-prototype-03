@@ -1,5 +1,8 @@
-import "dotenv/config";
+import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
+
+// See `drizzle.people.config.ts`: `.env.local` is the file `.env.example` names.
+config({ path: [".env.local", ".env"], quiet: true });
 
 /**
  * The `classes` project's migration history. See `drizzle.people.config.ts` for

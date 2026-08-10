@@ -1,9 +1,13 @@
-import "dotenv/config";
+import { config } from "dotenv";
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 
 import postgres from "postgres";
+
+// `.env.local` is the file `.env.example` says to copy to, and the one Next
+// loads for the application; `dotenv/config` alone would read only `.env`.
+config({ path: [".env.local", ".env"], quiet: true });
 
 /**
  * **Coherence is not a property of the databases but of `db:reset`** (issues/9,
