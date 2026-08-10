@@ -746,7 +746,7 @@ export const READ_TIERS = [
     // `offeringStates` intentionally omitted here; Tier 2 covers offerings outside COMMITTED_STATES (see subjects/note).
     settledBy: ["issues/28", "issues/21", "issues/37"],
     note: "**The boundary is not arbitrary**: `student` and `advisor` are exactly issues/8's two empty rows, and the rule is *if you can do nothing, you may not see the record of who did*. The offering set is the complement of `COMMITTED_STATES` — six states that are the department's staffing process, which is the honest reason to hide `Declined`: internal work, not an embarrassing outcome. Hiding `Declined` alone was rejected for **announcing** the decline it hides. `Canceled` is deliberately visible: a class that was going to run and isn't is what a student most needs to see. issues/37 uses this predicate to decide whether a list's Actions column exists at all.",
-  }
+  },
   {
     tier: 3,
     subjects: [
