@@ -381,7 +381,7 @@ source states cannot invalidate it. The claim is unchanged and still holds.
 [Which states can be revised, and does revision always need approval?](https://github.com/nopivnick/lineup-prototype-03/issues/17)
 was opened to ask whether `revise` should leave `Evaluating` and `Canceled`. It leaves
 those two and the other six as well, taking the `Revising` state, `revisingFrom`,
-`RevisableState` and all eight `was*` guards with it. `OfferingState` goes 15 → 14,
+`RevisableState` and all seven `was*` guards with it. `OfferingState` goes 15 → 14,
 `LIVE_STATES` 10 → 9, and `OfferingContext` is now genuinely empty.
 
 **The reframe that decided it: these two machines were split out of one.** That is the
@@ -952,6 +952,48 @@ it stood and is left alone for the same reason.
 
 **No machine is amended, and no comment is** — checked explicitly against all three files.
 Nothing here is a rule, so there is nothing for an artifact to carry.
+
+### `Revising` took seven `was*` guards with it, not eight
+
+[Ticket 17 deleted seven `was*` guards, not the eight that four comments
+claim](https://github.com/nopivnick/lineup-prototype-03/issues/102) is a documentation
+ticket, found by the ticket-attribution sweep
+[#100](https://github.com/nopivnick/lineup-prototype-03/issues/100) asked for. **No rule
+changed and no lifecycle changed.**
+[#17](https://github.com/nopivnick/lineup-prototype-03/issues/17)'s deletion is correct and
+complete at all four sites that state it; only the number attached to it was wrong, and the
+guards are gone either way.
+
+**Four sites said *eight* and now say *seven*** — two comments in
+[`offering.machine.ts`](./offering.machine.ts), #17's *Decided* entry above, and the
+[#76](https://github.com/nopivnick/lineup-prototype-03/issues/76) copy in
+`lib/machines/offering.machine.ts`. The guards block immediately before #17 landed —
+`git show 66bf1e3^:docs/machines/offering.machine.ts` — holds exactly seven: `wasEvaluating`,
+`wasCanceled`, `wasScheduled`, `wasDeferred`, `wasAccepted`, `wasOffered`, `wasStaffed`.
+`66bf1e3` deletes all seven, along with seven `type: "was*"` usages on `approve`.
+
+**Eight was `RevisableState`'s member count, and the two differed on purpose.** That type
+had eight members, but `approve` routed seven of them through a guarded target and let the
+eighth, `Slated`, fall through as the unguarded default — there was never a `wasSlated`. So
+*eight* was not a miscount of a list, it was the wrong list, and it hid the fact that the
+mapping was never total: the missing guard is the fall-through that made `approve`'s default
+arm work. Ticket 15's entry above already carries the shape, describing `wasStaffed` as
+arriving *ahead of the `Slated` fallback*. The two artifact comments now say why it is seven,
+because the bare number is what went wrong and the reason is what stops it recurring.
+
+**The origin is #17's own commit message**, `66bf1e3`: *"`RevisableState`, all eight `was*`
+guards."* Everything downstream copied it, including the #76 conversion — which is why the
+spec and its copy agree here rather than disagreeing, and both are wrong. That is the one
+case *where the two disagree the copy is wrong* cannot catch on its own, and it is why a
+documentation ticket edits `lib/machines/offering.machine.ts`.
+
+**Ticket 6's *six* is correct and was left alone.** Its entry above is a dated record of the
+count when #6 wrote it — `revisingFrom` became an ordinary context field with six guards
+string-comparing against it, and #15 added `wasStaffed` to make seven. Same test #98
+applied: *ticket N ruled X* is a record, *X is the rule* is a standing claim.
+
+**The other two machines are unaffected** — `course.machine.ts` and
+`course-proposal-review.machine.ts` never had `was*` guards.
 
 ## Open questions
 

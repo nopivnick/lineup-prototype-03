@@ -204,8 +204,14 @@ export const machine = setup({
       | { type: "cancel" }
 
       // `revise` and `approve` are **gone**, along with the `Revising` state,
-      // `revisingFrom`, `RevisableState` and the eight `was*` guards.
+      // `revisingFrom`, `RevisableState` and the seven `was*` guards.
       // https://github.com/nopivnick/lineup-prototype-03/issues/17
+      //
+      // Seven, not `RevisableState`'s eight. `approve` routed seven of that
+      // type's members through a guarded target and let the eighth, `Slated`,
+      // fall through as the unguarded default, so there was never a
+      // `wasSlated`. The mapping was deliberately not total, and that
+      // fall-through is what made the default arm work.
       //
       // Both were inherited from the single machine these two were split out
       // of, where `approve` was the *curriculum* approval. Split into Course
@@ -282,9 +288,11 @@ export const machine = setup({
   //
   // `hasLead` was deleted rather than implemented: `Staffed` encodes the same
   // fact as a state, so `offer` is simply unreachable until a lead exists
-  // (https://github.com/nopivnick/lineup-prototype-03/issues/15). The eight
+  // (https://github.com/nopivnick/lineup-prototype-03/issues/15). The seven
   // `was*` guards went with the `Revising` state
-  // (https://github.com/nopivnick/lineup-prototype-03/issues/17).
+  // (https://github.com/nopivnick/lineup-prototype-03/issues/17) — seven and
+  // not `RevisableState`'s eight, because `approve` guarded seven of its
+  // members and defaulted to the eighth, `Slated`, which never had a guard.
   //
   // Constraints the lifecycle cannot express are asserted in the Server Action
   // — see the `retry` comments on `Declined` and `Canceled` below.
