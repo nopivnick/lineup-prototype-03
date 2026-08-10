@@ -36,8 +36,7 @@ export type OfferingState =
  * is live up to and including `Running`. The five excluded states are
  * `Declined`, `Canceled`, `Evaluating`, `Concluded` and `Dead`.
  *
- * Nine states — ticket 14's count, but **not ticket 14's set**. Ticket 14's
- * nine counted `Revising` and no `Staffed`;
+ * nine included `Revising` and did not include `Staffed`;
  * https://github.com/nopivnick/lineup-prototype-03/issues/15 added `Staffed` to
  * make ten, and
  * https://github.com/nopivnick/lineup-prototype-03/issues/17 removed `Revising`
