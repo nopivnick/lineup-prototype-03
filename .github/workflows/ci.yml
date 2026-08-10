@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # The reference artifacts in docs/ are not application code, but they are real
+  # TypeScript and they cross-import — docs/machines/course.machine.ts imports
+  # LiveState from offering.machine, and docs/permissions/ and docs/fixtures/
+  # name the state unions offering.machine exports. Nothing catches a typo'd
+  # state name except this.
+  #
+  # Settled by "Where does the rest of the spec live?" (#50). It survives the
+  # arrival of the application (#75), pointed at tsconfig.docs.json — the app
+  # has its own tsconfig and `docs/` is excluded from it.
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  # `npm run build` is `eslint . && next build`, in that order and on purpose:
+  # ESLint is what makes a page importing a database handle **fail the build**
+  # rather than merely warn (#9, #75). Next 16 does not lint during `next build`
+  # of its own accord, so the boundary is only structural because this line puts
+  # it in front of the compiler.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build

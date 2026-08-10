@@ -1,6 +1,12 @@
 # The spec
 
-This repo is a **spec, not an application.** Nothing here runs. It is the output of
+`docs/` is the **spec, not the application.** Nothing in this directory runs, and nothing
+imports it into the running system — the build effort converts it rather than lifting it.
+There *is* an application beside it now, scaffolded by
+[#75](https://github.com/nopivnick/lineup-prototype-03/issues/75); `../README.md` says how
+to run it. Everything below still holds.
+
+It is the output of
 [Map: a buildable spec for the ITP/IMA catalog walking skeleton](https://github.com/nopivnick/lineup-prototype-03/issues/1),
 a wayfinder map of thirty closed tickets, and it exists to be built from **in a single
 pass, with no decisions left to make**.
@@ -115,12 +121,14 @@ state unions `offering.machine` exports.
 
 ```
 npm install
-npm run typecheck    # tsc --noEmit over docs/**/*.ts
+npm run typecheck    # tsc --noEmit over docs/**/*.ts, against tsconfig.docs.json
 ```
 
-CI runs it on every push and PR. This is not the build — no framework, no database, no
-runtime. It exists so that a typo'd state name in the spec is a compiler error rather than
-something you discover while building from it.
+CI runs it on every push and PR, beside the application's own `build`. This is not the
+build — no framework, no database, no runtime. It exists so that a typo'd state name in the
+spec is a compiler error rather than something you discover while building from it. The
+application has its own `tsconfig.json`, which excludes `docs/`, so the two never lint each
+other's assumptions.
 
 ## Conventions
 
