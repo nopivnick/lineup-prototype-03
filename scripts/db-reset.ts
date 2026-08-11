@@ -39,8 +39,20 @@ const PROJECTS = [
   },
 ] as const;
 
-/** Where the seed will live. It is a later ticket's; until then reset stops after migrating. */
+/**
+ * The seed (issues/78). It is not idempotent and does not try to be: it refuses a
+ * database that already holds rows, because reseed *is* the recovery path and
+ * this command is the only way to take it.
+ *
+ * `--conditions=react-server` is not decoration. Every write path imports
+ * `server-only`, whose whole point is to throw anywhere but a server module, and
+ * the seed calls all four of them (issues/28, issues/77). Node resolves that
+ * package's harmless export only under this condition, which is the same one
+ * `vitest.config.mts` sets for the Seam 1 tests and the same one a Server
+ * Component is compiled under.
+ */
 const SEED = "db/seed.ts";
+const SEED_CONDITIONS = "--conditions=react-server";
 
 function requireUrl(variable: string): string {
   const url = process.env[variable];
@@ -96,7 +108,7 @@ async function main(): Promise<void> {
 
   if (existsSync(SEED)) {
     console.log("\n— seeding");
-    run("npx", ["tsx", SEED]);
+    run("npx", ["tsx", SEED_CONDITIONS, SEED]);
   } else {
     console.log(`\n— no ${SEED} yet; both projects are migrated and empty`);
   }

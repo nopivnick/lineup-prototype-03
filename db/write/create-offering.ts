@@ -9,7 +9,7 @@ import { MATRICES, NOBODY } from "@/lib/permissions";
 import { initialSnapshot } from "./apply-transition";
 import { refuse, WriteRefused } from "./refusal";
 import { notYours, permitted, readActorFacts, type Subject } from "./rules";
-import type { ClassesTx, Id, Netid } from "./transaction";
+import { moment, type At, type ClassesTx, type Id, type Netid } from "./transaction";
 
 /**
  * One meeting slot, `kind`-discriminated exactly as `offering_meeting`'s shape
@@ -72,6 +72,7 @@ export async function createOffering(
   tx: ClassesTx,
   input: CreateOfferingInput,
   actor: Netid,
+  at?: At,
 ): Promise<{ offeringId: Id }> {
   // `FOR SHARE` rather than `FOR UPDATE`: this path does not write the course, it
   // depends on the course not changing underneath it — on its program, its state
@@ -135,6 +136,7 @@ export async function createOffering(
       enrollmentLimit: input.enrollmentLimit,
       snapshot: initialSnapshot(offeringMachine),
       createdBy: actor,
+      createdAt: moment(at),
     })
     .returning({ offeringId: offering.offeringId });
   if (!created) throw new Error("The create path wrote no offering.");
@@ -144,6 +146,7 @@ export async function createOffering(
       input.meetings.map((meeting) => ({
         offeringId: created.offeringId,
         createdBy: actor,
+        createdAt: moment(at),
         ...meetingColumns(meeting),
       })),
     );

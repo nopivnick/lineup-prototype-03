@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, getTableColumns, inArray, ne, sql, type SQL } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, ne, type SQL } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 
 import {
@@ -41,7 +41,7 @@ import {
   type ActorFacts,
   type Subject,
 } from "./rules";
-import type { ClassesTx, Id, Netid } from "./transaction";
+import { moment, type At, type ClassesTx, type Id, type Netid } from "./transaction";
 
 // ---------------------------------------------------------------------------
 // What a field write is
@@ -103,7 +103,12 @@ export type FieldWrite = {
  * **no log row at all** — issues/17 deleted the transition a field write used to
  * fire, which is why the stamp is the only trace.
  */
-export async function writeFields(tx: ClassesTx, write: FieldWrite, actor: Netid): Promise<void> {
+export async function writeFields(
+  tx: ClassesTx,
+  write: FieldWrite,
+  actor: Netid,
+  at?: At,
+): Promise<void> {
   const columns = write.columns ?? {};
   const rows = write.rows ?? [];
   if (Object.keys(columns).length === 0 && rows.length === 0) return;
@@ -193,14 +198,14 @@ export async function writeFields(tx: ClassesTx, write: FieldWrite, actor: Netid
     if (row.op === "insert") {
       await tx
         .insert(table)
-        .values(named(table, { ...row.values, ...parent, ...provenance(row.table, actor) }));
+        .values(named(table, { ...row.values, ...parent, ...provenance(row.table, actor, at) }));
     } else {
       await tx.delete(table).where(keyMatch(table, { ...row.key, ...parent }));
     }
     touched.add(row.table);
   }
 
-  await stamp(tx, touched, context, actor);
+  await stamp(tx, touched, context, actor, at);
 }
 
 // ---------------------------------------------------------------------------
@@ -772,11 +777,11 @@ function keyMatch(table: PgTable, key: Readonly<Record<string, unknown>>): SQL |
  * redundantly with the log's `subject_netid`, because a conditional column is
  * worse than a redundant one.
  */
-function provenance(table: string, actor: Netid): Record<string, unknown> {
+function provenance(table: string, actor: Netid, at: At | undefined): Record<string, unknown> {
   const granted = ["user_role", "program_director", "offering_instructor", "offering_area", "offering_requirement_category"];
-  if (granted.includes(table)) return { granted_by: actor };
+  if (granted.includes(table)) return { granted_by: actor, granted_at: moment(at) };
   const created = ["offering_meeting"];
-  if (created.includes(table)) return { created_by: actor };
+  if (created.includes(table)) return { created_by: actor, created_at: moment(at) };
   return {};
 }
 
@@ -817,8 +822,14 @@ function expect(id: Id | null, what: string): Id {
  * columns: a revoked grant leaves no trace at all, which issues/34 accepted
  * rather than overlooked.
  */
-async function stamp(tx: ClassesTx, touched: ReadonlySet<string>, context: Context, actor: Netid): Promise<void> {
-  const now = sql`now()`;
+async function stamp(
+  tx: ClassesTx,
+  touched: ReadonlySet<string>,
+  context: Context,
+  actor: Netid,
+  at: At | undefined,
+): Promise<void> {
+  const now = moment(at);
   const stampable: Record<string, () => Promise<unknown>> = {
     course: () =>
       tx

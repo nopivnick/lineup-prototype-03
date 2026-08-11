@@ -7,7 +7,7 @@ import { MATRICES, NOBODY } from "@/lib/permissions";
 import { initialSnapshot } from "./apply-transition";
 import { refuse, WriteRefused } from "./refusal";
 import { notYours, permitted, readActorFacts } from "./rules";
-import type { ClassesTx, Id, Netid } from "./transaction";
+import { moment, type At, type ClassesTx, type Id, type Netid } from "./transaction";
 
 /**
  * Three columns and a set of programs (issues/10, issues/43).
@@ -43,6 +43,7 @@ export async function createProposal(
   tx: ClassesTx,
   input: CreateProposalInput,
   actor: Netid,
+  at?: At,
 ): Promise<{ proposalId: Id; reviewIds: readonly Id[] }> {
   // **The set may not be empty**, ruled rather than assumed (issues/43): a
   // proposal with no reviews is a body nobody will ever see, since the proposals
@@ -69,6 +70,7 @@ export async function createProposal(
       description: input.description,
       credits: input.credits,
       createdBy: actor,
+      createdAt: moment(at),
     })
     .returning({ courseProposalId: courseProposal.courseProposalId });
   if (!proposal) throw new Error("The create path wrote no proposal.");
@@ -81,6 +83,7 @@ export async function createProposal(
         programCode,
         snapshot: initialSnapshot(reviewMachine),
         createdBy: actor,
+        createdAt: moment(at),
       })),
     )
     .returning({ courseProposalReviewId: courseProposalReview.courseProposalReviewId });
