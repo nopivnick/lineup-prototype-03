@@ -112,7 +112,9 @@ follows — see [`docs/agents/spec-packages.md`](../agents/spec-packages.md). An
   **No DDL changes**, and `db/classes/schema.ts` carries a shortened copy of the block that
   never included the sentence. Whether the review *should* carry categories — which is what
   the sentence assumed — is a separate question ticket 106 deliberately did not open, and it
-  needs its own ticket rather than a correction here.
+  is now
+  [#112](https://github.com/nopivnick/lineup-prototype-03/issues/112) rather than a
+  correction here.
 
 ## Shape
 
