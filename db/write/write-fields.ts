@@ -777,7 +777,7 @@ function keyMatch(table: PgTable, key: Readonly<Record<string, unknown>>): SQL |
  * redundantly with the log's `subject_netid`, because a conditional column is
  * worse than a redundant one.
  */
-function provenance(table: string, actor: Netid, at: At): Record<string, unknown> {
+function provenance(table: string, actor: Netid, at: At | undefined): Record<string, unknown> {
   const granted = ["user_role", "program_director", "offering_instructor", "offering_area", "offering_requirement_category"];
   if (granted.includes(table)) return { granted_by: actor, granted_at: moment(at) };
   const created = ["offering_meeting"];
@@ -827,7 +827,7 @@ async function stamp(
   touched: ReadonlySet<string>,
   context: Context,
   actor: Netid,
-  at: At,
+  at: At | undefined,
 ): Promise<void> {
   const now = moment(at);
   const stampable: Record<string, () => Promise<unknown>> = {

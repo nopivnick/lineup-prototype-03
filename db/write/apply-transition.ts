@@ -175,7 +175,7 @@ async function moveCourse(
   event: CourseEvent,
   actor: Netid,
   facts: ActorFacts,
-  at: At,
+  at: At | undefined,
 ): Promise<void> {
   const [row] = await tx
     .select({
@@ -243,7 +243,7 @@ async function moveOffering(
   event: OfferingEvent,
   actor: Netid,
   facts: ActorFacts,
-  at: At,
+  at: At | undefined,
 ): Promise<void> {
   const [row] = await tx
     .select({
@@ -373,7 +373,7 @@ async function moveReview(
   event: ReviewEvent,
   actor: Netid,
   facts: ActorFacts,
-  at: At,
+  at: At | undefined,
 ): Promise<void> {
   const [row] = await tx
     .select({
@@ -427,7 +427,7 @@ async function mint(
   review: { reviewId: Id; programCode: string; areaHead: Netid | null; courseProposalId: Id },
   courseNumber: string,
   actor: Netid,
-  at: At,
+  at: At | undefined,
 ): Promise<void> {
   const [body] = await tx
     .select({

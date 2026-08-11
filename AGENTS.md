@@ -65,9 +65,10 @@ review and driving each class event by event, so the transition log ships popula
 snapshot is hand-authored anywhere.
 
 Exactly one write in the run is unchecked — the genesis `chair` grant — which is what makes
-a passing seed a satisfiability proof of the permission matrix rather than a fixture load.
-It runs in CI against a real Postgres pair on every push, and `npm run db:reset` is how you
-run it here. Two rules travel with it and are easy to break by accident:
+a passing seed a satisfiability proof of the matrix rather than a fixture load; `db/seed.ts`
+carries that argument in full. It runs in CI against a real Postgres pair on every push, and
+`npm run db:reset` is how you run it here. Two rules travel with it and are easy to break by
+accident:
 
 - **Dates are literal.** The four write paths take the moment as an argument beside the
   actor (`at`), so the seed's world stays dated 2018–2026 rather than collapsing onto the

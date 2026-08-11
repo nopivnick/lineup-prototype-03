@@ -43,14 +43,9 @@ jobs:
       - run: npm ci
       - run: npm run test
 
-  # **The permission matrix's satisfiability test** (#28, #49, #78).
-  #
-  # The seed is checked like any other caller: one write in the whole run is
-  # unchecked — the genesis `chair` grant — and every other one goes through the
-  # same four paths a screen would use. So if no legal actor exists for some act
-  # the fixture world needs, the seed **cannot run**, and a failing job here is a
-  # much louder report of a hole in a matrix amended six times than a matrix
-  # nobody ever tried to use.
+  # **The permission matrix's satisfiability test** (#28, #49, #78). Why a seed
+  # that fails to run is the loudest available report of a hole in the rules is
+  # argued in `db/seed.ts`; this job is what makes it fire on every push.
   #
   # It also exercises what nothing else in CI can: the real CHECK constraints, the
   # generated `status` columns, the locking transactions, and the cross-project

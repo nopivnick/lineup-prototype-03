@@ -6,10 +6,14 @@ There *is* an application beside it now, scaffolded by
 [#75](https://github.com/nopivnick/lineup-prototype-03/issues/75); `../README.md` says how
 to run it. Everything below still holds.
 
-Two packages now have application code beside them, converted rather than lifted by
-[#76](https://github.com/nopivnick/lineup-prototype-03/issues/76): the three lifecycles are
-`lib/machines/*.machine.ts` and the permission model is `lib/permissions.ts`. The artifacts
-here stay authoritative, and where the two disagree these files win.
+Four packages now have application code beside them, converted rather than lifted. The three
+lifecycles are `lib/machines/*.machine.ts` and the permission model is `lib/permissions.ts`,
+both by [#76](https://github.com/nopivnick/lineup-prototype-03/issues/76); the four write
+paths are `db/write/`, by
+[#77](https://github.com/nopivnick/lineup-prototype-03/issues/77); and the seed content is
+`db/fixtures.ts`, driven into both databases by `db/seed.ts`, by
+[#78](https://github.com/nopivnick/lineup-prototype-03/issues/78). The artifacts here stay
+authoritative, and where the two disagree these files win.
 
 It is the output of
 [Map: a buildable spec for the ITP/IMA catalog walking skeleton](https://github.com/nopivnick/lineup-prototype-03/issues/1),

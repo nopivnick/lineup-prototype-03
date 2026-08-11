@@ -2065,6 +2065,23 @@ export const STATE_COVERAGE = {
 } as const satisfies Record<OfferingState, readonly OfferingKey[]>;
 
 
+/**
+ * **Rendered, never minted** — states the seed can reach that no screen can
+ * create. Three of them, and in each case the missing piece is a **control** and
+ * not a rule: a build effort that reads one of these as a bug should add the
+ * screen, not edit the seed (issues/49, issues/69).
+ *
+ * The third is the odd one and is worth its place for that: it is seeded by
+ * *not* being there. A program with no director is unreachable because
+ * issues/49 ruled the LowRes conflict in favour of a full complement, and the
+ * roles page appoints without un-appointing.
+ */
+export const SEED_ONLY = [
+  { what: "`vm7781` holds `program_director` and directs no program" },
+  { what: "ITP's *Networks* area renamed by `pr3390`" },
+  { what: "the roles page's *program with no director* empty state, which is not seeded and is not reachable at runtime" },
+] as const;
+
 /** The fourteenth netid, which holds two roles and has no `person` row (issues/69). */
 export const NETID_WITH_NO_PERSON_ROW = "xq7742" satisfies FixtureNetid;
 

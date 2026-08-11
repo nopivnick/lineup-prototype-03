@@ -54,7 +54,7 @@ export type Netid = string;
  * Every timestamp in both schemas defaults to `now()`, which is the right answer
  * for every caller but one. The seed drives a world dated 2018 to 2026 and
  * **its dates are literal, never computed from run time**: a world stamped with
- * the moment of `db:reset` would put every mint, every offer and all 164
+ * the moment of `db:reset` would put every mint, every offer and all 218
  * transition-log rows at one instant, and the populated log is the thing the
  * skeleton ships that a snapshot fixture could not have produced. Fixed dates
  * are also what make a screenshot stay true across resets.
@@ -74,9 +74,9 @@ export type Netid = string;
  * finally take is open as issues/107, which weighs it against a clock on the
  * transaction and against a seam only the seed can reach.
  */
-export type At = Date | undefined;
+export type At = Date;
 
 /** What a timestamp column is set to: the caller's moment, or `now()`. */
-export function moment(at: At): Date | SQL {
+export function moment(at: At | undefined): Date | SQL {
   return at ?? sql`now()`;
 }

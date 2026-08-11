@@ -81,6 +81,7 @@ import {
   REFERENCE_DATA_AUTHOR,
   REQUIREMENT_CATEGORIES,
   ROLE_GRANTS,
+  SEED_ONLY,
   SEED_ORDER,
   STATE_COVERAGE,
   TERMS,
@@ -100,7 +101,7 @@ import {
 import { classesDb, peopleDb } from "@/db/handles";
 import { person } from "@/db/people/schema";
 import { applyTransition, type OfferingEvent } from "@/db/write/apply-transition";
-import { createOffering, type Meeting } from "@/db/write/create-offering";
+import { createOffering } from "@/db/write/create-offering";
 import { createProposal } from "@/db/write/create-proposal";
 import { writeToClasses, type Id } from "@/db/write/transaction";
 import { writeFields, type FieldRowWrite } from "@/db/write/write-fields";
@@ -136,19 +137,26 @@ const OFFERING_ROWS: readonly OfferingRow[] = OFFERINGS;
 /** The world's first moment: the genesis grant's, which is where authority starts. */
 const WORLD_BEGINS = new Date(ROLE_GRANT_ROWS[0]!.grantedAt);
 
-const moment = (timestamp: string): Date => new Date(timestamp);
+/** A fixture timestamp as the moment a write happened. Never `Date.now()`. */
+const instant = (timestamp: string): Date => new Date(timestamp);
 
 function assert(held: boolean, what: string): asserts held {
   if (!held) throw new Error(`The seed's world is wrong: ${what}`);
 }
 
-/** One field edit from issues/40's seven, looked up so the seed can prove it wrote all of them. */
-const performed = new Set<string>();
+/**
+ * issues/40's seven field edits, each claimed at the moment the seed writes it —
+ * **the lookup records as well as finds**, so `checkTheWorld` can assert that all
+ * seven were written and not merely that seven exist. They are claimed at three
+ * different sites, because two of them cannot be written in step 11: see
+ * `fieldEdits`.
+ */
+const written = new Set<string>();
 
-function fieldEdit(table: string, record: string) {
+function claimFieldEdit(table: string, record: string) {
   const found = FIELD_EDITS.find((edit) => edit.table === table && edit.record === record);
   if (!found) throw new Error(`No field edit on ${table} ${record}.`);
-  performed.add(`${table}:${record}`);
+  written.add(`${table}:${record}`);
   return found;
 }
 
@@ -248,7 +256,7 @@ async function referenceData(): Promise<void> {
  * field write** — so they are written here rather than in step 11.
  */
 async function personRows(): Promise<void> {
-  fieldEdit("person", "by6640");
+  claimFieldEdit("person", "by6640");
 
   await peopleDb()
     .insert(person)
@@ -262,7 +270,7 @@ async function personRows(): Promise<void> {
         preferredLastname: row.preferredLastname ?? null,
         pronouns: row.pronouns ?? null,
         createdAt: WORLD_BEGINS,
-        updatedAt: row.updatedAt ? moment(row.updatedAt) : null,
+        updatedAt: row.updatedAt ? instant(row.updatedAt) : null,
       })),
     );
 }
@@ -290,7 +298,7 @@ async function genesisGrant(): Promise<void> {
     netid: genesis.netid,
     role: genesis.role,
     grantedBy: genesis.grantedBy,
-    grantedAt: moment(genesis.grantedAt),
+    grantedAt: instant(genesis.grantedAt),
   });
 }
 
@@ -298,6 +306,12 @@ async function genesisGrant(): Promise<void> {
  * The remaining twenty grants, each through the checked writer acting as the
  * chair. One call per row rather than one call for all of them: the moment is a
  * property of the write, and these grants span eight years.
+ *
+ * **Twenty, where `SEED_ORDER`'s step 4 says nineteen.** The artifact's own table
+ * is what the seed walks, and `docs/fixtures/README.md` resolves
+ * prose-against-table *for the table* four times over — issues/69's `area_head`
+ * grant to `xq7742` is the twentieth and postdates that sentence. `COUNTS` agrees
+ * with the table at 21 rows, one of them the genesis grant.
  */
 async function roleGrants(): Promise<void> {
   for (const grant of ROLE_GRANT_ROWS.slice(1)) {
@@ -310,7 +324,7 @@ async function roleGrants(): Promise<void> {
           rows: [{ table: "user_role", op: "insert", values: { netid: grant.netid, role: grant.role } }],
         },
         grant.grantedBy,
-        moment(grant.grantedAt),
+        instant(grant.grantedAt),
       ),
     );
   }
@@ -337,7 +351,7 @@ async function programDirectors(): Promise<void> {
           ],
         },
         row.grantedBy,
-        moment(row.grantedAt),
+        instant(row.grantedAt),
       ),
     );
   }
@@ -359,9 +373,9 @@ async function programDirectors(): Promise<void> {
  * intake — except on R4, where issues/40 made the head a dated field edit of its
  * own and step 11 writes it.
  */
-async function proposalsAndReviews(): Promise<void> {
-  const r4 = fieldEdit("course_proposal_review", "R4");
+const HEAD_ASSIGNED_AS_ITS_OWN_FIELD_EDIT: ReviewKey = "R4";
 
+async function proposalsAndReviews(): Promise<void> {
   for (const proposal of PROPOSAL_ROWS) {
     const created = await writeToClasses((tx) =>
       createProposal(
@@ -373,7 +387,7 @@ async function proposalsAndReviews(): Promise<void> {
           programs: proposal.reviews.map((review) => review.programCode),
         },
         proposal.createdBy,
-        moment(proposal.createdAt),
+        instant(proposal.createdAt),
       ),
     );
 
@@ -385,7 +399,7 @@ async function proposalsAndReviews(): Promise<void> {
 
     for (const review of proposal.reviews) {
       const director = directorOf(review.programCode);
-      const head = review.key === r4.record ? null : review.areaHead;
+      const head = review.key === HEAD_ASSIGNED_AS_ITS_OWN_FIELD_EDIT ? null : review.areaHead;
       const rows: FieldRowWrite[] = review.areas.map((key) => ({
         table: "course_proposal_review_area",
         op: "insert",
@@ -402,7 +416,7 @@ async function proposalsAndReviews(): Promise<void> {
             rows,
           },
           director,
-          moment(proposal.createdAt),
+          instant(proposal.createdAt),
         ),
       );
     }
@@ -450,7 +464,7 @@ async function reviewTransitions(): Promise<void> {
               ? { type: "approve", courseNumber: mints!.courseNumber, reason: step.reason }
               : { type: step.event, reason: step.reason },
             step.actor,
-            moment(step.at),
+            instant(step.at),
           ),
         );
       }
@@ -471,6 +485,10 @@ async function reviewTransitions(): Promise<void> {
       }
     }
   }
+
+  // Not a twelfth step. The course→category rows have no writer to be a step of,
+  // and they hang here because a mint is the earliest moment their course exists.
+  await courseCategories();
 }
 
 /**
@@ -524,7 +542,7 @@ async function courseCategories(): Promise<void> {
  */
 async function courseCycles(): Promise<void> {
   const classes = classesDb();
-  const c1 = fieldEdit("course", "C1");
+  const bodyEdits = courseBodyEdits();
 
   for (const row of COURSE_ROWS) {
     const id = idOf(courseIds, row.key, "course");
@@ -539,25 +557,23 @@ async function courseCycles(): Promise<void> {
             { machine: "course", id },
             { type: step.event, reason: step.reason },
             step.actor,
-            moment(step.at),
+            instant(step.at),
           ),
         ),
     }));
 
-    if (row.key === "C1") {
+    for (const edit of bodyEdits.filter((entry) => entry.course === row.key)) {
       moves.push({
-        at: c1.at,
-        run: () => writeCourseBody(id, c1.by!, c1.at, { "course.description": row.description }),
-      });
-    }
-    if (row.key === "C17") {
-      moves.push({
-        at: C17_DIVERGENCE.at,
+        at: edit.at,
         run: () =>
-          writeCourseBody(id, C17_DIVERGENCE.writtenBy, C17_DIVERGENCE.at, {
-            "course.title": row.title,
-            "course.description": row.description,
-          }),
+          writeToClasses((tx) =>
+            writeFields(
+              tx,
+              { record: { machine: "course", id }, columns: edit.columns(row) },
+              edit.by,
+              instant(edit.at),
+            ),
+          ),
       });
     }
 
@@ -573,15 +589,37 @@ async function courseCycles(): Promise<void> {
   }
 }
 
-function writeCourseBody(
-  id: Id,
-  actor: FixtureNetid,
-  at: string,
-  columns: Record<string, unknown>,
-): Promise<void> {
-  return writeToClasses((tx) =>
-    writeFields(tx, { record: { machine: "course", id }, columns }, actor, moment(at)),
-  );
+/**
+ * The two writes to a course body, and the only two field writes in the seed
+ * that cannot be written in step 11. Each states the text it lands on as the
+ * course's own final value, because the *earlier* text is what the proposal
+ * carried and the mint copied forward — so neither is stated twice.
+ */
+function courseBodyEdits(): readonly {
+  course: CourseKey;
+  at: string;
+  by: FixtureNetid;
+  columns: (row: CourseRow) => Record<string, unknown>;
+}[] {
+  const rewrite = claimFieldEdit("course", "C1");
+  return [
+    {
+      course: "C1",
+      at: rewrite.at,
+      by: rewrite.by!,
+      columns: (row) => ({ "course.description": row.description }),
+    },
+    {
+      // Not one of issues/40's seven. C13 and C17 are minted from one body and
+      // C17 is then revised into a different title and description — the only
+      // place in the seed where issues/7's copy-rather-than-link semantics
+      // actually diverge rather than merely being permitted to.
+      course: "C17",
+      at: C17_DIVERGENCE.at,
+      by: C17_DIVERGENCE.writtenBy,
+      columns: (row) => ({ "course.title": row.title, "course.description": row.description }),
+    },
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -608,7 +646,6 @@ async function offerings(): Promise<void> {
   const classes = classesDb();
 
   for (const row of OFFERING_ROWS) {
-    const meetings = row.meetings.map(asMeeting);
     const created = await writeToClasses((tx) =>
       createOffering(
         tx,
@@ -618,7 +655,7 @@ async function offerings(): Promise<void> {
           sectionNumber: row.sectionNumber,
           // O9's second slot arrives in step 11, as the `offering_meeting` field
           // edit, so it is not part of what is slated.
-          meetings: row.key === "O9" ? meetings.slice(0, 1) : meetings,
+          meetings: row.key === "O9" ? row.meetings.slice(0, 1) : row.meetings,
           mode: row.mode,
           enrollmentLimit:
             row.key === "O9" ? O9_ENROLLMENT_LIMIT_BEFORE_THE_EDIT : row.enrollmentLimit,
@@ -627,7 +664,7 @@ async function offerings(): Promise<void> {
           url: row.url ?? null,
         },
         row.createdBy,
-        moment(row.createdAt),
+        instant(row.createdAt),
       ),
     );
     offeringIds.set(row.key, created.offeringId);
@@ -639,7 +676,7 @@ async function offerings(): Promise<void> {
           { machine: "offering", id: created.offeringId },
           offeringEvent(step),
           step.actor,
-          moment(step.at),
+          instant(step.at),
         ),
       );
     }
@@ -660,7 +697,7 @@ async function offerings(): Promise<void> {
             ],
           },
           seat.grantedBy,
-          moment(seat.grantedAt),
+          instant(seat.grantedAt),
         ),
       );
     }
@@ -685,31 +722,6 @@ async function offerings(): Promise<void> {
         `${row.key} seats ${seat.netid} at position ${seat.position}`,
       );
     }
-  }
-}
-
-/** The fixture's meeting rows into the create path's `kind`-discriminated union. */
-function asMeeting(meeting: OfferingRow["meetings"][number]): Meeting {
-  switch (meeting.kind) {
-    case "weekly":
-      return {
-        kind: "weekly",
-        dayOfWeek: meeting.dayOfWeek,
-        startTime: meeting.startTime,
-        endTime: meeting.endTime,
-        room: meeting.room,
-      };
-    case "dates":
-      return {
-        kind: "dates",
-        startDate: meeting.startDate,
-        endDate: meeting.endDate,
-        startTime: meeting.startTime,
-        endTime: meeting.endTime,
-        room: meeting.room,
-      };
-    case "async":
-      return { kind: "async" };
   }
 }
 
@@ -759,7 +771,7 @@ async function seatSharing(): Promise<void> {
           tx,
           { record: { machine: "offering", id: idOf(offeringIds, row.key, "class") }, rows: [write] },
           tag.grantedBy,
-          moment(tag.grantedAt),
+          instant(tag.grantedAt),
         ),
       );
     }
@@ -783,8 +795,8 @@ async function seatSharing(): Promise<void> {
  * reference-data write with no in-app author — which is what it is.
  */
 async function fieldEdits(): Promise<void> {
-  const limit = fieldEdit("offering", "O9");
-  const meetings = fieldEdit("offering_meeting", "O9");
+  const limit = claimFieldEdit("offering", "O9");
+  const meetings = claimFieldEdit("offering_meeting", "O9");
   const o9 = OFFERING_ROWS.find((row) => row.key === "O9")!;
 
   // One record, one moment, one Save: both edits are Offering operational and
@@ -799,7 +811,7 @@ async function fieldEdits(): Promise<void> {
         rows: [{ table: "offering_meeting", op: "insert", values: meetingColumns(o9.meetings[1]!) }],
       },
       limit.by!,
-      moment(limit.at),
+      instant(limit.at),
     ),
   );
 
@@ -807,7 +819,7 @@ async function fieldEdits(): Promise<void> {
   // the `created_by` arm under the actorless floor *at least one review is
   // `Developing`* — IMA's has been since 14 February — and the mint **copies**,
   // so this changes the proposal and not the course (issues/7, issues/65).
-  const p1 = fieldEdit("course_proposal", "P1");
+  const p1 = claimFieldEdit("course_proposal", "P1");
   await writeToClasses((tx) =>
     writeFields(
       tx,
@@ -816,13 +828,13 @@ async function fieldEdits(): Promise<void> {
         columns: { "course_proposal.description": P1_BODY_AFTER_THE_EDIT },
       },
       p1.by!,
-      moment(p1.at),
+      instant(p1.at),
     ),
   );
 
   // A head assigned after the row was created and before any verdict — issues/32's
   // point that a director may assign before approval, at it, or after.
-  const r4 = fieldEdit("course_proposal_review", "R4");
+  const r4 = claimFieldEdit("course_proposal_review", "R4");
   const r4Head = PROPOSAL_ROWS.flatMap((row) => row.reviews).find((row) => row.key === "R4")!;
   await writeToClasses((tx) =>
     writeFields(
@@ -832,16 +844,16 @@ async function fieldEdits(): Promise<void> {
         columns: { "course_proposal_review.area_head": r4Head.areaHead },
       },
       r4.by!,
-      moment(r4.at),
+      instant(r4.at),
     ),
   );
 
   // Reference data, and the whole of `SEED_ONLY`'s second entry.
-  const rename = fieldEdit("area", "A2");
+  const rename = claimFieldEdit("area", "A2");
   const a2 = AREAS.find((row) => row.key === "A2")!;
   await classesDb()
     .update(area)
-    .set({ name: a2.name, updatedAt: moment(rename.at), updatedBy: rename.by })
+    .set({ name: a2.name, updatedAt: instant(rename.at), updatedBy: rename.by })
     .where(eq(area.areaId, idOf(areaIds, "A2", "area")));
 }
 
@@ -922,11 +934,13 @@ async function checkTheWorld(): Promise<void> {
     );
   }
 
-  // **Rendered, never minted** (issues/49, issues/69): a person holding
-  // `program_director` who directs no program. The roles page appoints as one
-  // control writing both rows and nothing un-appoints one, so this state is
-  // seedable and not reachable at runtime — a missing control rather than a bug,
-  // and not a signal to add one.
+  // **Rendered, never minted** — `SEED_ONLY`'s three, each checked in the shape
+  // it takes, and none of them a signal to add a control (issues/49, issues/69).
+  assert(SEED_ONLY.length === 3, "three seed-only fixtures");
+
+  // 1. A person holding `program_director` who directs no program. The roles
+  //    page appoints as one control writing both rows and nothing un-appoints
+  //    one, so this state is seedable and not reachable at runtime.
   const vera = await classes
     .select({ role: userRole.role })
     .from(userRole)
@@ -936,6 +950,23 @@ async function checkTheWorld(): Promise<void> {
     sql`SELECT count(*)::int AS n FROM program_director WHERE netid = 'vm7781'`,
   );
   assert(Number(veraDirects[0]!.n) === 0, "vm7781 directs no program");
+
+  // 2. ITP's *Networks* rename, which `area.name` sitting in no field class
+  //    makes unwritable by any control in the skeleton.
+  const [renamed] = await classes
+    .select({ name: area.name, updatedBy: area.updatedBy })
+    .from(area)
+    .where(eq(area.areaId, idOf(areaIds, "A2", "area")));
+  assert(renamed?.name === "Networks" && renamed.updatedBy === "pr3390", "A2 was renamed");
+
+  // 3. *A program with no director* is seeded by **not** being there:
+  //    issues/49 ruled the LowRes conflict in favour of a full complement, so
+  //    issues/38's empty state is unreachable rather than overlooked.
+  const directorless = await classes.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM program
+    WHERE NOT EXISTS (SELECT 1 FROM program_director WHERE program_code = program.code)
+  `);
+  assert(Number(directorless[0]!.n) === 0, "every program has a sitting director");
 
   // **The invariant biting**: a netid holding `instructor` who appears on no
   // roster anywhere, because a roster write refuses a netid `people` does not
@@ -966,7 +997,27 @@ async function checkTheWorld(): Promise<void> {
     assert(known.has(row.netid), `${row.netid} is a person the directory knows`);
   }
 
-  assert(performed.size === COUNTS.fieldEdits, `all ${COUNTS.fieldEdits} field edits were written`);
+  // **The directory is incomplete, and by exactly one** — the count the artifact
+  // states beside its thirteen people. Asserted rather than implied, because a
+  // fifteenth netid arriving somewhere in `classes` would otherwise pass.
+  const strangers = await classes.execute<{ netid: string }>(sql`
+    SELECT DISTINCT netid FROM (
+      SELECT netid FROM user_role
+      UNION SELECT netid FROM program_director
+      UNION SELECT netid FROM offering_instructor
+      UNION SELECT created_by FROM course_proposal
+      UNION SELECT actor_netid FROM course_proposal_review_transition
+      UNION SELECT actor_netid FROM course_transition
+      UNION SELECT actor_netid FROM offering_transition
+    ) AS everyone
+  `);
+  const unknown = strangers.map((row) => row.netid).filter((netid) => !known.has(netid));
+  assert(
+    unknown.length === COUNTS.netidsWithoutAPersonRow && unknown[0] === NETID_WITH_NO_PERSON_ROW,
+    `one netid the directory does not know, and it is ${NETID_WITH_NO_PERSON_ROW}`,
+  );
+
+  assert(written.size === COUNTS.fieldEdits, `all ${COUNTS.fieldEdits} field edits were written`);
 
   // The log is the point: no snapshot was hand-authored, so every state below is
   // where `applyTransition` put it.
@@ -1020,9 +1071,6 @@ async function main(): Promise<void> {
     const named = SEED_ORDER[index]!;
     console.log(`\n— step ${named.step}: ${named.writes}`);
     await step();
-    // The course→category rows have no writer and no step of their own; they
-    // hang off the mints, which is the earliest moment the courses exist.
-    if (named.step === 7) await courseCategories();
   }
 
   console.log("\n— checking the world");

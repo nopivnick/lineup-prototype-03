@@ -61,7 +61,10 @@ unchecked — the genesis `chair` grant, which has to come from somewhere, becau
 writes `user_role` and nobody else does. Everything else goes through the same four write
 paths a screen uses, with every permission, invariant and field-class state gate enforced.
 Two categories of row have no in-app author and therefore no path to take: the reference
-data and the `person` rows, which is why they are the seed order's first two steps.
+data and the `person` rows, which is why they are the seed order's first two steps. A third
+joins them under protest — `course_requirement_category` is claimed by no field class, so
+nothing may write it, which is a hole in the rules rather than a licence
+([#106](https://github.com/nopivnick/lineup-prototype-03/issues/106)).
 
 That makes a passing seed a **satisfiability proof of the permission matrix**. If no legal
 actor existed for some act the world needs, the seed could not run — so it runs in CI on
