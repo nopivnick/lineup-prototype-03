@@ -114,7 +114,7 @@ follows — see [`docs/agents/spec-packages.md`](../agents/spec-packages.md). An
   the sentence assumed — is a separate question ticket 106 deliberately did not open, and it
   is now
   [#112](https://github.com/nopivnick/lineup-prototype-03/issues/112) rather than a
-  correction here.
+  correction here — since answered, and parked under *Open questions* below.
 
 ## Shape
 
@@ -321,6 +321,71 @@ machine, and nothing revisited the count. Without this table `applyTransition` n
 branch for a machine with no log, and a rejection is recorded nowhere — #13's `created_by`
 on a minted course makes an *approval* attributable, but nothing makes a `reject` or a
 `develop` so.
+
+There would be a third; see *Open questions* below.
+
+## Open questions
+
+**Should a review carry requirement categories, so `approve` copies them forward the way it
+copies areas?** [#112](https://github.com/nopivnick/lineup-prototype-03/issues/112), split
+off from [#109](https://github.com/nopivnick/lineup-prototype-03/issues/109) rather than
+answered inside a comment correction. **Answered *yes in principle, and not now***: the
+claim is that the reviewing director would assign a category alongside the area, proposers
+requesting neither ([#32](https://github.com/nopivnick/lineup-prototype-03/issues/32)) —
+but nothing is built while nothing needs it. The ticket carries the argument; what follows
+is what a reader of *this file* needs.
+
+**Where it would go is already settled.**
+[#25](https://github.com/nopivnick/lineup-prototype-03/issues/25) made requirement
+categories program-scoped exactly as it made areas program-scoped, and #32 put the area
+assignment on the *review* rather than the *proposal* because a program-scoped value cannot
+sit on a body shared across programs. So if categories are ever assigned before the mint,
+they go on the review — the proposal is not available to them either.
+
+**What it lands as.** `course_proposal_review_requirement_category`, mirroring
+`course_proposal_review_area` down to the composite foreign keys, and joining *Two
+derivations* above as a third table authorised by no closed ticket. `approve` gains a second
+copy-forward; the review side gains a writer, either its own field class or a widening of
+Review assignment (#10's map, now
+[`docs/permissions/`](../permissions/permissions.ts)). #32's *the assignment is areas and a
+head* is **amended** rather than extended, per rule 3 of
+[`docs/agents/spec-packages.md`](../agents/spec-packages.md).
+[#106](https://github.com/nopivnick/lineup-prototype-03/issues/106)'s field class survives
+it: a course's categories must stay editable after the mint, which is why #106 made that
+class emptiable where #32's area assignment is monotone. So this **adds** a review-side
+writer rather than replacing the course-side one — two writers on one mapping being the
+shape `course_area` already has (#32, #10).
+
+**What waiting costs.** Nothing structural: no row migrates, no rule reverses, and #106's
+class is unchanged either way — the deferral with no accruing cost, on ticket 10's grounds
+for the `pg_trgm` index above. What it does cost is legibility, and that is the live
+argument against holding. `db/seed.ts`'s `courseCategories()` writes the mapping **by the
+program's sitting director, in the same pass that mints the course**, because the approver
+is not always that person — #32's area-head route mints three of the seventeen courses — and
+dates it to the mint. A reader who has just followed the `course_area` path meets that seam
+with no explanation but this section.
+
+**What lands it.** Any of three, none of which has happened:
+
+- **Something needs a course's categories at or before the mint.** They are already
+  *displayed* — `CatalogRow` and `LineupGroup` both carry them
+  ([`docs/data-access/`](../data-access/data-access.ts), #25) — but **no gate anywhere reads
+  them** (#106) and nothing needs them before the course exists. The first thing that does
+  ends the deferral on the spot.
+- **The review detail page is asked to show it.**
+  [#42](https://github.com/nopivnick/lineup-prototype-03/issues/42) displays *Areas* and
+  *Area head* and nothing else of this kind, and would be amended. The review *edit* page
+  ([#92](https://github.com/nopivnick/lineup-prototype-03/issues/92)) would **not** be:
+  [#62](https://github.com/nopivnick/lineup-prototype-03/issues/62) settled that an edit
+  page renders only the field classes open to you, so the control appears there by that rule
+  as soon as the class exists. The create forms stay untouched either way —
+  [`docs/prototypes/README.md`](../prototypes/README.md)'s *no course directly … no area, no
+  requirement category* holds, because proposers request neither.
+- **The seed's second actor stops being derivable.** Both that actor and that date are read
+  off other facts rather than given by the fixtures. If either has to become a fixture fact
+  of its own, the review path is the cheaper answer;
+  [#107](https://github.com/nopivnick/lineup-prototype-03/issues/107) is the nearest open
+  ticket that could force it.
 
 ## Notes for the build effort
 
