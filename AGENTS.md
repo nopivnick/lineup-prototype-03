@@ -70,10 +70,14 @@ carries that argument in full. It runs in CI against a real Postgres pair on eve
 `npm run db:reset` is how you run it here. Two rules travel with it and are easy to break by
 accident:
 
-- **Dates are literal.** The four write paths take the moment as an argument beside the
-  actor (`at`), so the seed's world stays dated 2018–2026 rather than collapsing onto the
-  instant of the reset. The final shape of that seam is open as
-  [#107](https://github.com/nopivnick/lineup-prototype-03/issues/107).
+- **Dates are literal.** A transaction is opened *at* a moment and every write path called
+  inside it inherits that moment, so the seed's world stays dated 2018–2026 rather than
+  collapsing onto the instant of the reset. Settled by
+  [#107](https://github.com/nopivnick/lineup-prototype-03/issues/107), which also fenced the
+  dated opener: `writeToClassesAt` is `db/seed.ts`'s alone, behind the same ESLint rule that
+  keeps handles out of pages, because a caller-supplied date is the one way to write a
+  plausible lie into the transition log. Everything else calls `writeToClasses` and lets the
+  column defaults answer.
 - **The seed is a caller, not an author.** If a row the fixtures require cannot be written
   through a path, that is a hole in the rules and it becomes a ticket — as
   `course_requirement_category` did, in

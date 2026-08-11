@@ -37,7 +37,7 @@ import {
   type ActorFacts,
   type Subject,
 } from "./rules";
-import { moment, type At, type ClassesTx, type Id, type Netid } from "./transaction";
+import { moment, type At, type ClassesTx, type Id, type Netid, type OpenTransaction } from "./transaction";
 
 // ---------------------------------------------------------------------------
 // The events
@@ -144,12 +144,12 @@ export type EventFor<M extends MachineName> = M extends "course"
  * never reaches machine legality and it never reaches an invariant (issues/34).
  */
 export async function applyTransition<M extends MachineName>(
-  tx: ClassesTx,
+  open: OpenTransaction,
   entity: { machine: M; id: Id },
   event: EventFor<M>,
   actor: Netid,
-  at?: At,
 ): Promise<void> {
+  const { tx, at } = open;
   const facts = await readActorFacts(tx, actor);
 
   // The switch narrows `entity.machine`, which is `M` rather than a literal, so

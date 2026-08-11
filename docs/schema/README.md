@@ -383,9 +383,10 @@ with no explanation but this section.
   requirement category* holds, because proposers request neither.
 - **The seed's second actor stops being derivable.** Both that actor and that date are read
   off other facts rather than given by the fixtures. If either has to become a fixture fact
-  of its own, the review path is the cheaper answer;
-  [#107](https://github.com/nopivnick/lineup-prototype-03/issues/107) is the nearest open
-  ticket that could force it.
+  of its own, the review path is the cheaper answer.
+  [#107](https://github.com/nopivnick/lineup-prototype-03/issues/107) was the nearest ticket
+  that could have forced it and did not: it moved the moment from the writer's fifth argument
+  onto the transaction, leaving *which* moment the seed passes exactly where it was.
 
 ## Notes for the build effort
 

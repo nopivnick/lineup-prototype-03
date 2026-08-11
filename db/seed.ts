@@ -104,7 +104,8 @@ import { person } from "@/db/people/schema";
 import { applyTransition, type OfferingEvent } from "@/db/write/apply-transition";
 import { createOffering } from "@/db/write/create-offering";
 import { createProposal } from "@/db/write/create-proposal";
-import { writeToClasses, type Id } from "@/db/write/transaction";
+import { writeToClassesAt } from "@/db/write/dated-transaction";
+import { type Id } from "@/db/write/transaction";
 import { writeFields, type FieldRowWrite } from "@/db/write/write-fields";
 
 // ---------------------------------------------------------------------------
@@ -317,7 +318,7 @@ async function genesisGrant(): Promise<void> {
 async function roleGrants(): Promise<void> {
   for (const grant of ROLE_GRANT_ROWS.slice(1)) {
     assert(grant.checked, `${grant.netid}'s ${grant.role} grant is checked`);
-    await writeToClasses((tx) =>
+    await writeToClassesAt(instant(grant.grantedAt), (tx) =>
       writeFields(
         tx,
         {
@@ -325,7 +326,6 @@ async function roleGrants(): Promise<void> {
           rows: [{ table: "user_role", op: "insert", values: { netid: grant.netid, role: grant.role } }],
         },
         grant.grantedBy,
-        instant(grant.grantedAt),
       ),
     );
   }
@@ -338,7 +338,7 @@ async function roleGrants(): Promise<void> {
  */
 async function programDirectors(): Promise<void> {
   for (const row of PROGRAM_DIRECTORS) {
-    await writeToClasses((tx) =>
+    await writeToClassesAt(instant(row.grantedAt), (tx) =>
       writeFields(
         tx,
         {
@@ -352,7 +352,6 @@ async function programDirectors(): Promise<void> {
           ],
         },
         row.grantedBy,
-        instant(row.grantedAt),
       ),
     );
   }
@@ -378,7 +377,7 @@ const HEAD_ASSIGNED_AS_ITS_OWN_FIELD_EDIT: ReviewKey = "R4";
 
 async function proposalsAndReviews(): Promise<void> {
   for (const proposal of PROPOSAL_ROWS) {
-    const created = await writeToClasses((tx) =>
+    const created = await writeToClassesAt(instant(proposal.createdAt), (tx) =>
       createProposal(
         tx,
         {
@@ -388,7 +387,6 @@ async function proposalsAndReviews(): Promise<void> {
           programs: proposal.reviews.map((review) => review.programCode),
         },
         proposal.createdBy,
-        instant(proposal.createdAt),
       ),
     );
 
@@ -408,7 +406,7 @@ async function proposalsAndReviews(): Promise<void> {
       }));
       if (head === null && rows.length === 0) continue;
 
-      await writeToClasses((tx) =>
+      await writeToClassesAt(instant(proposal.createdAt), (tx) =>
         writeFields(
           tx,
           {
@@ -417,7 +415,6 @@ async function proposalsAndReviews(): Promise<void> {
             rows,
           },
           director,
-          instant(proposal.createdAt),
         ),
       );
     }
@@ -463,7 +460,7 @@ async function reviewTransitions(): Promise<void> {
           assert(mints !== undefined, `${review.key}'s approve mints a course`);
         }
 
-        await writeToClasses((tx) =>
+        await writeToClassesAt(instant(step.at), (tx) =>
           applyTransition(
             tx,
             { machine: "course_proposal_review", id },
@@ -471,7 +468,6 @@ async function reviewTransitions(): Promise<void> {
               ? { type: "approve", courseNumber: mints!.courseNumber, reason: step.reason }
               : { type: step.event, reason: step.reason },
             step.actor,
-            instant(step.at),
           ),
         );
       }
@@ -531,7 +527,7 @@ async function reviewTransitions(): Promise<void> {
  */
 async function courseCategories(): Promise<void> {
   for (const row of COURSE_ROWS) {
-    await writeToClasses((tx) =>
+    await writeToClassesAt(instant(row.createdAt), (tx) =>
       writeFields(
         tx,
         {
@@ -547,7 +543,6 @@ async function courseCategories(): Promise<void> {
           ),
         },
         directorOf(row.programCode),
-        instant(row.createdAt),
       ),
     );
   }
@@ -585,13 +580,12 @@ async function courseCycles(): Promise<void> {
     const moves: Move[] = row.history.map((step) => ({
       at: step.at,
       run: () =>
-        writeToClasses((tx) =>
+        writeToClassesAt(instant(step.at), (tx) =>
           applyTransition(
             tx,
             { machine: "course", id },
             { type: step.event, reason: step.reason },
             step.actor,
-            instant(step.at),
           ),
         ),
     }));
@@ -600,12 +594,11 @@ async function courseCycles(): Promise<void> {
       moves.push({
         at: edit.at,
         run: () =>
-          writeToClasses((tx) =>
+          writeToClassesAt(instant(edit.at), (tx) =>
             writeFields(
               tx,
               { record: { machine: "course", id }, columns: edit.columns(row) },
               edit.by,
-              instant(edit.at),
             ),
           ),
       });
@@ -680,7 +673,7 @@ async function offerings(): Promise<void> {
   const classes = classesDb();
 
   for (const row of OFFERING_ROWS) {
-    const created = await writeToClasses((tx) =>
+    const created = await writeToClassesAt(instant(row.createdAt), (tx) =>
       createOffering(
         tx,
         {
@@ -698,26 +691,24 @@ async function offerings(): Promise<void> {
           url: row.url ?? null,
         },
         row.createdBy,
-        instant(row.createdAt),
       ),
     );
     offeringIds.set(row.key, created.offeringId);
 
     for (const step of row.history) {
-      await writeToClasses((tx) =>
+      await writeToClassesAt(instant(step.at), (tx) =>
         applyTransition(
           tx,
           { machine: "offering", id: created.offeringId },
           offeringEvent(step),
           step.actor,
-          instant(step.at),
         ),
       );
     }
 
     for (const seat of row.roster) {
       if (seat.position === 0) continue;
-      await writeToClasses((tx) =>
+      await writeToClassesAt(instant(seat.grantedAt), (tx) =>
         writeFields(
           tx,
           {
@@ -731,7 +722,6 @@ async function offerings(): Promise<void> {
             ],
           },
           seat.grantedBy,
-          instant(seat.grantedAt),
         ),
       );
     }
@@ -800,12 +790,11 @@ async function seatSharing(): Promise<void> {
               },
             };
 
-      await writeToClasses((tx) =>
+      await writeToClassesAt(instant(tag.grantedAt), (tx) =>
         writeFields(
           tx,
           { record: { machine: "offering", id: idOf(offeringIds, row.key, "class") }, rows: [write] },
           tag.grantedBy,
-          instant(tag.grantedAt),
         ),
       );
     }
@@ -836,7 +825,7 @@ async function fieldEdits(): Promise<void> {
   // One record, one moment, one Save: both edits are Offering operational and
   // the edit page is one page (issues/62).
   assert(limit.at === meetings.at && limit.by === meetings.by, "O9's two edits are one write");
-  await writeToClasses((tx) =>
+  await writeToClassesAt(instant(limit.at), (tx) =>
     writeFields(
       tx,
       {
@@ -845,7 +834,6 @@ async function fieldEdits(): Promise<void> {
         rows: [{ table: "offering_meeting", op: "insert", values: meetingColumns(o9.meetings[1]!) }],
       },
       limit.by!,
-      instant(limit.at),
     ),
   );
 
@@ -854,7 +842,7 @@ async function fieldEdits(): Promise<void> {
   // `Developing`* — IMA's has been since 14 February — and the mint **copies**,
   // so this changes the proposal and not the course (issues/7, issues/65).
   const p1 = claimFieldEdit("course_proposal", "P1");
-  await writeToClasses((tx) =>
+  await writeToClassesAt(instant(p1.at), (tx) =>
     writeFields(
       tx,
       {
@@ -862,7 +850,6 @@ async function fieldEdits(): Promise<void> {
         columns: { "course_proposal.description": P1_BODY_AFTER_THE_EDIT },
       },
       p1.by!,
-      instant(p1.at),
     ),
   );
 
@@ -870,7 +857,7 @@ async function fieldEdits(): Promise<void> {
   // point that a director may assign before approval, at it, or after.
   const r4 = claimFieldEdit("course_proposal_review", "R4");
   const r4Head = PROPOSAL_ROWS.flatMap((row) => row.reviews).find((row) => row.key === "R4")!;
-  await writeToClasses((tx) =>
+  await writeToClassesAt(instant(r4.at), (tx) =>
     writeFields(
       tx,
       {
@@ -878,7 +865,6 @@ async function fieldEdits(): Promise<void> {
         columns: { "course_proposal_review.area_head": r4Head.areaHead },
       },
       r4.by!,
-      instant(r4.at),
     ),
   );
 

@@ -7,7 +7,7 @@ import { MATRICES, NOBODY } from "@/lib/permissions";
 import { initialSnapshot } from "./apply-transition";
 import { refuse, WriteRefused } from "./refusal";
 import { notYours, permitted, readActorFacts } from "./rules";
-import { moment, type At, type ClassesTx, type Id, type Netid } from "./transaction";
+import { moment, type Id, type Netid, type OpenTransaction } from "./transaction";
 
 /**
  * Three columns and a set of programs (issues/10, issues/43).
@@ -40,11 +40,13 @@ export type CreateProposalInput = {
  * course, so nothing exists for any relationship to scope to.
  */
 export async function createProposal(
-  tx: ClassesTx,
+  open: OpenTransaction,
   input: CreateProposalInput,
   actor: Netid,
-  at?: At,
 ): Promise<{ proposalId: Id; reviewIds: readonly Id[] }> {
+  const { tx, at } = open;
+
+
   // **The set may not be empty**, ruled rather than assumed (issues/43): a
   // proposal with no reviews is a body nobody will ever see, since the proposals
   // list groups by proposal and its rows *are* reviews, and issues/7 gave the

@@ -42,7 +42,7 @@ import {
   type ActorFacts,
   type Subject,
 } from "./rules";
-import { moment, type At, type ClassesTx, type Id, type Netid } from "./transaction";
+import { moment, type At, type ClassesTx, type Id, type Netid, type OpenTransaction } from "./transaction";
 
 // ---------------------------------------------------------------------------
 // What a field write is
@@ -105,11 +105,11 @@ export type FieldWrite = {
  * fire, which is why the stamp is the only trace.
  */
 export async function writeFields(
-  tx: ClassesTx,
+  open: OpenTransaction,
   write: FieldWrite,
   actor: Netid,
-  at?: At,
 ): Promise<void> {
+  const { tx, at } = open;
   const columns = write.columns ?? {};
   const rows = write.rows ?? [];
   if (Object.keys(columns).length === 0 && rows.length === 0) return;

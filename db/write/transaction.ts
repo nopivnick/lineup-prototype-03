@@ -27,14 +27,34 @@ type ClassesHandle = PostgresJsDatabase<Record<string, never>>;
 export type ClassesTx = Parameters<Parameters<ClassesHandle["transaction"]>[0]>[0];
 
 /**
+ * **An open `classes` transaction: the handle, and the moment it is open at**
+ * (issues/6, issues/13, issues/28, issues/107).
+ *
+ * This is what the four write paths take in place of a bare handle, and the two
+ * halves travel together because **a moment belongs to a transaction rather than
+ * to a call**. One transaction is one act; every row it writes happened at the
+ * same instant, and there is no second argument for a caller to pass differently
+ * the second time.
+ *
+ * `at` is `undefined` for every caller but one, and `moment()` below turns that
+ * into the column default. Only `writeToClassesAt` in `./dated-transaction` can
+ * make it anything else, and only `db/seed.ts` may import that.
+ */
+export type OpenTransaction = {
+  readonly tx: ClassesTx;
+  readonly at: At | undefined;
+};
+
+/**
  * The one way to open a `classes` transaction.
  *
  * A Server Action calls `getActor()`, rejects a `null` one, opens the transaction
  * through here and calls a write path in — it holds no rules, because every check
- * is inside the writer (issues/28).
+ * is inside the writer (issues/28). It says nothing about when, so the column
+ * defaults answer; nothing reachable from a page can say otherwise (issues/107).
  */
-export function writeToClasses<T>(body: (tx: ClassesTx) => Promise<T>): Promise<T> {
-  return classesDb().transaction(body);
+export function writeToClasses<T>(body: (open: OpenTransaction) => Promise<T>): Promise<T> {
+  return classesDb().transaction((tx) => body({ tx, at: undefined }));
 }
 
 /**
@@ -48,8 +68,7 @@ export type Id = number;
 export type Netid = string;
 
 /**
- * **When a write happened**, and it is a parameter of the writer for the same
- * reason the transaction is (issues/13, issues/49, issues/78).
+ * **When a write happened** (issues/13, issues/49, issues/78, issues/107).
  *
  * Every timestamp in both schemas defaults to `now()`, which is the right answer
  * for every caller but one. The seed drives a world dated 2018 to 2026 and
@@ -59,20 +78,15 @@ export type Netid = string;
  * skeleton ships that a snapshot fixture could not have produced. Fixed dates
  * are also what make a screenshot stay true across resets.
  *
- * Shaped like `actor` and for the same reason: it is an argument the writer
- * takes, **never a column in the caller's payload**. `created_at`, `granted_at`
+ * **It is never a column in the caller's payload.** `created_at`, `granted_at`
  * and `updated_at` are the Creation and Timestamps field classes, which nobody
- * may write (issues/28) — a caller hands the writer a moment and the writer
- * decides which columns it lands in.
+ * may write (issues/28) — a caller opens a transaction at a moment and the
+ * writer decides which columns that moment lands in.
  *
- * `undefined` is the ordinary case: a Server Action passes nothing and the
- * database's own clock answers.
- *
- * `docs/data-access/data-access.ts` still declares the four paths with four
- * parameters, and rule 1 of `docs/agents/spec-packages.md` forbids amending an
- * artifact without a closed ticket behind it — so the shape this seam should
- * finally take is open as issues/107, which weighs it against a clock on the
- * transaction and against a seam only the seed can reach.
+ * issues/78 carried it as an optional fifth argument on each of the four write
+ * paths, and issues/107 moved it onto the transaction instead: see
+ * `OpenTransaction` for why one moment per transaction is the shape, and
+ * `./dated-transaction` for why only the seed can set one.
  */
 export type At = Date;
 
