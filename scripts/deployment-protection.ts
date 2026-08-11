@@ -96,6 +96,7 @@ export function flagTargets(
         .flatMap((variable) => variable.target ?? []),
     ),
   );
+}
 
 /**
  * `development` is not a deployment. It is what `vercel env pull` writes into a
