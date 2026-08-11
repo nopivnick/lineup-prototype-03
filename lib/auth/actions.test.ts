@@ -38,7 +38,10 @@ const DIRECTORY: DirectoryPerson[] = [
   { netid: "mo5512", displayName: "Marcus Ola", roles: ["student"] },
 ];
 
-vi.mock("@/db/read/directory", () => ({ listDirectory: async () => DIRECTORY }));
+vi.mock("@/db/read/directory", () => ({
+  listDirectory: async () => DIRECTORY,
+  directoryLists: async (netid: string) => DIRECTORY.some((person) => person.netid === netid),
+}));
 
 function loadActions() {
   vi.resetModules();

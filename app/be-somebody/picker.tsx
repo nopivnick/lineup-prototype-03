@@ -19,13 +19,17 @@ import { RoleChips } from "../role-chips";
 export function Picker({ people }: { people: readonly DirectoryPerson[] }) {
   const [choosing, startChoosing] = useTransition();
 
+  // One click. `beSomebody` revalidates the layout, this route re-renders, and by
+  // then there is an actor — which is what sends the reader into the app.
+  const become = (netid: string) => startChoosing(async () => void (await beSomebody(netid)));
+
   return (
     <Stack gap={0}>
       {people.map((person) => (
         <UnstyledButton
           key={person.netid}
           disabled={choosing}
-          onClick={() => startChoosing(async () => void (await beSomebody(person.netid)))}
+          onClick={() => become(person.netid)}
           p="sm"
           bd="0 0 1px 0 solid var(--mantine-color-default-border)"
         >

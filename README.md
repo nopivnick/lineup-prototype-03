@@ -127,13 +127,19 @@ times. It is not a role switcher either: permissions OR independently-evaluated
 running the rule under test. *See it as instructor-only* is a fixture concern — be a person
 who holds only `instructor`.
 
-**Roles are read where they are used.** A page's dev bar prints them as labels, from
-[`db/read/directory.ts`](./db/read/directory.ts) — one of the two anonymous reads
-`READ_TIERS` allows, both of them dev machinery the SSO swap deletes. A *rule* never reads
-them there: `readActorFacts` in [`db/write/rules.ts`](./db/write/rules.ts) re-reads
-`user_role` and `program_director` inside the locking transaction, because a set resolved at
-request scope would be stale by the time a writer used it. Every Server Action starts with
-`requireActor()` and rejects a null actor rather than guessing at one.
+Nothing else in the app may read that cookie. `cookies` is a restricted import outside
+`lib/auth/`, under the same rule that keeps handles out of pages, so a second reader of the
+actor — a second implementation of identity — fails the build.
+
+**Roles are read where they are used**, three times in a request, each at the moment its
+answer is used. The dev bar's list of people comes from
+[`db/read/directory.ts`](./db/read/directory.ts) and the actor's own labels from
+[`db/read/actor-roles.ts`](./db/read/actor-roles.ts) — the two anonymous reads `READ_TIERS`
+allows. A *rule* consults neither: `readActorFacts` in
+[`db/write/rules.ts`](./db/write/rules.ts) re-reads `user_role` and `program_director` inside
+the locking transaction, because a set resolved at request scope would be stale by the time a
+writer used it. Every Server Action starts with `requireActor()` and rejects a null actor
+rather than guessing at one.
 
 ## The lifecycles and the rules
 

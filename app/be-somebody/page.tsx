@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Container, Stack, Text, Title } from "@mantine/core";
 
@@ -6,7 +7,7 @@ import { getActor } from "@/lib/auth/actor";
 
 import { Picker } from "./picker";
 
-export const metadata = { title: "Be somebody — ITP/IMA catalog" };
+export const metadata: Metadata = { title: "Be somebody — ITP/IMA catalog" };
 
 /**
  * **The picker** (issues/11, issues/79). What a reader with no cookie sees, and

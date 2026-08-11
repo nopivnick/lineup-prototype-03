@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { listDirectory } from "@/db/read/directory";
+import { directoryLists } from "@/db/read/directory";
+import type { Netid } from "@/db/write/transaction";
 
 import { clearActorCookie, requireActor, writeActorCookie } from "./actor";
 
@@ -25,18 +26,17 @@ import { clearActorCookie, requireActor, writeActorCookie } from "./actor";
  *
  * The netid is checked against the directory rather than trusted, because a
  * Server Action is a public endpoint and the switcher's whole claim is that it
- * makes you *one of the seed's people*. It is not a way to become an arbitrary
- * string: a netid `people` has never heard of is a real thing in this map — the
- * fixtures carry one on purpose — but it is a thing the seed writes, not a thing
- * a picker offers.
+ * makes you *one of the seed's people*. `directoryLists` is asked rather than the
+ * whole list fetched and searched here: the question belongs to the module that
+ * owns the table, and asking it of one row is one indexed lookup instead of two
+ * scans.
  *
  * `revalidatePath("/", "layout")` rather than a redirect, so switching leaves you
  * on the record you were reading. That is the point of the switcher: the same
  * class, watched offering different moves to different people.
  */
-export async function beSomebody(netid: string): Promise<void> {
-  const directory = await listDirectory();
-  if (!directory.some((person) => person.netid === netid)) {
+export async function beSomebody(netid: Netid): Promise<void> {
+  if (!(await directoryLists(netid))) {
     throw new Error(`${netid} is not one of the seed's people.`);
   }
 

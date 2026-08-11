@@ -4,6 +4,8 @@ import { useTransition } from "react";
 import { Box, Button, Group, Menu, Stack, Text } from "@mantine/core";
 
 import type { DirectoryPerson } from "@/db/read/directory";
+import type { Role } from "@/lib/permissions";
+import type { Actor } from "@/lib/auth/actor";
 import { beNobody, beSomebody } from "@/lib/auth/actions";
 
 import { RoleChips } from "../role-chips";
@@ -14,8 +16,9 @@ import { RoleChips } from "../role-chips";
  *
  * It carries **only a netid**, and that is load-bearing rather than tidy: a
  * serialized `{netid, roles}` payload would make the JSON an interface, and the
- * role set has changed three times. Roles reach the screen as labels the server
- * read, and reach a *decision* only inside the locking transaction that decides.
+ * role set has changed three times. Its own props say the same thing — the actor
+ * is an `Actor`, and the roles beside it arrive from a lookup keyed by that
+ * netid, which is the shape that survives the SSO swap.
  *
  * It is also not a role switcher. issues/8 evaluates each `(role, relationship)`
  * conjunction independently and ORs them, so an active-role filter would narrow
@@ -25,9 +28,22 @@ import { RoleChips } from "../role-chips";
  * **The SSO swap deletes this component.** Nothing else in the app renders it,
  * and nothing it does is a thing a signed-in user needs.
  */
-export function DevBar({ actor, people }: { actor: string; people: readonly DirectoryPerson[] }) {
+export function DevBar({
+  actor,
+  roles,
+  people,
+}: {
+  actor: Actor;
+  roles: readonly Role[];
+  people: readonly DirectoryPerson[];
+}) {
   const [switching, startSwitching] = useTransition();
-  const you = people.find((person) => person.netid === actor);
+  const you = people.find((person) => person.netid === actor.netid);
+
+  // One click, and the page you are reading re-renders as them: `beSomebody`
+  // revalidates rather than redirecting, so the same record can be watched
+  // offering different moves to different people.
+  const become = (netid: string) => startSwitching(async () => void (await beSomebody(netid)));
 
   return (
     <Box component="header" px="md" py="xs" bd="0 0 1px 0 solid var(--mantine-color-default-border)">
@@ -38,12 +54,12 @@ export function DevBar({ actor, people }: { actor: string; people: readonly Dire
           <Text size="sm" c="dimmed">
             Signed in as
           </Text>
-          {you ? <RoleChips roles={you.roles} /> : null}
+          <RoleChips roles={roles} />
 
           <Menu position="bottom-end" shadow="md" width={280}>
             <Menu.Target>
               <Button variant="default" size="compact-sm" loading={switching}>
-                {you?.displayName ?? actor}
+                {you?.displayName ?? actor.netid}
               </Button>
             </Menu.Target>
 
@@ -52,12 +68,8 @@ export function DevBar({ actor, people }: { actor: string; people: readonly Dire
               {people.map((person) => (
                 <Menu.Item
                   key={person.netid}
-                  disabled={person.netid === actor}
-                  // One click, and the page you are reading re-renders as them:
-                  // `beSomebody` revalidates rather than redirecting, so the same
-                  // record can be watched offering different moves to different
-                  // people.
-                  onClick={() => startSwitching(async () => void (await beSomebody(person.netid)))}
+                  disabled={person.netid === actor.netid}
+                  onClick={() => become(person.netid)}
                 >
                   <Stack gap={2}>
                     <Text size="sm">{person.displayName}</Text>

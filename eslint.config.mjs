@@ -65,6 +65,48 @@ const NO_DATED_DOOR = {
   message: NO_DATE_FROM_A_CALLER,
 };
 
+/**
+ * The message somebody sees when they reach for the cookie jar instead of the
+ * identity reader.
+ *
+ * `getActor()` is **the application's only identity import** (issues/11), and
+ * that is a claim about the whole tree rather than about one module's good
+ * behaviour: a second reader of `lineup_dev_actor` is a second implementation of
+ * identity, which is exactly what makes *the dev path is in* and *SSO is wired*
+ * able to be true at once. Wiring SSO replaces one body; it cannot replace a body
+ * somebody else copied.
+ */
+const NO_SECOND_IDENTITY = [
+  "getActor() is the application's only identity import (issues/11).",
+  "cookies() belongs to lib/auth/, which is the whole of the seam to real auth — wiring SSO",
+  "replaces that module's body, and a second reader of the actor cookie is a second thing to",
+  "replace. Call getActor() or requireActor() instead — see docs/data-access/README.md.",
+].join(" ");
+
+const NO_COOKIE_JAR = {
+  name: "next/headers",
+  importNames: ["cookies"],
+  message: NO_SECOND_IDENTITY,
+};
+
+/**
+ * The three patterns every module outside a named boundary carries. Named once
+ * because two of the blocks below re-state them: an override replaces the rule's
+ * whole options object, so a block that lifted one fence would silently lift the
+ * others with it.
+ */
+const MODULE_BOUNDARY = [
+  {
+    group: ["**/db/handles", "@/db/handles"],
+    message: NO_HANDLE_IN_A_PAGE,
+  },
+  {
+    group: ["postgres", "drizzle-orm/postgres-js"],
+    message: NO_OPENING_YOUR_OWN,
+  },
+  NO_DATED_DOOR,
+];
+
 export default defineConfig([
   globalIgnores([
     ".next/**",
@@ -82,22 +124,20 @@ export default defineConfig([
     rules: {
       // `error`, not `warn`: `npm run build` runs `eslint .` first, so this
       // fails the build rather than printing something nobody reads.
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["**/db/handles", "@/db/handles"],
-              message: NO_HANDLE_IN_A_PAGE,
-            },
-            {
-              group: ["postgres", "drizzle-orm/postgres-js"],
-              message: NO_OPENING_YOUR_OWN,
-            },
-            NO_DATED_DOOR,
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { patterns: MODULE_BOUNDARY, paths: [NO_COOKIE_JAR] }],
+    },
+  },
+
+  {
+    // The identity seam, and the only module that may open the cookie jar
+    // (issues/11, issues/79). It holds no handle and dates no write, so the
+    // three patterns stay on it exactly as they are everywhere else — this
+    // block lifts one fence and re-states the others rather than replacing the
+    // rule wholesale.
+    name: "only-one-identity/the-seam-itself",
+    files: ["lib/auth/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: MODULE_BOUNDARY }],
     },
   },
 
@@ -109,10 +149,15 @@ export default defineConfig([
     // rather than turning the rule off: the write paths are exactly the callers
     // that must not date their own writes, since a moment reaching one any way
     // but through its transaction is the shape issues/107 replaced.
+    //
+    // **The cookie jar stays shut here too.** A read module that read the actor
+    // for itself would be the second identity implementation issues/11 spent the
+    // seam preventing, and it would do it in the one layer that decides what a
+    // netid may see.
     name: "no-handle-in-a-page/inside-the-boundary",
     files: ["db/handles.ts", "db/read/**/*.ts", "db/write/**/*.ts"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [NO_DATED_DOOR] }],
+      "no-restricted-imports": ["error", { patterns: [NO_DATED_DOOR], paths: [NO_COOKIE_JAR] }],
     },
   },
 

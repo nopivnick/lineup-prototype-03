@@ -2,6 +2,8 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
+import type { Netid } from "@/db/write/transaction";
+
 /**
  * **The application's only identity import, and the whole of the seam to real
  * auth** (issues/11, issues/79).
@@ -57,8 +59,13 @@ const DEV_ACTOR_COOKIE = "lineup_dev_actor";
  * here would already be stale by the time a writer used it. The chair may have
  * revoked a grant in between, and the whole point of the lock is that the row and
  * the rules are read together.
+ *
+ * `Netid` is the write paths' own alias and is imported rather than restated: it
+ * is the join key between the two projects and the only thing `classes` holds
+ * about a person, and the identity seam is the last module that should let a bare
+ * `string` stand in for it.
  */
-export type Actor = { netid: string };
+export type Actor = { netid: Netid };
 
 /**
  * Who is acting, or nobody.
@@ -102,7 +109,7 @@ export async function requireActor(): Promise<Actor> {
  * read tiers are a product rule rather than a security boundary (issues/28), and
  * a `NODE_ENV` branch is the single thing this seam refuses.
  */
-export async function writeActorCookie(netid: string): Promise<void> {
+export async function writeActorCookie(netid: Netid): Promise<void> {
   (await cookies()).set(DEV_ACTOR_COOKIE, netid, {
     httpOnly: true,
     sameSite: "lax",

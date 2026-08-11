@@ -17,7 +17,7 @@ import { describe, expect, test } from "vitest";
 
 import { DATABASES_CONFIGURED, freshWorld, WHO } from "@/db/write/test-world";
 
-import { listDirectory } from "./directory";
+import { directoryLists, listDirectory } from "./directory";
 
 describe.skipIf(!DATABASES_CONFIGURED)("listDirectory", () => {
   test("is the whole directory, in name order, with each person's roles", async () => {
@@ -58,5 +58,18 @@ describe.skipIf(!DATABASES_CONFIGURED)("listDirectory", () => {
     // the netid the roster refusals need. The list is the directory, so a
     // grant naming somebody outside it adds no entry to the switcher.
     expect(directory.some((person) => person.netid === WHO.ghost)).toBe(false);
+  });
+});
+
+describe.skipIf(!DATABASES_CONFIGURED)("directoryLists", () => {
+  test("agrees with the list the switcher renders", async () => {
+    await freshWorld();
+
+    // The predicate `beSomebody` refuses on, asked of one row. It has to answer
+    // the same question the list does, or the picker would offer a person the
+    // action then rejects.
+    await expect(directoryLists(WHO.chair)).resolves.toBe(true);
+    await expect(directoryLists(WHO.ghost)).resolves.toBe(false);
+    await expect(directoryLists("nobody0000")).resolves.toBe(false);
   });
 });

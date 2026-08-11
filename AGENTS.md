@@ -95,17 +95,25 @@ things about it are structural rather than conventional:
   `NODE_ENV=production` on previews too and the skeleton exists to be shown on one. Without
   the flag the module throws at import and `next build` fails; CI's build job sets it, and
   the day SSO lands that line comes out with the reader's body.
-- **What the switcher persists is a netid and nothing else.** Roles reach the dev bar as
-  labels from `db/read/directory.ts` — one of the two anonymous reads `READ_TIERS` allows —
-  and reach a *decision* only inside the locking transaction that decides, through
-  `readActorFacts` in `db/write/rules.ts`. A set resolved at request scope would already be
-  stale.
+- **`cookies` is a restricted import everywhere but `lib/auth/`**, under the same
+  `no-restricted-imports` rule that keeps handles out of pages, so *the only identity import*
+  is a build failure rather than a claim in a doc comment. A second reader of the cookie
+  would be a second implementation of identity, which is what makes *the dev path is in* and
+  *SSO is wired* able to be true at once.
+- **What the switcher persists is a netid and nothing else.** `user_role` is read three times
+  in a request and each read is at the moment its answer is used: `db/read/directory.ts` for
+  the dev bar's list, `db/read/actor-roles.ts` for the actor's own labels — the two anonymous
+  reads `READ_TIERS` allows — and `readActorFacts` in `db/write/rules.ts` inside the locking
+  transaction, which is the only one a *rule* consults. A set resolved at request scope would
+  already be stale.
 - **Every Server Action starts with `requireActor()`** and rejects a null actor rather than
   guessing at one. `getActor()` returning `null` is not an error: it means nobody has been
   chosen, and the reader lands on `/be-somebody`.
 
-The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/` and the dev bar in
-`app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose body it replaces.
+The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
+and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
+body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is
+the one thing SSO changes the source of.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
