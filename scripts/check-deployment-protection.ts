@@ -2,7 +2,7 @@
  * **Ask Vercel whether the door is still shut** (issues/80).
  *
  * `npm run check:protection`. It reads the live project settings and the live
- * environment variable list, hands both to `auditDeploymentProtection`, and exits
+ * environment variable list, hands both to `findProtectionGaps`, and exits
  * non-zero with a reason if a preview of this repository could be reached by
  * anyone holding the link.
  *

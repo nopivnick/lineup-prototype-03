@@ -89,10 +89,13 @@ export const DEV_ACTOR_FLAG = "ALLOW_DEV_ACTOR";
 export function flagTargets(
   environmentVariables: readonly ProjectEnvironmentVariable[],
 ): string[] {
-  return environmentVariables
-    .filter((variable) => variable.key === DEV_ACTOR_FLAG)
-    .flatMap((variable) => variable.target ?? []);
-}
+  return Array.from(
+    new Set(
+      environmentVariables
+        .filter((variable) => variable.key === DEV_ACTOR_FLAG)
+        .flatMap((variable) => variable.target ?? []),
+    ),
+  );
 
 /**
  * `development` is not a deployment. It is what `vercel env pull` writes into a
