@@ -732,6 +732,9 @@ function byTable(columns: Readonly<Record<string, unknown>>): Record<string, Rec
   const grouped: Record<string, Record<string, unknown>> = {};
   for (const [qualified, value] of Object.entries(columns)) {
     const dot = qualified.lastIndexOf(".");
+    if (dot <= 0 || dot === qualified.length - 1) {
+      throw new Error(`Field write column keys must be qualified as "table.column"; got "${qualified}".`);
+    }
     const table = qualified.slice(0, dot);
     const column = qualified.slice(dot + 1);
     (grouped[table] ??= {})[column] = value;

@@ -520,6 +520,8 @@ function refuseAsIllegal(noun: string, event: string, state: string): never {
 
 /** Enough of a verb list to read like a sentence; the log stores the event, never this. */
 function pastTense(event: string): string {
+  const irregular: Record<string, string> = { run: "run", defer: "deferred" };
+  if (event in irregular) return irregular[event]!;
   if (event.endsWith("e")) return `${event}d`;
   if (event.endsWith("y")) return `${event.slice(0, -1)}ied`;
   return `${event}ed`;
