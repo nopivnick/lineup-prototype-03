@@ -1,5 +1,10 @@
-import "dotenv/config";
+import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
+
+// `.env.local` first, because that is what `.env.example` says to copy to and
+// what Next loads for the application. `dotenv/config` alone reads `.env` only,
+// which left `db:migrate` looking at an empty string while the app worked.
+config({ path: [".env.local", ".env"], quiet: true });
 
 /**
  * The `people` project's migration history.
