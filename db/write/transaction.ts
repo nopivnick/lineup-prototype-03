@@ -38,7 +38,7 @@ export type ClassesTx = Parameters<Parameters<ClassesHandle["transaction"]>[0]>[
  *
  * `at` is `undefined` for every caller but one, and `moment()` below turns that
  * into the column default. Only `writeToClassesAt` in `./dated-transaction` can
- * make it anything else, and only `db/seed.ts` may import that.
+ * make it anything else, and only `db/seed.ts` and the seam tests may import it.
  */
 export type OpenTransaction = {
   readonly tx: ClassesTx;

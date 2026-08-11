@@ -40,7 +40,7 @@ const NO_OPENING_YOUR_OWN = [
  */
 const NO_DATE_FROM_A_CALLER = [
   "Only the seed says when a write happened (issues/107).",
-  "writeToClassesAt is db/seed.ts's alone, because the seed's world is dated 2018 to 2026",
+  "writeToClassesAt is reachable only from db/seed.ts (and the seam's own tests), because the seed's world is dated 2018 to 2026",
   "and a run of db:reset may not stamp its own instant on it. Every other caller opens a",
   "transaction with writeToClasses and lets the column defaults answer —",
   "see docs/data-access/README.md.",
