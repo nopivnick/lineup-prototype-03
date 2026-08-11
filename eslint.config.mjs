@@ -30,6 +30,41 @@ const NO_OPENING_YOUR_OWN = [
   "connects to anything. Call a read module instead — see docs/data-access/README.md.",
 ].join(" ");
 
+/**
+ * The message a Server Action author sees when they reach for the dated door.
+ *
+ * The rule is *only the seed says when a write happened* (issues/107). A
+ * caller-supplied date is the one way to write a **plausible** lie into the
+ * transition log — a forged `now()` is obvious and a forged 2019 is not — and
+ * the log's credibility is what the seed exists to demonstrate.
+ */
+const NO_DATE_FROM_A_CALLER = [
+  "Only the seed says when a write happened (issues/107).",
+  "writeToClassesAt is reachable only from db/seed.ts (and the seam's own tests), because the seed's world is dated 2018 to 2026",
+  "and a run of db:reset may not stamp its own instant on it. Every other caller opens a",
+  "transaction with writeToClasses and lets the column defaults answer —",
+  "see docs/data-access/README.md.",
+].join(" ");
+
+/**
+ * Restricting the module by path guards the module rather than the rule, so the
+ * two imports that could reconstruct it are restricted with it. A caller holding
+ * a handle can open its own transaction and hand a writer any moment it likes,
+ * which is why this pattern rides beside the handle patterns everywhere and
+ * survives alone inside the boundary, where the handle patterns are lifted.
+ */
+const NO_DATED_DOOR = {
+  // **Two patterns, because the rule matches the import string as written and
+  // not the path it resolves to.** `**/dated-transaction` covers the aliased and
+  // the walked-up spellings — `@/db/write/dated-transaction`,
+  // `../db/write/dated-transaction` — and misses the one that matters most: a
+  // module sitting beside this one reaches it as `./dated-transaction`, which is
+  // its own pattern. Verified against all three by lint, not by reading
+  // minimatch.
+  group: ["**/dated-transaction", "./dated-transaction"],
+  message: NO_DATE_FROM_A_CALLER,
+};
+
 export default defineConfig([
   globalIgnores([
     ".next/**",
@@ -59,6 +94,7 @@ export default defineConfig([
               group: ["postgres", "drizzle-orm/postgres-js"],
               message: NO_OPENING_YOUR_OWN,
             },
+            NO_DATED_DOOR,
           ],
         },
       ],
@@ -68,10 +104,15 @@ export default defineConfig([
   {
     // The two directories issues/9 named as the module boundary's inside, plus
     // the module itself. They are the only place a handle may be held.
+    //
+    // **The dated door stays shut here**, which is why this lists a pattern
+    // rather than turning the rule off: the write paths are exactly the callers
+    // that must not date their own writes, since a moment reaching one any way
+    // but through its transaction is the shape issues/107 replaced.
     name: "no-handle-in-a-page/inside-the-boundary",
     files: ["db/handles.ts", "db/read/**/*.ts", "db/write/**/*.ts"],
     rules: {
-      "no-restricted-imports": "off",
+      "no-restricted-imports": ["error", { patterns: [NO_DATED_DOOR] }],
     },
   },
 
@@ -87,6 +128,24 @@ export default defineConfig([
     // handle is what a seed *is*, and it can never be a page.
     name: "no-handle-in-a-page/outside-the-app",
     files: ["scripts/**/*.ts", "drizzle.*.config.ts", "db/seed.ts"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
+
+  {
+    // The seed is not the only caller that has to *exercise* a dated
+    // transaction: the seam has tests, and a fence a test cannot reach is a
+    // fence nothing proves. Last, because the block above it does not match a
+    // test file and the one above that shuts this door for all of `db/write/`.
+    //
+    // **`db/write/` and not `db/`.** `db/machine-states.test.ts` needs no
+    // database at all and sits under the base rule like any other module; a
+    // wider glob here would have lifted *no page holds a handle* off it for
+    // nothing, which is a second fence quietly widened by a change about the
+    // first.
+    name: "only-the-seed-dates-a-write/tests-may-open-one",
+    files: ["db/write/**/*.test.ts"],
     rules: {
       "no-restricted-imports": "off",
     },

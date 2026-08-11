@@ -9,7 +9,7 @@ import { MATRICES, NOBODY } from "@/lib/permissions";
 import { initialSnapshot } from "./apply-transition";
 import { refuse, WriteRefused } from "./refusal";
 import { notYours, permitted, readActorFacts, type Subject } from "./rules";
-import { moment, type At, type ClassesTx, type Id, type Netid } from "./transaction";
+import { moment, type Id, type Netid, type OpenTransaction } from "./transaction";
 
 /**
  * One meeting slot, `kind`-discriminated exactly as `offering_meeting`'s shape
@@ -69,11 +69,12 @@ export type CreateOfferingInput = {
  * already loads the course row to derive `program_code`.
  */
 export async function createOffering(
-  tx: ClassesTx,
+  open: OpenTransaction,
   input: CreateOfferingInput,
   actor: Netid,
-  at?: At,
 ): Promise<{ offeringId: Id }> {
+  const { tx, at } = open;
+
   // `FOR SHARE` rather than `FOR UPDATE`: this path does not write the course, it
   // depends on the course not changing underneath it — on its program, its state
   // and its area head all still being what they were when they were checked.

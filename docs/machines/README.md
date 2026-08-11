@@ -546,7 +546,10 @@ row — consistent with *the review has no `propose` event* below, creation bein
 not a transition. `from_state` and `to_state` are CHECK-constrained against ticket 6's
 `status` value list; `event` deliberately is not, staying exactly the event union as a
 TypeScript fact. And transitions commit through a plain
-`applyTransition(tx, entity, event, actor)` with the Server Action as a thin auth wrapper,
+`applyTransition(open, entity, event, actor)` — `open` being the transaction together with
+the moment it is open at, per
+[#107](https://github.com/nopivnick/lineup-prototype-03/issues/107) — with the Server Action
+as a thin auth wrapper,
 because the seed script is a second caller — it **drives fixtures through the machine**
 rather than inserting them at rest, so snapshots are valid by construction instead of
 hand-authored XState internals, and the transition log ships populated.

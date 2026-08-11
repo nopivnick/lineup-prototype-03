@@ -90,8 +90,79 @@ export type FieldClassName = (typeof FIELD_CLASSES)[number]["name"];
  *
  * There is no `people` transaction anywhere. Nothing in the skeleton writes to
  * `people`, and no transaction spans the two projects (#5, #9).
+ *
+ * **The write paths do not take this bare.** They take an `OpenTransaction`,
+ * which is this handle together with the moment it is open at (#107).
  */
 export type ClassesTx = unknown;
+
+/**
+ * **When a write happened** (#49, #78, #107).
+ *
+ * Every timestamp column in both schemas defaults to `now()`, which is the right
+ * answer for every caller but one. The seed drives a world dated 2018 to 2026 and
+ * **its dates are literal, never computed from run time** (#49) — a world stamped
+ * with the instant of `db:reset` would put every mint, every offer and all 218
+ * transition-log rows at one moment, and a populated log the machines actually
+ * drove is the thing the skeleton ships that a snapshot fixture could not have
+ * produced.
+ *
+ * **Never a column in the caller's payload.** `created_at`, `granted_at` and
+ * `updated_at` are the Creation and Timestamps field classes, which nobody may
+ * write (#28). A caller opens a transaction at a moment; the writer decides which
+ * columns that moment lands in.
+ */
+export type At = Date;
+
+/**
+ * **An open `classes` transaction: the handle, and the moment it is open at**
+ * (#107).
+ *
+ * This is the first parameter of all four write paths, and the two halves travel
+ * together because **a moment belongs to a transaction rather than to a call**.
+ * One transaction is one act; every row it writes happened at the same instant,
+ * and there is no second argument for a caller to pass differently the second
+ * time.
+ *
+ * #78 needed the seed to run and carried the moment as an optional **fifth
+ * argument on each writer**, `undefined` meaning the database's clock. #107
+ * replaced that shape with this one and weighed three candidates:
+ *
+ * - **the fifth argument**, ratified as built — rejected as four functions
+ *   carrying a parameter no screen ever passes, and four places to forget it;
+ * - **a narrower seam only the seed can reach**, which is half of what was
+ *   built: it is the fence below rather than a shape of its own, since any
+ *   narrowing acts on the *caller* and the writers still had to receive the
+ *   moment somehow;
+ * - **rewriting every `*_at` default to read a per-transaction setting**, so the
+ *   writers take nothing at all. This one **corrects #107's own premise**, which
+ *   read *there is no way out through Postgres*: what cannot be shadowed is
+ *   `now()`, and the defaults themselves were never examined. So it was
+ *   available, and it was rejected on the ground #13, #28 and #30 each rejected
+ *   a trigger on — *where would a reader find it*. A reader of `createProposal`
+ *   would see no date anywhere and no way to learn where one came from.
+ *
+ * **The dated opener is fenced to the seed**, with the same
+ * `no-restricted-imports` rule that keeps database handles out of pages (#9).
+ * `writeToClasses` opens an undated transaction and is what every screen calls;
+ * `writeToClassesAt` lives in a module only the seed and the seam's own tests may
+ * import, so a Server Action that reached for it fails the build. The risk that
+ * buys is specific: a caller-supplied date is the one way to write a
+ * **plausible** lie into the transition log — a forged `now()` is obvious and a
+ * forged 2019 is not — and the log's credibility is the whole of what #13's
+ * satisfiability proof rests on.
+ *
+ * That is the map's habitual move once more, and the fourth time this package
+ * records it: #15 narrowed an event union so divergence had no code path, #28
+ * made an unclassified column unwritable, #30 bought a composite foreign key so a
+ * rule could not be got wrong. Take the mistake off the table rather than warn
+ * about it.
+ */
+export type OpenTransaction = {
+  readonly tx: ClassesTx;
+  /** `undefined` for every caller but the seed: the column defaults answer. */
+  readonly at: At | undefined;
+};
 
 // ---------------------------------------------------------------------------
 // Identity — #11
@@ -1130,6 +1201,26 @@ export const WRITE_PATHS = [
 ] as const;
 
 /**
+ * **Two ways to open a transaction, and only one of them is reachable from the
+ * app** (#107). The same shape as `MODULE_BOUNDARY` above, and enforced by the
+ * same rule: a restricted import, so the mistake fails `npm run build` rather
+ * than succeeding quietly.
+ *
+ * The asymmetry is the point. Everything a screen does goes through the undated
+ * opener and lets `now()` answer, which is correct for every real write. The
+ * dated one exists because the seed's world is a fixed history and a reseed may
+ * not stamp its own instant on it — see `OpenTransaction` for the three shapes
+ * #107 weighed and why the moment rides on the transaction.
+ */
+export const WRITE_TRANSACTIONS = {
+  undated: "writeToClasses — every screen and every Server Action; the column defaults answer",
+  dated: "writeToClassesAt — one moment, inherited by every write path called inside it",
+  mayImportTheDatedOne: ["db/seed.ts", "the write paths' own tests"],
+  enforcedBy: "ESLint no-restricted-imports — a Server Action reaching for it fails the build",
+  settledBy: ["#107", "#49", "#78"],
+} as const;
+
+/**
  * The transition writer (#13, as amended by #28).
  *
  * One plain function, called by the Server Action **and** by the seed script — which
@@ -1153,7 +1244,7 @@ export const WRITE_PATHS = [
  * to discover it elsewhere.
  */
 export declare function applyTransition(
-  tx: ClassesTx,
+  open: OpenTransaction,
   entity: { machine: "course" | "offering" | "course_proposal_review"; id: Id },
   event: CourseEvent | OfferingEvent | ReviewEvent,
   actor: Netid,
@@ -1185,7 +1276,7 @@ export declare function applyTransition(
  * on the row, which the detail page renders as a derived creation line.
  */
 export declare function createOffering(
-  tx: ClassesTx,
+  open: OpenTransaction,
   input: CreateOfferingInput,
   actor: Netid,
 ): Promise<{ offeringId: Id }>;
@@ -1226,7 +1317,7 @@ export type CreateOfferingInput = {
  * a transition and so writes no log row.
  */
 export declare function createProposal(
-  tx: ClassesTx,
+  open: OpenTransaction,
   input: CreateProposalInput,
   actor: Netid,
 ): Promise<{ proposalId: Id; reviewIds: readonly Id[] }>;
@@ -1272,7 +1363,7 @@ export type CreateProposalInput = {
  * only trace and why #61 bought `granted_by` / `granted_at` for the rows this writer
  * creates.
  */
-export declare function writeFields(tx: ClassesTx, write: FieldWrite, actor: Netid): Promise<void>;
+export declare function writeFields(open: OpenTransaction, write: FieldWrite, actor: Netid): Promise<void>;
 
 export type FieldWrite = {
   record: { machine: "course" | "offering" | "course_proposal_review"; id: Id };

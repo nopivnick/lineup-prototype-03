@@ -73,9 +73,10 @@ every push, against a real Postgres pair, where a failure is a much louder repor
 than a matrix nobody ever tried to use.
 
 Dates are literal and never computed from run time: the world sits on 20 October 2026 and
-its history runs from 2018, so a screenshot stays true across resets. The four write paths
-take the moment as an argument beside the actor; a Server Action passes nothing and gets the
-database's clock.
+its history runs from 2018, so a screenshot stays true across resets. A transaction is
+opened *at* a moment and every write path called inside it inherits that moment; a Server
+Action opens an undated one and gets the database's clock. Only the seed can open a dated
+transaction, and an ESLint rule is what makes that true.
 
 The seed is not idempotent and does not try to be — it refuses a database that already holds
 rows. Reseed is the recovery path, and `db:reset` is how you take it.

@@ -28,6 +28,13 @@ predicates are *applied*. So the forgotten-`WHERE` risk landed here, with the da
 unable to help. The only answer that is not discipline is that **pages never write a
 `WHERE` clause at all**, because they never hold a handle.
 
+**The same rule now fences a second door.**
+[#107](https://github.com/nopivnick/lineup-prototype-03/issues/107) put the moment a write
+happened on the transaction rather than on each writer, and restricted the *dated* opener to
+`db/seed.ts` — so a Server Action cannot hand a writer a date at all, and the one way to
+write a plausible lie into the transition log is a build error rather than a convention. Two
+doors, one mechanism.
+
 It is the map's habitual move: [#15](https://github.com/nopivnick/lineup-prototype-03/issues/15)
 narrowed an event union so *divergence has no code path*,
 [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28) made an unclassified
@@ -96,6 +103,7 @@ restated.
 | `CatalogRow`, `LineupRow`, `LineupGroup`, `CoursePage`, `OfferingPage`, `ProposalGroup`, `ReviewPage`, … | the composed rows, none of which is a table row |
 | `leadOf` | the lead is whoever holds position 0, never `roster[0]` |
 | `WRITE_PATHS`, `applyTransition`, `createOffering`, `createProposal`, `writeFields` | the four chokepoints and what they take |
+| `At`, `OpenTransaction`, `WRITE_TRANSACTIONS` | the moment a write happened, why it rides on the transaction, and why only the seed can set one |
 | `FIELD_WRITER_REFUSALS` | the actorless refusals the field writer carries |
 
 **Row types reference the schema and the machines rather than restating them.** The event
@@ -194,6 +202,35 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   the split content on Tier 3 alone. A review outside your arms, on a proposal you can
   reach, opens read-only. Refusing the page after the list has already shown the verdict
   chip would be incoherent.
+
+- **The four write paths take a transaction that knows when it is** — by
+  [Do the four write paths take the moment a write happened?](https://github.com/nopivnick/lineup-prototype-03/issues/107),
+  amending the four signatures this package had declared with four parameters and the fifth
+  parameter [#78](https://github.com/nopivnick/lineup-prototype-03/issues/78) had added to
+  each of them while building the seed. The first parameter is now an `OpenTransaction` — the
+  handle **and** the moment it is open at — and no write path takes a moment of its own.
+
+  The collision that forced it: the seed is checked like any other caller
+  ([#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)), and the seed's dates
+  are literal ([#49](https://github.com/nopivnick/lineup-prototype-03/issues/49)). Every
+  timestamp column defaults to `now()`, so a world driven through the writers would carry the
+  instant of `db:reset` on all 218 transition-log rows — a log saying the department did
+  everything at once, in the one artifact the skeleton ships that a snapshot fixture could not
+  have produced.
+
+  **One moment per transaction is what actually happened**, which is why the moment sits
+  there rather than on each call: one transaction is one act, and there is no second argument
+  for a caller to pass differently the second time. The evidence that this costs nothing was
+  in the tree already — no caller anywhere touches the transaction handle for anything except
+  passing it to exactly one writer, so the change reached no call site's body.
+
+  **The dated opener is fenced to the seed**, which is the third candidate #107 weighed folded
+  in rather than dropped: `writeToClassesAt` lives in its own module behind the same
+  `no-restricted-imports` rule that keeps handles out of pages, because a caller-supplied date
+  is the one way to write a *plausible* lie into the transition log. The candidate that lost
+  outright was moving the clock into Postgres — rewriting every `*_at` default to read a
+  per-transaction setting, which works and which #13, #28 and #30 have each already refused
+  in a trigger's shape, on *where would a reader find it*.
 
 - **Two write paths became three, and this transcription counts a fourth** —
   [#61](https://github.com/nopivnick/lineup-prototype-03/issues/61) added
