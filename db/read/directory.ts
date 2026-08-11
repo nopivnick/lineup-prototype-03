@@ -56,13 +56,13 @@ export type DirectoryPerson = {
 export const listDirectory = cache(async function listDirectory(): Promise<readonly DirectoryPerson[]> {
   // Sequentially rather than in parallel, and on the ordering path issues/9
   // bought the `person_display_name` index for.
-  const people = await peopleDb()
-    .select({ netid: person.netid, displayName: person.displayName })
-    .from(person)
-    .orderBy(asc(person.displayName));
-
-  const grants = await classesDb().select({ netid: userRole.netid, role: userRole.role }).from(userRole);
-
+  const [people, grants] = await Promise.all([
+    peopleDb()
+      .select({ netid: person.netid, displayName: person.displayName })
+      .from(person)
+      .orderBy(asc(person.displayName)),
+    classesDb().select({ netid: userRole.netid, role: userRole.role }).from(userRole),
+  ]);
   const held = new Map<Netid, Role[]>();
   for (const grant of grants) {
     const roles = held.get(grant.netid) ?? [];
@@ -97,6 +97,10 @@ export const listDirectory = cache(async function listDirectory(): Promise<reado
  * of it.
  */
 export const directoryLists = cache(async function directoryLists(netid: Netid): Promise<boolean> {
-  const rows = await peopleDb().select({ netid: person.netid }).from(person).where(eq(person.netid, netid));
+  const rows = await peopleDb()
+    .select({ netid: person.netid })
+    .from(person)
+    .where(eq(person.netid, netid))
+    .limit(1);
   return rows.length > 0;
 });

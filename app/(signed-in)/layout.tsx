@@ -29,9 +29,11 @@ export default async function SignedInLayout({ children }: { children: React.Rea
     redirect("/be-somebody");
   }
 
+  const [roles, people] = await Promise.all([getActorRoles(actor.netid), listDirectory()]);
+
   return (
     <>
-      <DevBar actor={actor} roles={await getActorRoles(actor.netid)} people={await listDirectory()} />
+      <DevBar actor={actor} roles={roles} people={people} />
       {children}
     </>
   );
