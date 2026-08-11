@@ -194,6 +194,12 @@ there is no custom domain and production carries no flag; the day either changes
 the thing to change with it. `npm run check:protection` encodes this by counting production
 as protected only under the strongest setting.
 
+**The Preview environment points at the development database pair** — the same two
+connection strings `.env.local` carries. So `npm run db:reset` reseeds what the deployment
+serves, both routes being server-rendered on demand, and a write made on the preview is a
+write to the world you develop against. That is the arrangement a skeleton wants and it is
+worth knowing before demonstrating from it.
+
 Deploying by hand is `vercel deploy --target=preview`. **Name the target.** This project's
 first bare `vercel deploy` went to production, where there is no flag, and the build stopped
 at the reader's import — the gate doing exactly its job, and not the deployment anyone
