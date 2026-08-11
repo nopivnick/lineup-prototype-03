@@ -180,12 +180,26 @@ It reads the live project settings and the live environment list and fails if a 
 this repository could be reached with a link alone, or if the flag has appeared on an
 environment that is not protected. The rule is a pure function in
 [`scripts/deployment-protection.ts`](./scripts/deployment-protection.ts) with tests beside
-it; the caller needs a Vercel credential, so it is a command somebody runs — before sharing
-a URL, and after touching anything under Project Settings → Deployment Protection — rather
-than a CI job that would report a shut door on every run in which it learned nothing.
+it; the caller needs `vercel link` to have been run — it reads the project id out of the
+git-ignored `.vercel/project.json` — and a Vercel credential, which it takes from
+`VERCEL_TOKEN` or from the login `vercel` itself already holds. That is why it is a command
+somebody runs — before sharing a URL, and after touching anything under Project Settings →
+Deployment Protection — rather than a CI job, which has neither, and which would report a
+shut door on every run in which it learned nothing.
 
-Deploying by hand is `vercel deploy --target=preview`. The target is not optional: the
-default sends a **production** deployment, which has no flag and will not build.
+**One gap is known and left open**: the protection is Vercel's *Standard* — every generated
+`*.vercel.app` URL, preview and production alike. It does **not** cover a custom domain, and
+the plan on this team rejects the setting that would. Nothing is affected today, because
+there is no custom domain and production carries no flag; the day either changes, that is
+the thing to change with it. `npm run check:protection` encodes this by counting production
+as protected only under the strongest setting.
+
+Deploying by hand is `vercel deploy --target=preview`. **Name the target.** This project's
+first bare `vercel deploy` went to production, where there is no flag, and the build stopped
+at the reader's import — the gate doing exactly its job, and not the deployment anyone
+wanted. [`vercel.json`](./vercel.json) names the framework for the same class of reason: the
+project was created empty, so the first build produced a Next.js app and was then asked for
+a static `public/` directory it had no reason to have.
 
 ## The lifecycles and the rules
 
@@ -209,8 +223,9 @@ construction.
 ```
 npm run typecheck    # tsc over docs/**/*.ts — the spec, not the app
 npm run lint         # includes the no-handle-in-a-page rule
-npm run test         # the machine-state CHECK test, plus the write paths against a real
-                     # database pair when .env.local has one; skipped when it does not
+npm run test         # the machine-state CHECK test and the deployment-protection rule,
+                     # plus the write paths against a real database pair when .env.local
+                     # has one; those skip themselves when it does not
 npm run build        # lint, then next build
 npm run db:reset     # and the seed with it — the matrix's satisfiability test
 

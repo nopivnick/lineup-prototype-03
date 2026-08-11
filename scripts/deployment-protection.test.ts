@@ -5,15 +5,21 @@
  * can say, without a network, whether the settings it was handed leave a
  * deployment that impersonates anybody reachable by link.
  *
- * The two rules most likely to be broken by being helpful are the ones a reader
+ * The three rules most likely to be broken by being helpful are the ones a reader
  * would call over-strict: `production` counts as protected only under `all`,
- * because every weaker setting leaves custom domains open; and preview must be
+ * because every weaker setting leaves custom domains open; preview must be
  * protected whether or not the flag appears in the environment list, because a
- * deployment of this tree without the flag does not build at all.
+ * deployment of this tree without the flag does not build at all; and a flag on a
+ * custom environment is reported rather than passed over, because this check
+ * cannot see that environment's protection.
  */
 import { describe, expect, test } from "vitest";
 
-import { auditDeploymentProtection, type ProjectProtectionSettings } from "./deployment-protection";
+import {
+  DEV_ACTOR_FLAG,
+  findProtectionGaps,
+  type ProjectProtectionSettings,
+} from "./deployment-protection";
 
 /**
  * What the project carries today, in the shape the API actually answers with:
@@ -30,11 +36,11 @@ const NO_PROTECTION: ProjectProtectionSettings = {
   passwordProtection: null,
 };
 
-const FLAG_ON_PREVIEW = [{ key: "ALLOW_DEV_ACTOR", target: ["preview"] }];
+const FLAG_ON_PREVIEW = [{ key: DEV_ACTOR_FLAG, target: ["preview"] }];
 
-describe("auditDeploymentProtection", () => {
+describe("findProtectionGaps", () => {
   test("the shipped arrangement is clean: protection on, flag on preview only", () => {
-    expect(auditDeploymentProtection(STANDARD_PROTECTION, FLAG_ON_PREVIEW)).toEqual([]);
+    expect(findProtectionGaps(STANDARD_PROTECTION, FLAG_ON_PREVIEW)).toEqual([]);
   });
 
   test("takes the API's other spelling of the same setting", () => {
@@ -44,7 +50,7 @@ describe("auditDeploymentProtection", () => {
       ssoProtection: { deploymentType: "all_except_custom_domains" },
     };
 
-    expect(auditDeploymentProtection(settings, FLAG_ON_PREVIEW)).toEqual([]);
+    expect(findProtectionGaps(settings, FLAG_ON_PREVIEW)).toEqual([]);
   });
 
   test("a mechanism the write side turned off is off", () => {
@@ -55,7 +61,7 @@ describe("auditDeploymentProtection", () => {
     };
 
     expect(
-      auditDeploymentProtection(settings, FLAG_ON_PREVIEW).map((finding) => finding.code),
+      findProtectionGaps(settings, FLAG_ON_PREVIEW).map((finding) => finding.code),
     ).toEqual([
       "preview-unprotected",
       "flag-on-unprotected-environment",
@@ -66,13 +72,13 @@ describe("auditDeploymentProtection", () => {
     // Deliberately no ALLOW_DEV_ACTOR in the list. A deployment without it does
     // not exist — the reader throws at import — so an open preview is exposure
     // whatever the environment list says.
-    const findings = auditDeploymentProtection(NO_PROTECTION, []);
+    const findings = findProtectionGaps(NO_PROTECTION, []);
 
     expect(findings.map((finding) => finding.code)).toEqual(["preview-unprotected"]);
   });
 
   test("an unprotected preview carrying the flag reports both faults", () => {
-    const findings = auditDeploymentProtection(NO_PROTECTION, FLAG_ON_PREVIEW);
+    const findings = findProtectionGaps(NO_PROTECTION, FLAG_ON_PREVIEW);
 
     expect(findings.map((finding) => finding.code)).toEqual([
       "preview-unprotected",
@@ -86,7 +92,7 @@ describe("auditDeploymentProtection", () => {
       passwordProtection: { deploymentType: "all_except_custom_domains" },
     };
 
-    expect(auditDeploymentProtection(settings, FLAG_ON_PREVIEW)).toEqual([]);
+    expect(findProtectionGaps(settings, FLAG_ON_PREVIEW)).toEqual([]);
   });
 
   test("protection scoped to previews alone leaves a flagged production open", () => {
@@ -94,8 +100,8 @@ describe("auditDeploymentProtection", () => {
       ssoProtection: { enabled: true, deploymentType: "preview" },
     };
 
-    const findings = auditDeploymentProtection(settings, [
-      { key: "ALLOW_DEV_ACTOR", target: ["preview", "production"] },
+    const findings = findProtectionGaps(settings, [
+      { key: DEV_ACTOR_FLAG, target: ["preview", "production"] },
     ]);
 
     expect(findings.map((finding) => finding.code)).toEqual(["flag-on-unprotected-environment"]);
@@ -105,8 +111,8 @@ describe("auditDeploymentProtection", () => {
   test("standard protection is not enough to carry the flag into production", () => {
     // `all_except_custom_domains` covers the generated production URL and nothing
     // else, and a custom domain is what production eventually gets.
-    const findings = auditDeploymentProtection(STANDARD_PROTECTION, [
-      { key: "ALLOW_DEV_ACTOR", target: ["production"] },
+    const findings = findProtectionGaps(STANDARD_PROTECTION, [
+      { key: DEV_ACTOR_FLAG, target: ["production"] },
     ]);
 
     expect(findings.map((finding) => finding.code)).toEqual(["flag-on-unprotected-environment"]);
@@ -118,30 +124,42 @@ describe("auditDeploymentProtection", () => {
     };
 
     expect(
-      auditDeploymentProtection(settings, [{ key: "ALLOW_DEV_ACTOR", target: ["production"] }]),
+      findProtectionGaps(settings, [{ key: DEV_ACTOR_FLAG, target: ["production"] }]),
     ).toEqual([]);
   });
 
   test("the development target is not a deployment and is not exposure", () => {
     // `vercel env pull` writes it into a developer's .env.local. There is no URL.
     expect(
-      auditDeploymentProtection(STANDARD_PROTECTION, [
-        { key: "ALLOW_DEV_ACTOR", target: ["development"] },
+      findProtectionGaps(STANDARD_PROTECTION, [
+        { key: DEV_ACTOR_FLAG, target: ["development"] },
       ]),
     ).toEqual([]);
   });
 
   test("other variables are none of its business", () => {
     expect(
-      auditDeploymentProtection(NO_PROTECTION, [
+      findProtectionGaps(NO_PROTECTION, [
         { key: "PEOPLE_DATABASE_URL", target: ["preview", "production"] },
       ]).map((finding) => finding.code),
     ).toEqual(["preview-unprotected"]);
   });
 
+  test("a flag on a custom environment is reported rather than assumed shut", () => {
+    // A custom environment carries `customEnvironmentIds` and no `target` at all,
+    // and its protection is configured per environment. Reading only `target`
+    // would answer "shut" about a door this check never looked at.
+    const findings = findProtectionGaps(STANDARD_PROTECTION, [
+      { key: DEV_ACTOR_FLAG, customEnvironmentIds: ["env_staging"] },
+    ]);
+
+    expect(findings.map((finding) => finding.code)).toEqual(["flag-on-custom-environment"]);
+    expect(findings[0].message).toContain("env_staging");
+  });
+
   test("absent settings are unprotected settings, not an error", () => {
     // A project that has never been configured answers with nulls.
-    expect(auditDeploymentProtection({}, []).map((finding) => finding.code)).toEqual([
+    expect(findProtectionGaps({}, []).map((finding) => finding.code)).toEqual([
       "preview-unprotected",
     ]);
   });

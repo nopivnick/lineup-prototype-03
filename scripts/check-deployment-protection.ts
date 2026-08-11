@@ -20,8 +20,9 @@ import { homedir, platform } from "node:os";
 import { join } from "node:path";
 
 import {
-  auditDeploymentProtection,
   DEV_ACTOR_FLAG,
+  findProtectionGaps,
+  flagTargets,
   type ProjectEnvironmentVariable,
   type ProjectProtectionSettings,
 } from "./deployment-protection";
@@ -89,7 +90,7 @@ async function main(): Promise<void> {
     orgId,
   );
 
-  const findings = auditDeploymentProtection(settings, envs);
+  const findings = findProtectionGaps(settings, envs);
 
   if (findings.length > 0) {
     console.error(`${settings.name ?? projectId}: the door is open.\n`);
@@ -99,9 +100,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const flagged = envs
-    .filter((variable) => variable.key === DEV_ACTOR_FLAG)
-    .flatMap((variable) => variable.target ?? []);
+  const flagged = flagTargets(envs);
 
   console.log(
     `${settings.name ?? projectId}: shut. ` +

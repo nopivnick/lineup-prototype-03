@@ -59,16 +59,40 @@ export type ProjectProtectionSettings = {
   passwordProtection?: Protection;
 };
 
-/** One environment variable, as `GET /v10/projects/{id}/env` returns it. */
-export type ProjectEnvironmentVariable = { key: string; target?: string[] | null };
+/**
+ * One environment variable, as `GET /v10/projects/{id}/env` returns it.
+ *
+ * A variable bound to a **custom environment** carries `customEnvironmentIds`
+ * and no `target` at all, which is why that field is read rather than ignored: a
+ * check that looked only at `target` would answer "shut" about a flag it never
+ * saw.
+ */
+export type ProjectEnvironmentVariable = {
+  key: string;
+  target?: string[] | null;
+  customEnvironmentIds?: string[] | null;
+};
 
 export type Finding = {
-  code: "preview-unprotected" | "flag-on-unprotected-environment";
+  code: "preview-unprotected" | "flag-on-unprotected-environment" | "flag-on-custom-environment";
   message: string;
 };
 
 /** The flag whose presence on a deployment is what makes protection load-bearing. */
 export const DEV_ACTOR_FLAG = "ALLOW_DEV_ACTOR";
+
+/**
+ * Every target the flag is set on — the one reading of the environment list, so
+ * that the caller reporting what it found cannot drift from what the rule
+ * measured.
+ */
+export function flagTargets(
+  environmentVariables: readonly ProjectEnvironmentVariable[],
+): string[] {
+  return environmentVariables
+    .filter((variable) => variable.key === DEV_ACTOR_FLAG)
+    .flatMap((variable) => variable.target ?? []);
+}
 
 /**
  * `development` is not a deployment. It is what `vercel env pull` writes into a
@@ -107,16 +131,17 @@ function isProtected(settings: ProjectProtectionSettings, target: DeployedTarget
 }
 
 /**
- * Everything wrong with the door, or an empty array.
+ * Everything wrong with the door, or an empty array. **Not** `audit`: `CONTEXT.md`
+ * fences that word for the audit log the schema deliberately does not keep.
  *
- * Two rules, and the first does not mention the flag on purpose. A deployment of
- * this repository *without* `ALLOW_DEV_ACTOR` does not exist: the reader throws
- * at import and the build fails, which is issues/79's whole gate. So every
+ * Three rules, and the first does not mention the flag on purpose. A deployment
+ * of this repository *without* `ALLOW_DEV_ACTOR` does not exist: the reader
+ * throws at import and the build fails, which is issues/79's whole gate. So every
  * preview that manages to be reachable is a preview that impersonates, and
  * "protect it only once the flag is set" would be a rule with no unprotected
  * case to catch.
  */
-export function auditDeploymentProtection(
+export function findProtectionGaps(
   settings: ProjectProtectionSettings,
   environmentVariables: readonly ProjectEnvironmentVariable[],
 ): Finding[] {
@@ -132,12 +157,10 @@ export function auditDeploymentProtection(
     });
   }
 
-  const flagTargets = environmentVariables
-    .filter((variable) => variable.key === DEV_ACTOR_FLAG)
-    .flatMap((variable) => variable.target ?? []);
+  const targets = flagTargets(environmentVariables);
 
   for (const target of DEPLOYED_TARGETS) {
-    if (!flagTargets.includes(target)) continue;
+    if (!targets.includes(target)) continue;
     if (isProtected(settings, target)) continue;
 
     findings.push({
@@ -146,6 +169,26 @@ export function auditDeploymentProtection(
         `${DEV_ACTOR_FLAG} is set on the ${target} environment, which is not protected. ` +
         "Either protect it or unset the flag — a build without the flag refuses to start, " +
         "which is the safe half of the pair (issues/79, issues/80).",
+    });
+  }
+
+  /**
+   * A custom environment is a deployment with a URL, and its protection is
+   * configured per environment rather than in the three settings read above.
+   * Nothing here can tell whether that one is shut, so the honest answer is to
+   * say so rather than to report a door it never looked at.
+   */
+  const customEnvironments = environmentVariables
+    .filter((variable) => variable.key === DEV_ACTOR_FLAG)
+    .flatMap((variable) => variable.customEnvironmentIds ?? []);
+
+  if (customEnvironments.length > 0) {
+    findings.push({
+      code: "flag-on-custom-environment",
+      message:
+        `${DEV_ACTOR_FLAG} is set on ${customEnvironments.length} custom environment(s) ` +
+        `(${customEnvironments.join(", ")}), whose protection this check cannot read. ` +
+        "Confirm each is protected by hand, or take the flag off it (issues/80).",
     });
   }
 
