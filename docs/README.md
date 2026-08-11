@@ -86,6 +86,13 @@ door with RLS on the grounds that it was opened on purpose. **That deployment ne
 protection** — Vercel deployment protection or equivalent. This is the one inherited
 constraint that is a live risk rather than a design note.
 
+> **Shut** by [#80](https://github.com/nopivnick/lineup-prototype-03/issues/80), before any
+> URL was shared. The deployment is `itp-ima/lineup-prototype-03` and it is behind Vercel
+> Authentication; `ALLOW_DEV_ACTOR` is set on **Preview and nowhere else**. The door is
+> still open by design and the protection is the whole of what holds it shut — see
+> [`../README.md#the-deployment-is-behind-a-door`](../README.md#the-deployment-is-behind-a-door),
+> which is also where the standing check lives: `npm run check:protection`.
+
 **You owe a ~15-line test** — **paid** by
 [#76](https://github.com/nopivnick/lineup-prototype-03/issues/76), and it lives in
 `db/machine-states.test.ts`. It asserts that the `CHECK` constraint's value set equals the

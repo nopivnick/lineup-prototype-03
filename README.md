@@ -118,7 +118,8 @@ carrying the dev reader does not start — `next build` fails, and CI's build jo
 for that reason.
 
 **The inherited risk travels with it**: the gate is chosen *so preview deploys carry it*,
-which means a preview URL lets anyone with the link be any user. Protect the deployment.
+which means a preview URL lets anyone with the link be any user. The deployment is
+protected, and the next section is the whole of how.
 
 **The switcher carries a netid and nothing else** — never a role. A serialized
 `{netid, roles}` cookie would make the JSON an interface, and the role set has changed three
@@ -140,6 +141,51 @@ allows. A *rule* consults neither: `readActorFacts` in
 the locking transaction, because a set resolved at request scope would be stale by the time a
 writer used it. Every Server Action starts with `requireActor()` and rejects a null actor
 rather than guessing at one.
+
+## The deployment is behind a door
+
+The skeleton is deployed at **`itp-ima/lineup-prototype-03`** on Vercel, and it is behind
+**Vercel Authentication on every generated URL** — a request without an ITP-IMA Vercel
+session is redirected to a sign-in page and never reaches the application at all. This was
+set before the project's first deployment existed and before any link was shared, by
+[#80](https://github.com/nopivnick/lineup-prototype-03/issues/80).
+
+**Read this before removing it.** The door it holds shut is open on purpose and cannot be
+closed from inside the application:
+
+- The dev identity reader is deployed *deliberately*.
+  [#11](https://github.com/nopivnick/lineup-prototype-03/issues/11) gated it on
+  `ALLOW_DEV_ACTOR` rather than `NODE_ENV` **so that a preview deployment could carry it** —
+  a skeleton nobody can walk through demonstrates nothing.
+- [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28) then declined to close
+  the door with row-level security, on the grounds that it was opened on purpose and the
+  read tiers are a product rule rather than a security boundary.
+- So the application has no notion of a stranger: **anyone who reaches a page can be any of
+  the thirteen people**, including the chair, and can write as them. The protection is not
+  defence in depth. It is the only thing there.
+
+`ALLOW_DEV_ACTOR` is set on the **Preview** environment and nowhere else, which is also
+deliberate. Production has no value for it, so a production build **fails at import** —
+`lib/auth/actor.ts` throws, `next build` stops, and nothing deploys. That is the safe half
+of the pair and it is worth leaving broken: the day SSO lands, that variable and the
+reader's body come out together.
+
+**The standing check**:
+
+```
+npm run check:protection
+```
+
+It reads the live project settings and the live environment list and fails if a preview of
+this repository could be reached with a link alone, or if the flag has appeared on an
+environment that is not protected. The rule is a pure function in
+[`scripts/deployment-protection.ts`](./scripts/deployment-protection.ts) with tests beside
+it; the caller needs a Vercel credential, so it is a command somebody runs — before sharing
+a URL, and after touching anything under Project Settings → Deployment Protection — rather
+than a CI job that would report a shut door on every run in which it learned nothing.
+
+Deploying by hand is `vercel deploy --target=preview`. The target is not optional: the
+default sends a **production** deployment, which has no flag and will not build.
 
 ## The lifecycles and the rules
 
@@ -167,6 +213,9 @@ npm run test         # the machine-state CHECK test, plus the write paths agains
                      # database pair when .env.local has one; skipped when it does not
 npm run build        # lint, then next build
 npm run db:reset     # and the seed with it — the matrix's satisfiability test
+
+npm run check:protection   # asks Vercel whether the preview is still behind its door;
+                           # needs a Vercel login, so it is not in CI
 ```
 
 CI runs `typecheck`, `test`, `build` and the seed on every push to `main` and every pull

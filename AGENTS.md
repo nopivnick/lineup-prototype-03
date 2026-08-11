@@ -110,6 +110,18 @@ things about it are structural rather than conventional:
   guessing at one. `getActor()` returning `null` is not an error: it means nobody has been
   chosen, and the reader lands on `/be-somebody`.
 
+**The deployment carrying that reader is behind a door**, by
+[#80](https://github.com/nopivnick/lineup-prototype-03/issues/80): `itp-ima/lineup-prototype-03`
+is behind Vercel Authentication, `ALLOW_DEV_ACTOR` is set on **Preview and nowhere else**, and
+a production build therefore fails at import rather than deploying an impersonation reader.
+The protection is the only boundary there is — [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)
+declined RLS on the grounds the door was opened on purpose — so removing it is not a
+housekeeping change. `npm run check:protection` reads the live settings and fails if it has
+stopped being true; the rule is `scripts/deployment-protection.ts` and is tested without a
+network. It is deliberately not in CI: a pull request has no credential to read project
+settings with, and a job that skipped itself would report a shut door on every run in which
+it learned nothing. See `README.md#the-deployment-is-behind-a-door`.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

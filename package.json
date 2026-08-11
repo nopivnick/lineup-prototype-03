@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.docs.json",
     "db:generate": "drizzle-kit generate --config=drizzle.people.config.ts && drizzle-kit generate --config=drizzle.classes.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.people.config.ts && drizzle-kit migrate --config=drizzle.classes.config.ts",
-    "db:reset": "tsx scripts/db-reset.ts"
+    "db:reset": "tsx scripts/db-reset.ts",
+    "check:protection": "tsx scripts/check-deployment-protection.ts"
   },
   "dependencies": {
     "@mantine/core": "^9.5.1",
