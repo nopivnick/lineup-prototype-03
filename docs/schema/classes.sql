@@ -476,8 +476,16 @@ CREATE INDEX course_program_idx ON course (program_code);
 -- structural: `program_code` is checked against the course on one side and
 -- against the area or category on the other, so the two must agree.
 --
--- issues/32 gave these rows their account of first authorship: they originate on
--- the review, written by that program's director, and are copied by `approve`.
+-- **The two tables are written by different paths**, and only `course_area` has
+-- a review-level half. issues/32 gave `course_area` rows their account of first
+-- authorship: they originate on the review — written by that program's director,
+-- held in `course_proposal_review_area` — and are copied forward by `approve`.
+-- issues/109 found that account false of `course_requirement_category`, which
+-- has no such origin and never did: issues/32's assignment is areas and a head,
+-- so a review carries no categories and there is no
+-- `course_proposal_review_requirement_category` for `approve` to copy from. Its
+-- rows are written **on the course, after the mint**, by the course's own
+-- program director, through the field class issues/106 gave the table.
 
 CREATE TABLE course_area (
   course_id     bigint NOT NULL,
