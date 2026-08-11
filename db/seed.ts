@@ -1040,11 +1040,15 @@ async function checkTheWorld(): Promise<void> {
  * functions are out of scope by construction (issues/13).
  */
 async function refuseANonEmptyWorld(): Promise<void> {
-  const [existing] = await classesDb().execute<{ n: number }>(
+  const [classesExisting] = await classesDb().execute<{ n: number }>(
     sql`SELECT count(*)::int AS n FROM program`,
   );
-  if (Number(existing!.n) > 0) {
-    throw new Error("The `classes` project already holds rows. Run `npm run db:reset`.");
+  const [peopleExisting] = await peopleDb().execute<{ n: number }>(
+    sql`SELECT count(*)::int AS n FROM person`,
+  );
+
+  if (Number(classesExisting!.n) > 0 || Number(peopleExisting!.n) > 0) {
+    throw new Error("The databases already hold rows. Run `npm run db:reset`.");
   }
 }
 
