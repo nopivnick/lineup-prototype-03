@@ -25,15 +25,17 @@ import {
   machine as offeringMachine,
   type LiveState,
 } from "@/lib/machines/offering.machine";
-import { MATRICES, NOBODY, type MachineName, type Route } from "@/lib/permissions";
+import { type MachineName } from "@/lib/permissions";
 
-import { refuse, WriteRefused } from "./refusal";
+import { refuse, refuseAll, WriteRefused } from "./refusal";
 import {
   holdsRole,
   notYours,
   peopleKnows,
   permitted,
   readActorFacts,
+  routesFor,
+  stillTeaching,
   type ActorFacts,
   type Subject,
 } from "./rules";
@@ -198,11 +200,10 @@ async function moveCourse(
   const move = transitionOf(courseMachine, row.snapshot, machineEvent);
   if (!move) {
     if (event.type === "retire" && live.length > 0) {
-      // Clause 3: name the dependency and list it (issues/38).
-      refuse(
-        `This course has ${live.length} ${live.length === 1 ? "class that has" : "classes that have"} not finished teaching.`,
-        live.map((offered) => `${offered.termCode} — ${offered.status}`),
-      );
+      // Clause 3: name the dependency and list it (issues/38). The sentence is
+      // `stillTeaching`'s and not this module's, because the Catalog renders the
+      // same one under a greyed `retire` before anybody clicks (issues/81).
+      refuseAll([stillTeaching(live)]);
     }
     refuseAsIllegal("course", event.type, currentState(courseMachine, row.snapshot));
   }
@@ -548,11 +549,6 @@ function pastTense(event: string): string {
   if (event.endsWith("e")) return `${event}d`;
   if (event.endsWith("y")) return `${event.slice(0, -1)}ied`;
   return `${event}ed`;
-}
-
-function routesFor(machine: MachineName, act: string): readonly Route[] {
-  const row = MATRICES[machine].find((entry) => (entry.acts as readonly string[]).includes(act));
-  return row?.routes ?? NOBODY;
 }
 
 function requirePermission(

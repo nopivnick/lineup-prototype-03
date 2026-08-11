@@ -224,6 +224,51 @@ changed without a migration behind it**, in place of a `machine_version` column.
 fires, reseed: `npm run db:reset`. There are no per-version snapshot migrations by
 construction.
 
+## The Catalog
+
+The first real screen, at [`/catalog`](./app/(signed-in)/catalog): every Course eligible to be
+offered, grouped into ITP's, IMA's and LowRes's three catalogs, with no term anywhere. It reads
+through [`db/read/catalog.ts`](./db/read/catalog.ts) and holds no handle, and what comes back is
+composed rows — the record, what this actor may do about it, and the refusal for what they may
+not, already intersected across machine legality, the invariants and the permission term.
+
+**It is the one view that never touches the `people` project.** [#37](https://github.com/nopivnick/lineup-prototype-03/issues/37)
+ruled that the Catalog displays no person, which makes this the only read in the skeleton immune
+to the cross-project failure mode — and `db/read/catalog.test.ts` asserts it by counting calls
+to `peopleDb`, because a build reading [#9](https://github.com/nopivnick/lineup-prototype-03/issues/9)
+alone would add the batch fetch back. The gap that opens — *which of my courses cannot be offered
+yet?* — closes without a person, as a derived **`not offerable yet`** marker over an empty area
+set or a null area head, whose tooltip names which is missing.
+
+Three conventions the rest of the skeleton inherits are built here first:
+
+- **The `⋯ n` menu.** One control per row; `n` is how many moves the actor can actually make, so
+  `⋯ 0` says *nothing to do here* without opening anything. Opening it lists **every** move the
+  machine offers from that state — the permitted ones clickable, the refused ones greyed with the
+  reason beneath. A move the machine does not offer is absent rather than greyed, so a `Retired`
+  course carries no menu at all.
+- **Refusal wording, three clauses.** The refused thing and its explanation are one value; the
+  person or the role is named, never the rule; and where the refusal's whole content is data
+  elsewhere, the dependency is named and listed — *"This course has 1 class that has not finished
+  teaching. · 20261 — Slated"*. The greyed control and the writer's own exception carry the
+  **same sentence**, because both come out of `db/write/rules.ts`.
+- **Absent, never empty.** The Actions column is absent for an actor who can never act, on Tier
+  2's *holds any acting role* predicate — read off `READ_TIERS` rather than restated.
+
+Two things about it are the library's constraint rather than a choice: rows group with
+`rowExpansion` and `trigger: 'always'`, because mantine-datatable has no row grouping and its
+`groups` groups *columns*; and **sorting is the application's**, the table handing over a column
+and a direction and sorting nothing.
+
+`Retired` is hidden by the filter's **default** and not by the query, so widening the filter
+reaches it — which is what keeps a retired course reachable from the only view that lists
+courses. The search box covers title and number, and nothing else: a Course has no instructor.
+
+Course transitions fire from here for real, through
+[`app/(signed-in)/catalog/actions.ts`](./app/(signed-in)/catalog/actions.ts), which is an
+actor-resolution wrapper and nothing more — resolve, reject a `null`, open the transaction, call
+`applyTransition` in. It holds no rules.
+
 ## Checks
 
 ```

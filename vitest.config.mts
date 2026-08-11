@@ -61,6 +61,25 @@ export default defineConfig({
     // The Seam 1 tests share one database pair and each rebuilds the world, so
     // two files running at once would assert against rows the other wrote.
     fileParallelism: false,
+    /**
+     * **Rebuilding the world is the test, not the setup** (issues/81).
+     *
+     * A Seam test's `beforeEach` drives a proposal, a review, a mint and an
+     * offering through the write paths against a hosted database over a pooler
+     * — two dozen sequential transactions, seconds rather than milliseconds, and
+     * re-run before every test in the file. Vitest's five-second default was
+     * already being spent almost entirely on that, so a test that then asked one
+     * question too many failed as a timeout and left its transaction open. The
+     * next file's `TRUNCATE` deadlocked against the abandoned one, which reads as
+     * a database fault rather than as a slow test.
+     *
+     * **Both timeouts, because the expensive half is the hook and the hook has
+     * its own** — `hookTimeout` defaults to ten seconds and `testTimeout` does
+     * not govern it, so raising one alone leaves the world builder as the thing
+     * most likely to abort mid-transaction and produce that same deadlock.
+     */
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     setupFiles: ["./db/test-env.ts"],
   },
 });
