@@ -37,7 +37,7 @@ import {
   type ActorFacts,
   type Subject,
 } from "./rules";
-import type { ClassesTx, Id, Netid } from "./transaction";
+import { moment, type At, type ClassesTx, type Id, type Netid } from "./transaction";
 
 // ---------------------------------------------------------------------------
 // The events
@@ -54,25 +54,36 @@ import type { ClassesTx, Id, Netid } from "./transaction";
  *   * `staff` carries the netid being seated. The roster is relational and the
  *     machine cannot write to it (issues/15), so the writer needs the subject the
  *     event is about — which is also the log row's `subject_netid`.
- *   * `cancel` and `kill` may carry a free-text `reason` (issues/10, issues/19).
- *     Structured reason codes are out of scope.
  *   * the review's `approve` carries the `course_number` its mint will use. Each
  *     approving program mints its own number (issues/7) and `course.course_number`
  *     is `NOT NULL` from the moment a course exists, so there is nowhere else for
  *     it to come from — the proposal deliberately has no number.
+ *   * **any** event may carry a free-text `reason`, which is the schema's own
+ *     sentence — *optional, on all three logs* (issues/10, parked there by
+ *     issues/19). Enumerating the events that may is a second copy of a rule the
+ *     column already states, and it is wrong in the fixtures: the seed's histories
+ *     put reasons on a review's `develop` and `reject` and on an offering's
+ *     `defer`, `withdraw` and `decline` as well as on `cancel`. Which controls
+ *     offer a reason box is the action layer's question (issues/37). Structured
+ *     reason codes are out of scope.
  *
  * `retire` does **not** carry its `liveOfferings`, though the machine's guard
  * reads them: the writer runs that query itself, inside the transaction that
  * locks the course row (issues/14). A caller cannot hand in a stale answer.
  */
-export type CourseEvent = { type: "revise" } | { type: "approve" } | { type: "retire" };
+type Explained = { reason?: string };
 
-export type ReviewEvent =
+export type CourseEvent = ({ type: "revise" } | { type: "approve" } | { type: "retire" }) &
+  Explained;
+
+export type ReviewEvent = (
   | { type: "develop" }
   | { type: "approve"; courseNumber: string }
-  | { type: "reject" };
+  | { type: "reject" }
+) &
+  Explained;
 
-export type OfferingEvent =
+export type OfferingEvent = (
   | { type: "staff"; netid: Netid }
   | { type: "unstaff" }
   | { type: "offer" }
@@ -80,7 +91,7 @@ export type OfferingEvent =
   | { type: "decline" }
   | { type: "defer" }
   | { type: "withdraw" }
-  | { type: "cancel"; reason?: string }
+  | { type: "cancel" }
   | { type: "schedule" }
   | { type: "publish" }
   | { type: "list" }
@@ -88,7 +99,9 @@ export type OfferingEvent =
   | { type: "evaluate" }
   | { type: "conclude" }
   | { type: "retry" }
-  | { type: "kill"; reason?: string };
+  | { type: "kill" }
+) &
+  Explained;
 
 /**
  * **The narrower union the action layer exposes** (issues/15, issues/28).
@@ -135,6 +148,7 @@ export async function applyTransition<M extends MachineName>(
   entity: { machine: M; id: Id },
   event: EventFor<M>,
   actor: Netid,
+  at?: At,
 ): Promise<void> {
   const facts = await readActorFacts(tx, actor);
 
@@ -143,11 +157,11 @@ export async function applyTransition<M extends MachineName>(
   // below are what the caller was type-checked against.
   switch (entity.machine as MachineName) {
     case "course":
-      return moveCourse(tx, entity.id, event as CourseEvent, actor, facts);
+      return moveCourse(tx, entity.id, event as CourseEvent, actor, facts, at);
     case "offering":
-      return moveOffering(tx, entity.id, event as OfferingEvent, actor, facts);
+      return moveOffering(tx, entity.id, event as OfferingEvent, actor, facts, at);
     case "course_proposal_review":
-      return moveReview(tx, entity.id, event as ReviewEvent, actor, facts);
+      return moveReview(tx, entity.id, event as ReviewEvent, actor, facts, at);
   }
 }
 
@@ -161,6 +175,7 @@ async function moveCourse(
   event: CourseEvent,
   actor: Netid,
   facts: ActorFacts,
+  at: At,
 ): Promise<void> {
   const [row] = await tx
     .select({
@@ -213,7 +228,8 @@ async function moveCourse(
     toState: move.to,
     actorNetid: actor,
     subjectNetid: null,
-    reason: null,
+    reason: event.reason ?? null,
+    at: moment(at),
   });
 }
 
@@ -227,6 +243,7 @@ async function moveOffering(
   event: OfferingEvent,
   actor: Netid,
   facts: ActorFacts,
+  at: At,
 ): Promise<void> {
   const [row] = await tx
     .select({
@@ -289,6 +306,7 @@ async function moveOffering(
       position: 0,
       netid: event.netid,
       grantedBy: actor,
+      grantedAt: moment(at),
     });
   }
 
@@ -310,7 +328,8 @@ async function moveOffering(
     toState: move.to,
     actorNetid: actor,
     subjectNetid: subjectOf(event, lead),
-    reason: event.type === "cancel" || event.type === "kill" ? (event.reason ?? null) : null,
+    reason: event.reason ?? null,
+    at: moment(at),
   });
 }
 
@@ -354,6 +373,7 @@ async function moveReview(
   event: ReviewEvent,
   actor: Netid,
   facts: ActorFacts,
+  at: At,
 ): Promise<void> {
   const [row] = await tx
     .select({
@@ -382,7 +402,7 @@ async function moveReview(
   // and the area assignment forward. The mint **copies** rather than references,
   // because variants in different programs are meant to diverge.
   if (event.type === "approve") {
-    await mint(tx, { reviewId: id, ...row }, event.courseNumber, actor);
+    await mint(tx, { reviewId: id, ...row }, event.courseNumber, actor, at);
   }
 
   await tx
@@ -397,7 +417,8 @@ async function moveReview(
     toState: move.to,
     actorNetid: actor,
     subjectNetid: null,
-    reason: null,
+    reason: event.reason ?? null,
+    at: moment(at),
   });
 }
 
@@ -406,6 +427,7 @@ async function mint(
   review: { reviewId: Id; programCode: string; areaHead: Netid | null; courseProposalId: Id },
   courseNumber: string,
   actor: Netid,
+  at: At,
 ): Promise<void> {
   const [body] = await tx
     .select({
@@ -435,6 +457,7 @@ async function mint(
       // The approving **actor**, which may be the area head rather than a
       // director (issues/32 amending issues/13).
       createdBy: actor,
+      createdAt: moment(at),
     })
     .returning({ courseId: course.courseId });
   if (!minted) throw new Error("The mint wrote no course.");

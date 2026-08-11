@@ -56,6 +56,29 @@ rather than conventional:
   over a `machine_version` column. When it fires, the fix is `npm run db:reset`; there are no
   per-version snapshot migrations by construction.
 
+**The four write paths are `db/write/`**, built by
+[#77](https://github.com/nopivnick/lineup-prototype-03/issues/77), and every check is inside
+the writer rather than beside it. **The fixture world is seeded through them**, by
+[#78](https://github.com/nopivnick/lineup-prototype-03/issues/78): `db/seed.ts` walks the
+eleven steps of the seed order over `db/fixtures.ts`, minting each course by approving a
+review and driving each class event by event, so the transition log ships populated and no
+snapshot is hand-authored anywhere.
+
+Exactly one write in the run is unchecked — the genesis `chair` grant — which is what makes
+a passing seed a satisfiability proof of the permission matrix rather than a fixture load.
+It runs in CI against a real Postgres pair on every push, and `npm run db:reset` is how you
+run it here. Two rules travel with it and are easy to break by accident:
+
+- **Dates are literal.** The four write paths take the moment as an argument beside the
+  actor (`at`), so the seed's world stays dated 2018–2026 rather than collapsing onto the
+  instant of the reset. The final shape of that seam is open as
+  [#107](https://github.com/nopivnick/lineup-prototype-03/issues/107).
+- **The seed is a caller, not an author.** If a row the fixtures require cannot be written
+  through a path, that is a hole in the rules and it becomes a ticket — as
+  `course_requirement_category` did, in
+  [#106](https://github.com/nopivnick/lineup-prototype-03/issues/106). Do not widen the
+  writers to make the seed pass.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

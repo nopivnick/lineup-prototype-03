@@ -78,8 +78,15 @@ export default defineConfig([
   {
     // Outside the app entirely: `db:reset` drops schemas over its own
     // connection, and there is no page anywhere near it.
+    //
+    // The seed is here for a sharper reason than *it is a script*. It goes
+    // through the four write paths like any other caller (issues/28), but two
+    // categories of row have no in-app author and therefore no path to take:
+    // the reference data and the `person` rows, which are `SEED_ORDER`'s first
+    // two steps precisely because nothing in the running system writes them. A
+    // handle is what a seed *is*, and it can never be a page.
     name: "no-handle-in-a-page/outside-the-app",
-    files: ["scripts/**/*.ts", "drizzle.*.config.ts"],
+    files: ["scripts/**/*.ts", "drizzle.*.config.ts", "db/seed.ts"],
     rules: {
       "no-restricted-imports": "off",
     },

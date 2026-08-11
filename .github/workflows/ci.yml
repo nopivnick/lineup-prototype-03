@@ -43,6 +43,55 @@ jobs:
       - run: npm ci
       - run: npm run test
 
+  # **The permission matrix's satisfiability test** (#28, #49, #78).
+  #
+  # The seed is checked like any other caller: one write in the whole run is
+  # unchecked — the genesis `chair` grant — and every other one goes through the
+  # same four paths a screen would use. So if no legal actor exists for some act
+  # the fixture world needs, the seed **cannot run**, and a failing job here is a
+  # much louder report of a hole in a matrix amended six times than a matrix
+  # nobody ever tried to use.
+  #
+  # It also exercises what nothing else in CI can: the real CHECK constraints, the
+  # generated `status` columns, the locking transactions, and the cross-project
+  # check that a roster netid is somebody `people` knows. Both projects are
+  # databases on one server, which is all the two connection strings ever mean.
+  seed:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Four strings because a deployment has four (#5, #9): pooled at runtime,
+      # direct for migrations. One server here, so they differ only in the
+      # database they name.
+      PEOPLE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/people
+      CLASSES_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classes
+      PEOPLE_MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/people
+      CLASSES_MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: create both projects
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/postgres" -c 'CREATE DATABASE people'
+          psql "postgresql://postgres:postgres@localhost:5432/postgres" -c 'CREATE DATABASE classes'
+      # Drops both, migrates both, seeds both — one command, because coherence is
+      # a property of `db:reset` and not of the databases (#9, #13).
+      - run: npm run db:reset
+
   # `npm run build` is `eslint . && next build`, in that order and on purpose:
   # ESLint is what makes a page importing a database handle **fail the build**
   # rather than merely warn (#9, #75). Next 16 does not lint during `next build`

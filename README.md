@@ -11,7 +11,7 @@ narrower than usual.
 ```
 npm install
 cp .env.example .env.local     # fill in four connection strings
-npm run db:reset               # drop, migrate both projects (seeds once db/seed.ts exists)
+npm run db:reset               # drop both, migrate both, seed the fixture world
 npm run dev
 ```
 
@@ -45,6 +45,36 @@ fixture is reproducible from the seed.
 
 Nothing Supabase-specific is in use, and no Postgres extension is required. Search is plain
 `ILIKE`; adding `pg_trgm` later would change no application code.
+
+## The seed drives the world through the machines
+
+[`db/seed.ts`](./db/seed.ts) builds the department's fixture world — thirteen people,
+seventeen courses, twenty-eight classes, twenty-three proposals — by **doing things** rather
+than by inserting rows at rest. Every course was minted by approving a review, every class
+walked its own history event by event, and the transition log ships populated with 218 rows
+because the seed drove it. No snapshot is hand-authored anywhere. `db/fixtures.ts` holds the
+world, converted from [`docs/fixtures/`](./docs/fixtures/README.md), which stays
+authoritative.
+
+**The seed is checked like any other caller.** Exactly one write in the whole run is
+unchecked — the genesis `chair` grant, which has to come from somewhere, because the chair
+writes `user_role` and nobody else does. Everything else goes through the same four write
+paths a screen uses, with every permission, invariant and field-class state gate enforced.
+Two categories of row have no in-app author and therefore no path to take: the reference
+data and the `person` rows, which is why they are the seed order's first two steps.
+
+That makes a passing seed a **satisfiability proof of the permission matrix**. If no legal
+actor existed for some act the world needs, the seed could not run — so it runs in CI on
+every push, against a real Postgres pair, where a failure is a much louder report of a hole
+than a matrix nobody ever tried to use.
+
+Dates are literal and never computed from run time: the world sits on 20 October 2026 and
+its history runs from 2018, so a screenshot stays true across resets. The four write paths
+take the moment as an argument beside the actor; a Server Action passes nothing and gets the
+database's clock.
+
+The seed is not idempotent and does not try to be — it refuses a database that already holds
+rows. Reseed is the recovery path, and `db:reset` is how you take it.
 
 ## No page holds a database handle
 
@@ -86,8 +116,11 @@ construction.
 ```
 npm run typecheck    # tsc over docs/**/*.ts — the spec, not the app
 npm run lint         # includes the no-handle-in-a-page rule
-npm run test         # the machine-state CHECK test; needs no database
+npm run test         # the machine-state CHECK test, plus the write paths against a real
+                     # database pair when .env.local has one; skipped when it does not
 npm run build        # lint, then next build
+npm run db:reset     # and the seed with it — the matrix's satisfiability test
 ```
 
-CI runs `typecheck`, `test` and `build` on every push to `main` and every pull request.
+CI runs `typecheck`, `test`, `build` and the seed on every push to `main` and every pull
+request. The seed job brings up its own Postgres and runs `db:reset` against it.
