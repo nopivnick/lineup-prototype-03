@@ -122,6 +122,28 @@ network. It is deliberately not in CI: a pull request has no credential to read 
 settings with, and a job that skipped itself would report a shut door on every run in which
 it learned nothing. See `README.md#the-deployment-is-behind-a-door`.
 
+**The first real screen is the Catalog**, built by
+[#81](https://github.com/nopivnick/lineup-prototype-03/issues/81): `db/read/catalog.ts` is the
+first of the seven view-shaped read modules, `app/(signed-in)/catalog/` is the screen, and the
+three conventions the six later views inherit — the `⋯ n` menu, the three-clause refusal
+wording, and *absent, never empty* — are built there. Four things about it are structural rather
+than conventional:
+
+- **It issues no query against `people` and a test asserts it**, by counting calls to `peopleDb`
+  rather than by reading the source. That is [#37](https://github.com/nopivnick/lineup-prototype-03/issues/37)'s
+  *the Catalog displays no person* made checkable, and it is the property a build agent reading
+  [#9](https://github.com/nopivnick/lineup-prototype-03/issues/9) alone would undo.
+- **The greyed control and the writer's exception carry one sentence.** `routesFor` and
+  `stillTeaching` moved into `db/write/rules.ts` so the read side and `applyTransition` compute
+  refusals with the same functions; a second copy of the wording is how a rule and its
+  explanation drift apart, which is the thing #14 exists to prevent.
+- **`db/read/actor-facts.ts` is the read side's copy of `ActorFacts` and nothing may write
+  through it.** The writer re-reads inside the locking transaction; this one runs at request
+  scope and produces an **affordance**, so a grant revoked between the render and the click makes
+  the menu stale and the writer refuses. That is the design working, not failing.
+- **The Server Action is an actor-resolution wrapper**, and the only rule-shaped thing in it is
+  the narrower event union — read off the machine, because the event arrives from a browser.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

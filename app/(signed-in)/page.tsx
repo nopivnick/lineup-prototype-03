@@ -1,4 +1,5 @@
-import { Container, Stack, Text, Title } from "@mantine/core";
+import Link from "next/link";
+import { Anchor, Container, Stack, Text, Title } from "@mantine/core";
 import { Table, getTableName, is } from "drizzle-orm";
 
 import * as classesSchema from "@/db/classes/schema";
@@ -32,6 +33,14 @@ export default function HomePage() {
         <Text c="dimmed">
           The walking skeleton. Two Postgres projects, {rows.length} tables, and no page holding a
           database handle.
+        </Text>
+        <Text>
+          The first real screen is{" "}
+          <Anchor component={Link} href="/catalog">
+            the Catalog
+          </Anchor>{" "}
+          — every course eligible to be offered, and the one view that never touches{" "}
+          <code>people</code>.
         </Text>
         <ScaffoldTable rows={rows} />
       </Stack>

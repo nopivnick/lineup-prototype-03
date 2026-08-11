@@ -14,8 +14,11 @@ import { DevBar } from "./dev-bar";
  * — the same shape as *no session → sign in*, which is why SSO replaces an entry
  * screen here rather than deleting a concept.
  *
- * `getActor()` is the only identity import in the application, and this is the
- * only page-side call of it. What it hands back is a **netid**, and the two lines
+ * `getActor()` is the only identity import in the application. This layout owns
+ * the redirect for a null actor; individual pages may still call `getActor()` to
+ * pass an actor into view-shaped read modules.
+ *
+ * What it hands back is a **netid**, and the two lines
  * under it are what that costs and what it buys: the actor's roles are a second,
  * cached lookup keyed by that netid (`getActorRoles`), not a field on the actor,
  * and the roles a *rule* consults are read a third time inside the locking

@@ -256,6 +256,34 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   `lib/auth/`, so *`getActor()` is the app's only identity import* fails the build rather than
   being a claim in a doc comment.
 
+- **`db/read/` now holds two shared modules beside the views, and neither is one of them** —
+  by [The Catalog](https://github.com/nopivnick/lineup-prototype-03/issues/81), extending the
+  amendment above by the same rule it settled: what makes something one of the seven is that it
+  is a *view*, not that it lives in `db/read/`.
+
+  `db/read/shape.ts` holds what every read module ships **beside** the record — `Refusal`,
+  `PermittedAction`, `OwnTag`, and the Tier 2 predicate that decides whether a list renders an
+  Actions column at all. It is this package's own *what every read ships beside the record*
+  section as code, and it exists because six views inherit it from the first one. `Refusal` is
+  **re-exported from the writer's module rather than declared a second time**: [#14](https://github.com/nopivnick/lineup-prototype-03/issues/14)'s
+  rule is that the refused thing and its explanation are one value, and two types shaped alike
+  is the drift that rule exists to forbid.
+
+  `db/read/actor-facts.ts` is the **read side's** copy of the writer's `ActorFacts`, so a row can
+  say ahead of the click what an actor may do. It resolves at request scope and is therefore an
+  **affordance**, never a decision: the write-side read stays inside the locking transaction, and
+  a grant revoked between the render and the click makes the menu stale and the writer refuse.
+  That is [#11](https://github.com/nopivnick/lineup-prototype-03/issues/11)'s separation used as
+  intended rather than a second identity seam, and no write path may call it.
+
+  **Two smaller things #81 had to settle and neither is a decision.** `getCatalogPage`'s module
+  also exports `listCatalogPrograms`, because the program filter's options are *every* program
+  and a filter whose options are the result of the filter can only be escaped by clearing it —
+  the alternative was a page holding a handle. And the event-name union this package calls
+  `CourseEvent` is named `CourseEventName` in the application, because `db/write/apply-transition.ts`
+  already owns `CourseEvent` for the richer thing a transition carries: the event **and** its
+  payload. A list row offers a move; the writer takes the move and what came with it.
+
 - **Two write paths became three, and this transcription counts a fourth** —
   [#61](https://github.com/nopivnick/lineup-prototype-03/issues/61) added
   [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s single **field

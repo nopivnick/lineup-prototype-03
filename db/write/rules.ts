@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { programDirector, userRole } from "@/db/classes/schema";
 import { peopleDb } from "@/db/handles";
 import { person } from "@/db/people/schema";
-import type { Role, Route } from "@/lib/permissions";
+import { MATRICES, NOBODY, type MachineName, type Role, type Route } from "@/lib/permissions";
 
 import { refusal, type Refusal } from "./refusal";
 import type { ClassesTx, Netid } from "./transaction";
@@ -155,6 +155,41 @@ export function satisfies(route: Route, actor: ActorFacts, subject: Subject): bo
  */
 export function isChair(actor: ActorFacts): boolean {
   return actor.roles.has("chair");
+}
+
+/**
+ * The routes one act on one machine reaches, off `MATRICES` rather than out of a
+ * `switch` a fourth machine would silently outgrow.
+ *
+ * **It lives here and not in `apply-transition.ts` because it has two callers.**
+ * The writer asks it at the moment of the click; `db/read/catalog.ts` asks it one
+ * step earlier, to say ahead of the click what this actor may do — and the two
+ * answers being the same function is the whole of what makes the `⋯ n` menu
+ * honest (issues/28's *the server computes the set and ships it as data*).
+ *
+ * An act no row covers reaches `NOBODY`, which is a refusal in its own right.
+ */
+export function routesFor(machine: MachineName, act: string): readonly Route[] {
+  const row = MATRICES[machine].find((entry) => (entry.acts as readonly string[]).includes(act));
+  return row?.routes ?? NOBODY;
+}
+
+/**
+ * **`retire` refused because the course is still being taught** — clause 3 of the
+ * refusal wording, *name the dependency and list it* (issues/14, issues/38).
+ *
+ * The machine's `noLiveOfferings` guard is a predicate over a list it is handed,
+ * and this is that same list rendered as the reason. It is shared for the reason
+ * the guard's own comment gives: the rule and its explanation must not drift
+ * apart, and the read side renders this sentence under a greyed `retire` in the
+ * `⋯ n` menu while the writer throws it at whoever clicks anyway.
+ */
+export function stillTeaching(live: readonly { termCode: string; status: string }[]): Refusal {
+  const one = live.length === 1;
+  return refusal(
+    `This course has ${live.length} ${one ? "class that has" : "classes that have"} not finished teaching.`,
+    live.map((offered) => `${offered.termCode} — ${offered.status}`),
+  );
 }
 
 /** `machine legality AND invariants AND (permissions OR chair)` — this is the third term. */
