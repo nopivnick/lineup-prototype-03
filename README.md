@@ -269,6 +269,64 @@ Course transitions fire from here for real, through
 actor-resolution wrapper and nothing more — resolve, reject a `null`, open the transaction, call
 `applyTransition` in. It holds no rules.
 
+## The Lineup
+
+The second screen, at [`/lineup`](./app/(signed-in)/lineup): the classes running in one selected
+term, gathered under the course they are sections of, so that two sections of Physical Computing
+read as variations rather than as repetition. Course-level facts — number, title, credits, the
+course's own tags — sit on the group header and are stated once; a section row carries only what
+differs from its siblings: section number, state, roster, meetings, cap, foreign tags, actions.
+
+**This is where the cross-project stitch happens**, and since [#37](https://github.com/nopivnick/lineup-prototype-03/issues/37)
+made the Catalog person-free it is the only list that consumes it. `classes` drives; every netid
+the page will show — the rosters, and the granter of every seat-sharing tag — is batched into
+**one** query against `people` and matched in memory. **Two round trips per page, whatever its
+size**, and `db/read/lineup.test.ts` asserts it by wrapping both handles and counting, with the
+actor's facts *measured* and subtracted because they are `cache()`d and shared with every other
+read on the page. No name is denormalised into `classes` and no transaction spans the two
+projects — it cannot, which is why a roster netid is not a foreign key.
+
+**A roster entry whose netid the directory does not know renders anyway**, as the netid in
+monospace plus a quiet *no name on file*, deliberately not styled as an error. It is never
+dropped: skipping it would leave a class sitting in `Staffed` with an empty roster, a cosmetic
+problem masquerading as the lifecycle being broken. `db/read/stitch.ts` makes that structural
+rather than careful — it hands back a resolver that answers for **every** netid rather than a
+`Map` whose misses invite a `.filter()`.
+
+**This is also where the read tiers first become visible.** A `student` sees the classes an
+instructor agreed to teach or once did, and nothing of the six states that are the department's
+staffing process. Sign in as Marcus Ola and Spring 2027 has four sections; sign in as Dana Kirsch
+and it has ten, with a whole LowRes course appearing that was **absent** before — not an empty
+group, because an empty group announces that the department is staffing something the reader may
+not see. There are **two** empty states and no third: a term with nothing slated in it, and a view
+filtered to nothing.
+
+**The lead is whoever holds position 0, never `roster[0]`.** `leadOf` and `rosterShape` are
+[`lib/roster.ts`](./lib/roster.ts), and the shape is a **union of three** — nobody seated, a lead
+with co-instructors, and *rows below a vacant position 0*. That third one is what `decline` and
+`withdraw` leave behind, and making it an arm of a union rather than a nullable lead is why the
+renderer cannot report it as an ordinary staffed roster.
+
+**The three meeting kinds read differently at a glance**, which is the first thing in the skeleton
+that makes LowRes visibly different from ITP and IMA: a weekday and a time over a room; the word
+**Intensive** over a date range; and *Asynchronous* alone, with no time and no room. One LowRes
+section carries an intensive **and** an asynchronous slot at once, which is the whole reason
+[#10](https://github.com/nopivnick/lineup-prototype-03/issues/10) declared the `kind` column
+instead of inferring it from which columns are filled.
+
+**Foreign tags carry four signals**, under *Also counts toward*: the other program's name, its
+hue, a dashed edge and a `↳`, so the one cross-program fact in the model does not rest on colour —
+and the tooltip names who granted it and when. Seat sharing is the only place a program other than
+the course's own appears anywhere, so every program name this screen renders is a grant.
+
+Offering transitions fire from here for real, through
+[`app/(signed-in)/lineup/actions.ts`](./app/(signed-in)/lineup/actions.ts), which holds no rules.
+`cancel` and `kill` open a free-text **why** box first — those are the two acts that end something
+the department had committed to, and the two where the state pair in the log cannot reconstruct the
+reason. `staff` and `unstaff` appear nowhere on the screen and nowhere in the action, which is
+**non-exposure rather than a check**: there is no branch refusing them, so a browser naming one
+gets the same answer as a browser naming nonsense.
+
 ## Checks
 
 ```

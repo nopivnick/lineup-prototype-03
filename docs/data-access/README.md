@@ -269,6 +269,10 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   rule is that the refused thing and its explanation are one value, and two types shaped alike
   is the drift that rule exists to forbid.
 
+  **`db/read/stitch.ts` joined them by
+  [#82](https://github.com/nopivnick/lineup-prototype-03/issues/82)** — see that amendment
+  below. It is what six of the seven views do to a set of netids, and it is not one of them.
+
   `db/read/actor-facts.ts` is the **read side's** copy of the writer's `ActorFacts`, so a row can
   say ahead of the click what an actor may do. It resolves at request scope and is therefore an
   **affordance**, never a decision: the write-side read stays inside the locking transaction, and
@@ -283,6 +287,56 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   `CourseEvent` is named `CourseEventName` in the application, because `db/write/apply-transition.ts`
   already owns `CourseEvent` for the richer thing a transition carries: the event **and** its
   payload. A list row offers a move; the writer takes the move and what came with it.
+
+- **The stitch is one `classes` statement and one `people` statement, and the search
+  predicate is applied after both** — by
+  [The Lineup, and the cross-project stitch](https://github.com/nopivnick/lineup-prototype-03/issues/82),
+  which built `STITCH`'s *two round trips per page* as a property a test counts rather
+  than a claim a comment makes.
+
+  **What changed is where the `classes` side's statements went.** `db/read/catalog.ts`
+  issues four queries and says so; `db/read/lineup.ts` issues **one**, with the roster,
+  the meetings, the two seat-sharing tables and the course's own two tag sets aggregated
+  as JSON beside their parent row. Nothing about the decision moved — `classes` still
+  drives, the netids are still batched, the match is still in memory — but *two round
+  trips* is now literally what `db/read/lineup.test.ts` counts, by wrapping both handles
+  and subtracting the actor's facts, which are `cache()`d and shared with every other
+  read on the page and are therefore **measured** rather than assumed away. A test that
+  counted one thing while the code did five would have been worth less than the sentence
+  it was written in.
+
+  **The search box is the part that needed a decision.** #37 wants one box over *title,
+  number, instructor name and instructor netid*: three of the four live in `classes`,
+  the fourth lives in `people`, and they are OR'd — so no single database can answer,
+  and a `WHERE` on either side alone drops the rows the other side matches. #9's answer
+  was to run the two queries **in the other order**, resolving names to netids first,
+  and it bought that third round trip to keep **paging and counts accurate** — a premise
+  #37 removed by not paging. This package's own `STITCH` note already spends that removal
+  once, on an in-memory *sort* by name being free; #82 spends it again on the filter, so
+  the driving query narrows by term, program and state and the OR is computed after the
+  stitch. **It stops being the right shape at exactly the threshold a pager becomes
+  necessary**, and the recovery is the one already recorded: page by course, never by
+  section.
+
+  **`leadOf` is `lib/roster.ts` and is re-exported from the read module.** The row type
+  is where it was to be prevented from coming back, and the place it actually came back
+  was the *renderer* — #41 shipped an empty state that fired on `roster.length`, so a
+  section with two co-instructors and no lead read as an ordinary staffed roster. So the
+  function ships to the browser, along with `rosterShape`, which makes *rows below a
+  vacant position 0* an **arm of a union** rather than a conditional somebody has to
+  remember: a renderer that ignores it does not compile. Nothing there is a rule — no
+  role, no state, no matrix — so it holds no `server-only`, and `db/read/lineup.ts`
+  re-exports `leadOf` so a reader following this package finds it beside the row type it
+  governs.
+
+  **Two smaller things, and neither is a decision.** `ForeignTag`, `Meeting` and
+  `StitchedName` are the shared shapes this package declares beside the record, so they
+  live in `db/read/shape.ts` and `db/read/stitch.ts` rather than in the Lineup's module —
+  `db/read/` now holds **three** shared modules beside the views, by the same rule #81
+  settled. And `Meeting` is **re-exported from the writer's module rather than declared a
+  second time**, exactly as `Refusal` is: the create path already owns the discriminated
+  union that `offering_meeting`'s shape CHECK enforces, and two types shaped alike is the
+  drift #14's rule forbids.
 
 - **Two write paths became three, and this transcription counts a fourth** —
   [#61](https://github.com/nopivnick/lineup-prototype-03/issues/61) added

@@ -2,8 +2,11 @@ import "server-only";
 
 import { READ_TIERS, type ReadTier, type Role } from "@/lib/permissions";
 
+import type { Meeting } from "@/db/write/create-offering";
 import type { Refusal } from "@/db/write/refusal";
 import type { ActorFacts } from "@/db/write/rules";
+
+import type { StitchedName } from "./stitch";
 
 /**
  * **What every read module ships beside the record** (issues/9, issues/14,
@@ -55,6 +58,44 @@ export type PermittedAction<Event extends string> =
  * section that made it, never to the course.
  */
 export type OwnTag = { name: string };
+
+/**
+ * A **foreign-program** tag: seat sharing (issues/25, issues/30).
+ *
+ * The only place in the whole model where a program other than the course's own
+ * appears, which is why these carry the other program's name and own-program tags
+ * do not — **every program name the Lineup renders is a seat-sharing grant.**
+ * `grantedBy` / `grantedAt` are issues/25's columns, and issues/40 found the chip
+ * had been rendering without them: hiding the sole cross-program act in the system
+ * behind the one control designed to be read at a glance.
+ *
+ * The rows are foreign **by construction** and not by a predicate here. The
+ * Seat-sharing tags field class refuses a tag whose program equals the offering's
+ * (issues/30), so `offering_area` and `offering_requirement_category` can hold
+ * nothing else; a `WHERE program_code <> …` in the read would be a second copy of
+ * that rule, phrased as a filter, and would silently swallow a row the writer
+ * should have refused.
+ */
+export type ForeignTag = {
+  programCode: string;
+  name: string;
+  grantedBy: StitchedName;
+  grantedAt: string;
+};
+
+/**
+ * One meeting slot, and it is **the writer's own type** rather than a second one
+ * shaped like it — the same move `Refusal` makes above (issues/10, issues/14).
+ *
+ * `kind` is **declared** and `offering_meeting`'s shape CHECK enforces it, so a
+ * renderer never re-derives the kind from which columns happen to be filled: that
+ * is the exact legacy failure issues/10 declared the column to fix. The three
+ * kinds read differently on purpose (issues/37) — `weekly` → *Mon 18:30–21:00*,
+ * `dates` → *5 Jan – 16 Jan, 10:00–16:00*, `async` → *Asynchronous*, with no time
+ * and no room — which is the first thing in the skeleton that makes LowRes visibly
+ * different from ITP and IMA.
+ */
+export type { Meeting };
 
 /**
  * **Absent, never empty** (issues/37): whether a list renders an Actions column

@@ -144,6 +144,43 @@ than conventional:
 - **The Server Action is an actor-resolution wrapper**, and the only rule-shaped thing in it is
   the narrower event union — read off the machine, because the event arrives from a browser.
 
+**The second screen is the Lineup**, built by
+[#82](https://github.com/nopivnick/lineup-prototype-03/issues/82): `db/read/lineup.ts` is the
+term-scoped list of Offerings grouped on course and term, `app/(signed-in)/lineup/` is the
+screen, and it is where the **cross-project stitch** and the **read tiers** first become
+visible. Five things about it are structural rather than conventional:
+
+- **The stitch is two round trips and a test counts them.** `db/read/stitch.ts` is the
+  shared module — the third in `db/read/` that is not one of the seven views — and it hands
+  back a **total resolver** rather than a `Map`, because `map.get(netid)` returning
+  `undefined` invites the `.filter()` that silently drops a roster entry, which is the one
+  thing [#9](https://github.com/nopivnick/lineup-prototype-03/issues/9) spends a paragraph
+  forbidding. The `classes` side is **one statement** with the children aggregated as JSON,
+  which is a departure from the Catalog's four and is there so *two round trips* is what
+  `db/read/lineup.test.ts` counts rather than what a comment claims. The actor's facts are
+  `cache()`d, so the test **measures** and subtracts them instead of waving them away.
+- **The search box is applied after the stitch, not in either query.** Its four fields
+  straddle the project boundary and are OR'd, so no single database can answer. #9 bought a
+  third round trip for paging's sake and
+  [#37](https://github.com/nopivnick/lineup-prototype-03/issues/37) removed that premise;
+  this spends the removal on the filter, exactly as the map already spends it on sorting.
+  Recorded in `docs/data-access/README.md`, with the threshold at which it stops being right.
+- **`leadOf` lives in `lib/roster.ts` and reaches the browser**, beside `rosterShape`, which
+  makes *rows below a vacant position 0* an **arm of a union** rather than a conditional.
+  [#61](https://github.com/nopivnick/lineup-prototype-03/issues/61) put the rule in the row
+  type and the place it actually came back was the renderer — #41's empty state fired on
+  `roster.length`, so a section with two co-instructors and no lead read as ordinary.
+- **The tiers narrow in the query, and the container obeys the row's rule.** A `student`
+  gets `COMMITTED_STATES` and nothing else, and a course whose every section is invisible
+  **does not render as an empty group** — an empty group announces the thing the tier hides.
+  There are two empty states and the *page* decides which, from whether a filter is set; the
+  read module returns no groups for either and knows nothing about what was clicked.
+- **`courseRetired` moved into `db/write/rules.ts`**, joining `stillTeaching` and
+  `routesFor` there for the same reason: the greyed `retry` in the menu and the exception
+  `applyTransition` throws are one sentence. `NEVER_EXPOSED` in `db/write/apply-transition.ts`
+  is now the single source both the type-level `ExposedOfferingEvent` and the two runtime
+  filters read, so `staff` and `unstaff` cannot be half-hidden.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

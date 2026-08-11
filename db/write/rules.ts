@@ -192,6 +192,25 @@ export function stillTeaching(live: readonly { termCode: string; status: string 
   );
 }
 
+/**
+ * **`retry` refused because the Course has been retired** — the one constraint the
+ * Offering lifecycle cannot express (issues/14).
+ *
+ * Here for the reason `stillTeaching` is here: it has two callers. `applyTransition`
+ * throws it at whoever clicks, and `db/read/lineup.ts` renders it under a greyed
+ * `retry` in the `⋯ n` menu one step earlier. A second copy of the sentence is how a
+ * rule and its explanation drift apart, which is the thing issues/14 exists to
+ * prevent.
+ *
+ * It names **no dependency**, unlike `stillTeaching`: the course is one record and
+ * the reader is looking at its own section, so *which* course is not in doubt. It
+ * also names no actor, being an invariant — a director cannot revive it either, and
+ * neither can the chair.
+ */
+export function courseRetired(): Refusal {
+  return refusal("This class cannot be revived, because its course has been retired.");
+}
+
 /** `machine legality AND invariants AND (permissions OR chair)` — this is the third term. */
 export function permitted(
   routes: readonly Route[],

@@ -33,12 +33,17 @@ import { CatalogTable } from "./catalog-table";
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: Record<string, string | string[] | undefined>;
+  // A `Promise`, and awaited: reading a search parameter is what opts a page into
+  // dynamic rendering, so Next hands the object over only once there is a request
+  // to read it from. Typed as the plain object it resolves to, every key was
+  // `undefined` and every filter silently did nothing — the URL said `?status=any`
+  // and the page rendered the default.
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const actor = await getActor();
   if (!actor) redirect("/be-somebody");
 
-  const params = searchParams;
+  const params = await searchParams;
   const chosen = {
     search: one(params.q) ?? "",
     programCode: one(params.program) ?? "",
