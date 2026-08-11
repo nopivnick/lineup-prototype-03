@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 /**
- * The test runner covers two things.
+ * The test runner covers three things.
  *
  * The first is the one test the map owes (`db/machine-states.test.ts`), which
  * reads SQL and TypeScript and needs no database — issues/13 made a failing CI
@@ -20,6 +20,13 @@ import { defineConfig } from "vitest/config";
  *
  * Those tests **skip themselves** when the two connection strings are absent, so
  * the machine-states alarm still runs in CI, where there is no database.
+ *
+ * The third is `scripts/deployment-protection.test.ts` (issues/80): the rule that
+ * says whether the deployment carrying the dev identity reader could be reached
+ * with a link alone. It is a pure function over two Vercel API payloads, so it
+ * runs here for the same reason the machine-states alarm does — the thing it
+ * reasons about is elsewhere, and reading it needs no network. Its **caller**
+ * needs a credential and is deliberately not a test.
  *
  * `docs/` is excluded for the same reason `eslint.config.mjs` ignores it: the
  * artifacts there are reference and are covered by `npm run typecheck` against

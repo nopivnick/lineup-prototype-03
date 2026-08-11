@@ -20,12 +20,14 @@ import type { Netid } from "@/db/write/transaction";
  * of the variable is what a real production deploy looks like, and this module
  * refuses to load into one rather than quietly serving an impersonation reader.
  *
- * The inherited risk rides with that choice and is recorded rather than
- * mitigated: the flag is chosen *so preview deploys carry it*, which means a
- * preview URL lets anyone with the link be any user. See
- * `docs/README.md#what-the-build-effort-inherits` — it is the one inherited
- * constraint that is a live risk rather than a design note, and the deployment
- * needs its own protection.
+ * The inherited risk rides with that choice and is mitigated outside this
+ * module, because it cannot be mitigated inside it: the flag is chosen *so
+ * preview deploys carry it*, which means a preview URL lets anyone with the link
+ * be any user. **The deployment is behind Vercel Authentication and this variable
+ * is set on Preview and nowhere else** (issues/80). That protection is not
+ * defence in depth — it is the only thing standing between a forwarded link and
+ * the chair's account. `README.md#the-deployment-is-behind-a-door` says so at
+ * length, and `npm run check:protection` fails if it stops being true.
  */
 if (!process.env.ALLOW_DEV_ACTOR) {
   throw new Error(

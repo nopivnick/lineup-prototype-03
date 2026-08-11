@@ -82,9 +82,16 @@ build brief would tell you to look for these.
 [#11](https://github.com/nopivnick/lineup-prototype-03/issues/11) gates the dev identity
 reader on an `ALLOW_DEV_ACTOR` env var *precisely so a preview deploy can carry it*, and
 [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28) declined to close that
-door with RLS on the grounds that it was opened on purpose. **That deployment needs
-protection** — Vercel deployment protection or equivalent. This is the one inherited
-constraint that is a live risk rather than a design note.
+door with RLS on the grounds that it was opened on purpose. That deployment needed
+protection — Vercel deployment protection or equivalent — and it was the one inherited
+constraint that was a live risk rather than a design note. **Shut** by
+[#80](https://github.com/nopivnick/lineup-prototype-03/issues/80), before any URL was
+shared: the deployment is `itp-ima/lineup-prototype-03`, it is behind Vercel
+Authentication, and `ALLOW_DEV_ACTOR` is set on **Preview and nowhere else**. The door
+itself is still open by design and that protection is the whole of what holds it shut, so
+it is not safe to remove — see
+[`../README.md#the-deployment-is-behind-a-door`](../README.md#the-deployment-is-behind-a-door),
+which is also where the standing check lives: `npm run check:protection`.
 
 **You owe a ~15-line test** — **paid** by
 [#76](https://github.com/nopivnick/lineup-prototype-03/issues/76), and it lives in
