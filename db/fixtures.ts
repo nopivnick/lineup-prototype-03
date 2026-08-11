@@ -2018,7 +2018,7 @@ export const SEED_ORDER = [
   { step: 1, writes: "`program`, `term`, `area`, `requirement_category`", actor: "none — reference data" },
   { step: 2, writes: "`person` rows, in the `people` project", actor: "none — the directory feed's job in a real deployment" },
   { step: 3, writes: "the one unchecked `chair` row", actor: "`tv1067`, unchecked — the genesis grant" },
-  { step: 4, writes: "the remaining twenty `user_role` rows", actor: "`tv1067`, checked" }
+  { step: 4, writes: "the remaining twenty `user_role` rows", actor: "`tv1067`, checked" },
   { step: 5, writes: "the three `program_director` rows", actor: "`tv1067`, checked" },
   { step: 6, writes: "proposals, then reviews — the row that *is* the request", actor: "each proposal's author" },
   {
