@@ -41,7 +41,7 @@ See `docs/data-access/README.md`.
 
 **The lifecycles and the rules are code now**, converted by
 [#76](https://github.com/nopivnick/lineup-prototype-03/issues/76). `lib/machines/*.machine.ts`
-holds the three machines and `lib/permissions.ts` the matrices, the thirteen field classes,
+holds the three machines and `lib/permissions.ts` the matrices, the fourteen field classes,
 the read tiers, the chair bypass and the invariants. Three things about them are structural
 rather than conventional:
 
@@ -78,7 +78,8 @@ accident:
   through a path, that is a hole in the rules and it becomes a ticket — as
   `course_requirement_category` did, in
   [#106](https://github.com/nopivnick/lineup-prototype-03/issues/106). Do not widen the
-  writers to make the seed pass.
+  writers to make the seed pass. #106 is what that looks like when it closes: the table
+  got a field class of its own, and the seed's raw insert became a `writeFields` call.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

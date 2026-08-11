@@ -26,11 +26,12 @@
  *     a person: rows arrive from the seed here and from an NYU feed in a real
  *     deployment (`docs/schema/people.sql`).
  *
- * A third joins them under protest, and it is a **finding rather than a
- * category**: `course_requirement_category` is claimed by no field class, so
- * under issues/28's *a column with no class is unwritable* it has no writer at
- * all — while issues/25 put the course→category mapping in scope because the
- * Catalog displays it. Raised as a ticket rather than closed here; see
+ * **There were three.** `course_requirement_category` was claimed by no field
+ * class, so under issues/28's *a column with no class is unwritable* it had no
+ * writer at all, and this file wrote its seventeen rows raw beside the reference
+ * data. That was raised as a ticket rather than closed here, and issues/106
+ * closed it by classifying the table — so the write goes through `writeFields`
+ * now and the two categories above are the whole list again. See
  * `courseCategories` below.
  *
  * **Dates are literal** (issues/49). Nothing below is computed from run time: the
@@ -423,7 +424,13 @@ async function proposalsAndReviews(): Promise<void> {
   }
 }
 
-/** The sitting director of a program, which is who a review's assignment is written by. */
+/**
+ * The sitting director of a program: who a review's assignment is written by,
+ * and who writes a minted course's requirement categories (issues/106). Decides
+ * nothing — both writers are `program_director(…)` routes, and this reads
+ * `PROGRAM_DIRECTORS` the way they read it. All three are granted in step 5,
+ * before the earliest proposal is written.
+ */
 function directorOf(programCode: string): FixtureNetid {
   const found = PROGRAM_DIRECTORS.find((row) => row.programCode === programCode);
   if (!found) throw new Error(`No director for ${programCode}.`);
@@ -486,37 +493,64 @@ async function reviewTransitions(): Promise<void> {
     }
   }
 
-  // Not a twelfth step. The course→category rows have no writer to be a step of,
-  // and they hang here because a mint is the earliest moment their course exists.
+  // Not a twelfth step: these are field writes on courses that step 7 has just
+  // minted, and a mint is the earliest moment their course exists to carry one.
   await courseCategories();
 }
 
 /**
- * **The one write the field-class map has no writer for.**
+ * **The write that had no writer, and has one now** (issues/106).
  *
  * issues/25 put the course→category mapping in scope because the Catalog
- * displays it, and every course in the fixtures carries one. No field class in
- * `lib/permissions.ts` claims `course_requirement_category` — `course_area` sits
- * in Course assignment and this table sits in nothing — so under issues/28's *a
- * column with no class is unwritable* the field writer refuses it, and the mint
- * copies areas only.
+ * displays it, and every course in the fixtures carries one — but no field class
+ * claimed `course_requirement_category`, so under issues/28's *a column with no
+ * class is unwritable* the field writer refused it and the mint copies areas
+ * only. This function used to insert the seventeen rows directly, beside the
+ * reference data, under protest and behind a ticket, because **a build effort
+ * that finds itself deciding has found a ticket** (issues/50, on issues/65's and
+ * issues/69's precedent).
  *
- * That is a hole in the permission model rather than a decision for a build
- * effort to take, which is issues/50's rule and issues/65's and issues/69's
- * precedent: **a build effort that finds itself deciding has found a ticket**.
- * Filed as https://github.com/nopivnick/lineup-prototype-03/issues/106. Until it
- * is settled the rows are written here, beside the reference data and for the
- * same reason — no control in the skeleton performs this write.
+ * issues/106 settled it as a **fourteenth field class**: the course's own
+ * program director, state-blind, and — unlike the area assignment next door —
+ * emptiable, because the Offering create path reads a course's areas and nothing
+ * anywhere reads its categories. So the rows go through `writeFields` like
+ * everything else, and the seed is a caller again rather than an author.
+ *
+ * Dated to the mint, which is the moment the program's claim about its own
+ * degree comes into being, and written **by the program's sitting director**:
+ * not a fixture fact but the class's own writer, read off `PROGRAM_DIRECTORS`.
+ * The approver is not always that person — issues/32's area-head route mints
+ * three of these courses — so this is a second actor in the same pass.
+ *
+ * It follows that every course carries `updated_at` / `updated_by` from here
+ * on, since the field writer stamps the record any row write hangs off
+ * (issues/10). That is the write being visible rather than a course claiming an
+ * edit it never had: assigning what a course counts toward *is* a change to the
+ * course. O22 already worked this way — step 10's seat-sharing tag stamps an
+ * offering the fixtures give no `updatedAt`.
  */
 async function courseCategories(): Promise<void> {
-  const rows = COURSE_ROWS.flatMap((row) =>
-    row.categories.map((key) => ({
-      courseId: idOf(courseIds, row.key, "course"),
-      requirementCategoryId: idOf(categoryIds, key, "requirement category"),
-      programCode: row.programCode,
-    })),
-  );
-  await classesDb().insert(courseRequirementCategory).values(rows);
+  for (const row of COURSE_ROWS) {
+    await writeToClasses((tx) =>
+      writeFields(
+        tx,
+        {
+          record: { machine: "course", id: idOf(courseIds, row.key, "course") },
+          rows: row.categories.map(
+            (key): FieldRowWrite => ({
+              table: "course_requirement_category",
+              op: "insert",
+              values: {
+                requirement_category_id: idOf(categoryIds, key, "requirement category"),
+              },
+            }),
+          ),
+        },
+        directorOf(row.programCode),
+        instant(row.createdAt),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -917,6 +951,30 @@ async function checkTheWorld(): Promise<void> {
     const expected = COUNTS[row.what as keyof typeof COUNTS];
     assert(Number(row.n) === expected, `${expected} ${row.what} (found ${row.n})`);
   }
+
+  // Every course carries exactly the requirement categories the fixtures give
+  // it. Asserted rather than assumed because these rows changed hands: they were
+  // inserted beside the reference data until issues/106 classified the table,
+  // and they now go through the field writer as each program's own director.
+  const expectedCategories = new Set(
+    COURSE_ROWS.flatMap((row) =>
+      row.categories.map(
+        (key) =>
+          `${idOf(courseIds, row.key, "course")}:${idOf(categoryIds, key, "requirement category")}`,
+      ),
+    ),
+  );
+  const categoryRows = await classes
+    .select({
+      courseId: courseRequirementCategory.courseId,
+      categoryId: courseRequirementCategory.requirementCategoryId,
+    })
+    .from(courseRequirementCategory);
+  assert(
+    categoryRows.length === expectedCategories.size &&
+      categoryRows.every((row) => expectedCategories.has(`${row.courseId}:${row.categoryId}`)),
+    `${expectedCategories.size} course→category rows, each one the fixtures' own`,
+  );
 
   // All fourteen Offering states occupied, each by exactly the classes the
   // artifact names — which is what the three-term, twenty-eight-class sizing was

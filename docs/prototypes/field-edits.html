@@ -54,11 +54,16 @@
     it; none of them offers it.
 
   ---------------------------------------------------------------------------
-  The seven classes, and where they surface
+  The eight classes, and where they surface
   ---------------------------------------------------------------------------
 
     Course page    Course body          gated to `Revising`
                    Course assignment    state-blind
+                   Course requirement categories
+                                        state-blind, same writer as the
+                                        assignment beside it — added by #106,
+                                        and the one class below this page does
+                                        not yet render. See the ledger.
     Class page     Offering operational state-blind, `Concluded` included
                    Seat-sharing tags    state-blind, writer is the *category's*
                                         director — the map's one scope exception
@@ -66,10 +71,11 @@
     Review page    Proposal body        gated to `Developing`
                    Review assignment    gated to `Proposed` / `Developing`
 
-  Three of the seven are **not columns**. `course_area`, `offering_meeting`,
-  `offering_area`, `offering_requirement_category` and `offering_instructor` are
-  rows, and adding or removing a row is not the same interaction as editing a
-  value. Two classes are *mixed* — Course assignment is one column plus rows,
+  Four of the eight are **not columns**. `course_area`,
+  `course_requirement_category`, `offering_meeting`, `offering_area`,
+  `offering_requirement_category` and `offering_instructor` are rows, and adding
+  or removing a row is not the same interaction as editing a value. Two classes
+  are *mixed* — Course assignment is one column plus rows,
   Offering operational is six columns plus rows — which is the case that makes
   "a field edit" the wrong unit and the field class the right one.
 
@@ -784,7 +790,7 @@ const LOG = {
 const RECORDS = [
   { key:"c1",  kind:"course",   id:1,
     label:"Course · ITPG-GT 2233 Physical Computing — Approved",
-    note:"The body gate is shut and the assignment beside it is open. The two field classes on one page do not agree about state, which is the whole reason there are seven of them." },
+    note:"The body gate is shut and the assignment beside it is open. The two field classes on one page do not agree about state, which is the whole reason there are eight of them." },
   { key:"c4",  kind:"course",   id:4,
     label:"Course · ITPG-GT 2043 Sound in Space — Revising",
     note:"Same page, gate open. No area head yet, so #32's half-missing assignment is on screen and #43's picker refusal has its cause here." },

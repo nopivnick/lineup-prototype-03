@@ -408,6 +408,21 @@ what it overturns; it never stands beside it.
   checked seed cannot write one; that is a finding about #37, and
   [`docs/fixtures/README.md`](../fixtures/README.md) is authoritative for the cast.
 
+- **The course edit page gains an eighth section, and the page is not redrawn** — by
+  [`course_requirement_category` is in no field class, so nothing may write it](https://github.com/nopivnick/lineup-prototype-03/issues/106),
+  which classified the table as a **fourteenth field class** of its own. `field-edits.html`
+  enumerates *the seven classes, and where they surface*; there are now eight, and the new
+  one surfaces on the course page beside Assignment, open to the same person — the course's
+  own program director — under a different rule, since a course's categories may be emptied
+  where its areas may not.
+
+  **No hand redraw is needed, for #65's reason exactly**:
+  [#62](https://github.com/nopivnick/lineup-prototype-03/issues/62) settled that an edit page
+  renders only the classes open to you, so the page is a function of `FIELD_CLASSES` and
+  follows by its own rule. What the file states in prose — the inventory, and *three of the
+  seven are not columns* — is the count that has moved, and this ledger is where it moves.
+  The **mixed** classes are still two: the new one is rows and nothing else.
+
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three
   variants* over files holding four, and no title named the settled variant; every title now

@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import {
   course,
   courseProposal,
+  courseRequirementCategory,
   offeringArea,
   offeringInstructor,
   offeringMeeting,
@@ -381,6 +382,62 @@ describe.skipIf(!DATABASES_CONFIGURED)("writeFields", () => {
     expect(await areaHeadOf(courseId)).toBe(WHO.areaHead);
   });
 
+  // --- Requirement categories, which are not the assignment ----------------
+
+  test("a course's requirement categories are its own director's, and the set may be emptied", async () => {
+    const { courseId } = await mintCourse(world, { courseNumber: "ITPG-GT 2233" });
+
+    // Not the area head's: a head heads an *area*, and a requirement category is
+    // what the **program's** degree requires (issues/106).
+    const head = await refusalFrom(category(courseId, "insert", world.itpCategoryId, WHO.areaHead));
+    expect(head.refusals[0]!.sentence).toBe(
+      "Only ITP's program director can change this record's course requirement categories.",
+    );
+    await expect(
+      category(courseId, "insert", world.itpCategoryId, WHO.imaDirector),
+    ).rejects.toBeInstanceOf(WriteRefused);
+
+    await category(courseId, "insert", world.itpCategoryId, WHO.itpDirector);
+    expect(await categoriesOf(courseId)).toEqual([world.itpCategoryId]);
+
+    // **The whole of issues/106's ruling, in one contrast.** Emptying the area
+    // set is refused, because the Offering create path reads it and issues/32's
+    // create-time gate is only sufficient forever if it cannot be emptied later.
+    // Nothing anywhere reads categories, so emptying that set is an ordinary
+    // curriculum revision and the writer takes it.
+    const areas = await refusalFrom(
+      write(
+        {
+          record: { machine: "course", id: courseId },
+          rows: [{ table: "course_area", op: "delete", key: { area_id: world.itpAreaId } }],
+        },
+        WHO.itpDirector,
+      ),
+    );
+    expect(areas.refusals[0]!.sentence).toContain("swapped but never emptied");
+
+    await category(courseId, "delete", world.itpCategoryId, WHO.itpDirector);
+    expect(await categoriesOf(courseId)).toEqual([]);
+  });
+
+  test("a requirement category is state-blind, and stamps the course it hangs off", async () => {
+    const { courseId } = await mintCourse(world, { courseNumber: "ITPG-GT 2233" });
+
+    // C3's case: `retire` is legal over an empty offering list, and no Course
+    // state asserts anything about what the degree counts.
+    await writeToClasses((tx) =>
+      applyTransition(tx, { machine: "course", id: courseId }, { type: "retire" }, WHO.itpDirector),
+    );
+    await category(courseId, "insert", world.itpCategoryId, WHO.itpDirector);
+
+    expect(await categoriesOf(courseId)).toEqual([world.itpCategoryId]);
+    const [row] = await classes()
+      .select({ status: course.status, updatedBy: course.updatedBy })
+      .from(course)
+      .where(eq(course.courseId, courseId));
+    expect(row).toMatchObject({ status: "Retired", updatedBy: WHO.itpDirector });
+  });
+
   // --- Authorization -------------------------------------------------------
 
   test("a role grant is the chair's alone", async () => {
@@ -516,6 +573,24 @@ function coInstructor(offeringId: Id, netid: string, actor: string): Promise<voi
   );
 }
 
+/** One course→category row, the parent key left to the writer to derive. */
+function category(
+  courseId: Id,
+  op: "insert" | "delete",
+  requirementCategoryId: number,
+  actor: string,
+): Promise<void> {
+  const table = "course_requirement_category";
+  const row = { requirement_category_id: requirementCategoryId };
+  return write(
+    {
+      record: { machine: "course", id: courseId },
+      rows: [op === "insert" ? { table, op, values: row } : { table, op, key: row }],
+    },
+    actor,
+  );
+}
+
 function revoke(netid: string, role: string): Promise<void> {
   return write(
     {
@@ -541,6 +616,14 @@ async function mintCourseAtProposal(): Promise<{ proposalId: Id; reviewId: Id }>
 async function titleOf(courseId: Id): Promise<string | undefined> {
   const [row] = await classes().select({ title: course.title }).from(course).where(eq(course.courseId, courseId));
   return row?.title;
+}
+
+async function categoriesOf(courseId: Id): Promise<number[]> {
+  const rows = await classes()
+    .select({ requirementCategoryId: courseRequirementCategory.requirementCategoryId })
+    .from(courseRequirementCategory)
+    .where(eq(courseRequirementCategory.courseId, courseId));
+  return rows.map((row) => row.requirementCategoryId);
 }
 
 async function areaHeadOf(courseId: Id): Promise<string | null | undefined> {

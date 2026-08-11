@@ -72,7 +72,7 @@ export type CourseState = StateValueFrom<typeof courseMachine>;
 export type ReviewState = StateValueFrom<typeof reviewMachine>;
 
 /**
- * The thirteen field-class names, read off `FIELD_CLASSES` rather than restated.
+ * The fourteen field-class names, read off `FIELD_CLASSES` rather than restated.
  * #28's *a column with no class is unwritable* means this union is also the complete
  * set of things a human may edit anywhere in the skeleton.
  */
@@ -416,7 +416,7 @@ export type PermittedAction<Event extends string> =
  * The record-page rail's `Edit` control and everything it needs (#62).
  *
  * A record's field classes disagree about their writer and about their state rule —
- * that is why there are thirteen of them — so *everything you may change* is
+ * that is why there are fourteen of them — so *everything you may change* is
  * **actor-shaped**, and the same URL is a different page for a coordinator and for a
  * director.
  *
