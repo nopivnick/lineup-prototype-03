@@ -29,6 +29,7 @@ import { type MachineName } from "@/lib/permissions";
 
 import { refuse, refuseAll, WriteRefused } from "./refusal";
 import {
+  courseRetired,
   holdsRole,
   notYours,
   peopleKnows,
@@ -106,16 +107,32 @@ export type OfferingEvent = (
   Explained;
 
 /**
+ * **The two events nothing user-facing may name** (issues/15, issues/28).
+ *
+ * `staff` and `unstaff` track occupancy and are written by one path that inserts
+ * or deletes the `offering_instructor` row and sends the event in the same
+ * transaction — so a roster that disagrees with the machine state has no code
+ * path.
+ *
+ * Declared as a value and not only as a type because both halves are needed and
+ * a type-level `Exclude` has no runtime form: the action layer's guard filters a
+ * string arriving from a browser, and `db/read/lineup.ts` filters the machine's
+ * own `ownEvents` when it builds a row's menu. One list, two derivations, so a
+ * third event becoming internal cannot be half-applied.
+ */
+export const NEVER_EXPOSED = ["staff", "unstaff"] as const satisfies readonly OfferingEvent["type"][];
+
+/**
  * **The narrower union the action layer exposes** (issues/15, issues/28).
  *
- * `staff` and `unstaff` are never user-facing, and that is **non-exposure rather
- * than a check**: there is no branch anywhere refusing them, because a Server
- * Action cannot name them. One writer inserts the `offering_instructor` row and
- * sends the event in the same transaction, so a roster that disagrees with the
- * machine state has no code path. Stated here, at the type level, so the action
- * layer inherits it rather than restating it.
+ * Non-exposure **rather than a check**: there is no branch anywhere refusing these
+ * two, because a Server Action cannot name them. Stated here, at the type level, so
+ * the action layer inherits it rather than restating it.
  */
-export type ExposedOfferingEvent = Exclude<OfferingEvent, { type: "staff" } | { type: "unstaff" }>;
+export type ExposedOfferingEvent = Exclude<
+  OfferingEvent,
+  { type: (typeof NEVER_EXPOSED)[number] }
+>;
 
 export type EventFor<M extends MachineName> = M extends "course"
   ? CourseEvent
@@ -269,12 +286,16 @@ async function moveOffering(
     // The one constraint the Offering lifecycle cannot express (issues/14). Its
     // other door — creating a fresh offering of a retired course — is refused in
     // the create path (issues/43).
+    //
+    // The sentence is `courseRetired`'s and not this module's, because the Lineup
+    // renders the same one under a greyed `retry` before anybody clicks
+    // (issues/82), exactly as `stillTeaching` is shared with the Catalog.
     const [parent] = await tx
       .select({ status: course.status })
       .from(course)
       .where(eq(course.courseId, row.courseId));
     if (parent?.status === "Retired") {
-      refuse("This class cannot be revived, because its course has been retired.");
+      refuseAll([courseRetired()]);
     }
   }
 

@@ -21,8 +21,8 @@ import { area, program, requirementCategory, term, userRole } from "@/db/classes
 import { classesDb, peopleDb } from "@/db/handles";
 import { person } from "@/db/people/schema";
 
-import { applyTransition } from "./apply-transition";
-import { createOffering } from "./create-offering";
+import { applyTransition, type OfferingEvent } from "./apply-transition";
+import { createOffering, type Meeting } from "./create-offering";
 import { createProposal } from "./create-proposal";
 import { WriteRefused } from "./refusal";
 import { writeToClasses, type Id } from "./transaction";
@@ -76,6 +76,19 @@ export type World = {
   itpCategoryId: number;
   imaCategoryId: number;
   termCode: string;
+  /**
+   * A second term, so a term-scoped view can be shown to be scoped: the Lineup is
+   * term-scoped by definition (issues/9) and a world with one term cannot tell a
+   * working picker from a missing `WHERE` clause.
+   */
+  laterTermCode: string;
+  /**
+   * A term nothing is ever slated in. *A term with no offerings* is one of the
+   * Lineup's two empty states (issues/37), and a world whose every term is
+   * populated cannot reach it — the picker offers **every** term precisely so a
+   * reader can ask *has anything been slated for Summer yet?*
+   */
+  emptyTermCode: string;
 };
 
 /**
@@ -102,7 +115,11 @@ export async function freshWorld(): Promise<World> {
     { code: "ITP", name: "Interactive Telecommunications", degreeLevel: "graduate", createdBy: WHO.chair },
     { code: "IMA", name: "Interactive Media Arts", degreeLevel: "undergraduate", createdBy: WHO.chair },
   ]);
-  await classes.insert(term).values({ code: "20253", year: 2025, semester: "Fall" });
+  await classes.insert(term).values([
+    { code: "20253", year: 2025, semester: "Fall" },
+    { code: "20261", year: 2026, semester: "Spring" },
+    { code: "20262", year: 2026, semester: "Summer" },
+  ]);
 
   const areas = await classes
     .insert(area)
@@ -171,6 +188,8 @@ export async function freshWorld(): Promise<World> {
     itpCategoryId: categories.find((row) => row.programCode === "ITP")!.requirementCategoryId,
     imaCategoryId: categories.find((row) => row.programCode === "IMA")!.requirementCategoryId,
     termCode: "20253",
+    laterTermCode: "20261",
+    emptyTermCode: "20262",
   };
 }
 
@@ -259,22 +278,42 @@ export const A_MEETING = {
   room: "370J",
 } as const;
 
-/** A class of that course, in the world's one term. */
+/** A `dates` slot — the LowRes intensive, which is the shape issues/10's `kind` column exists for. */
+export const AN_INTENSIVE = {
+  kind: "dates",
+  startDate: "2026-01-05",
+  endDate: "2026-01-16",
+  startTime: "10:00",
+  endTime: "16:00",
+  room: "370J-Commons",
+} as const;
+
+/** An `async` slot — no time and no room, and the shape CHECK enforces both absences. */
+export const ASYNCHRONOUS = { kind: "async" } as const;
+
+/** A class of that course, in the world's earlier term unless another is named. */
 export async function slateOffering(
   world: World,
   courseId: Id,
-  options: { actor?: string; sectionNumber?: string } = {},
+  options: {
+    actor?: string;
+    sectionNumber?: string;
+    termCode?: string;
+    meetings?: readonly Meeting[];
+    mode?: string | null;
+    enrollmentLimit?: number | null;
+  } = {},
 ): Promise<Id> {
   const { offeringId } = await writeToClasses((tx) =>
     createOffering(
       tx,
       {
         courseId,
-        termCode: world.termCode,
+        termCode: options.termCode ?? world.termCode,
         sectionNumber: options.sectionNumber ?? "1",
-        meetings: [A_MEETING],
-        mode: null,
-        enrollmentLimit: null,
+        meetings: options.meetings ?? [A_MEETING],
+        mode: options.mode ?? null,
+        enrollmentLimit: options.enrollmentLimit ?? null,
         callNumber: null,
         sisClassNumber: null,
         url: null,
@@ -283,6 +322,76 @@ export async function slateOffering(
     ),
   );
   return offeringId;
+}
+
+/**
+ * Walk a class along its lifecycle, one checked transition per transaction — which
+ * is what a class reaching a state **means**, since `applyTransition` is the only
+ * thing that can write a snapshot.
+ *
+ * `staff` is the one event carrying a subject, so it is spelled with its netid; the
+ * rest are bare. Who may fire each one is the matrix's business and not this
+ * helper's, so the actor is per step and defaults to the seat that ordinarily holds
+ * the move.
+ */
+export async function driveOffering(
+  offeringId: Id,
+  steps: readonly (OfferingEvent & { by?: string })[],
+): Promise<void> {
+  for (const step of steps) {
+    const { by, ...event } = step;
+    await writeToClasses((tx) =>
+      applyTransition(tx, { machine: "offering", id: offeringId }, event as OfferingEvent, by ?? WHO.itpDirector),
+    );
+  }
+}
+
+/**
+ * A co-instructor, below position 0, through the field writer — which is the only
+ * path there is: position 0 is refused by that writer in every state, and naming a
+ * lead is `staff` (issues/61).
+ */
+export function seatCoInstructor(
+  offeringId: Id,
+  netid: string,
+  position: number,
+  actor: string = WHO.itpDirector,
+): Promise<void> {
+  return writeToClasses((tx) =>
+    writeFields(
+      tx,
+      {
+        record: { machine: "offering", id: offeringId },
+        rows: [{ table: "offering_instructor", op: "insert", values: { netid, position } }],
+      },
+      actor,
+    ),
+  );
+}
+
+/**
+ * A seat-sharing tag: **another** program's claim on this class, written by that
+ * program's director, because whoever authors the claim writes the row (issues/25,
+ * issues/30). The writer refuses a tag whose program is the offering's own, so this
+ * helper cannot be used to fake a foreign tag out of a local one.
+ */
+export function shareSeats(
+  offeringId: Id,
+  tag: { areaId: Id } | { categoryId: Id },
+  actor: string,
+): Promise<void> {
+  const row =
+    "areaId" in tag
+      ? { table: "offering_area" as const, op: "insert" as const, values: { area_id: tag.areaId } }
+      : {
+          table: "offering_requirement_category" as const,
+          op: "insert" as const,
+          values: { requirement_category_id: tag.categoryId },
+        };
+
+  return writeToClasses((tx) =>
+    writeFields(tx, { record: { machine: "offering", id: offeringId }, rows: [row] }, actor),
+  );
 }
 
 /**
