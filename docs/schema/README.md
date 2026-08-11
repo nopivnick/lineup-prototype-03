@@ -95,6 +95,25 @@ follows — see [`docs/agents/spec-packages.md`](../agents/spec-packages.md). An
   not break this tie for once: the mode is a one-word edit per column with no migration
   behind it in **either** direction, since the DDL is the same under both.
 
+- **`course_requirement_category`'s account of first authorship was `course_area`'s, and is
+  replaced** — by
+  [`docs/schema/classes.sql` gives `course_requirement_category` an account of first authorship that is not true of it](https://github.com/nopivnick/lineup-prototype-03/issues/109),
+  found by [#106](https://github.com/nopivnick/lineup-prototype-03/issues/106) while
+  classifying the table. One comment block heads both join tables, and its last sentence —
+  *"issues/32 gave these rows their account of first authorship: they originate on the
+  review, written by that program's director, and are copied by `approve`"* — is true of
+  `course_area` and false of the second table, which has no review-level half and no ticket
+  that would give it one:
+  [#32](https://github.com/nopivnick/lineup-prototype-03/issues/32)'s assignment is areas
+  and a head, so a course acquired its categories from nowhere. The comment now splits and
+  names ticket 106's field class as the real path — **written on the course after the mint,
+  by the course's own program director**. Invisible until then because nothing could write
+  the table at all, so no reader had an authorship story to check the sentence against.
+  **No DDL changes**, and `db/classes/schema.ts` carries a shortened copy of the block that
+  never included the sentence. Whether the review *should* carry categories — which is what
+  the sentence assumed — is a separate question ticket 106 deliberately did not open, and it
+  needs its own ticket rather than a correction here.
+
 ## Shape
 
 **21 tables. 20 in `classes`, 1 in `people`.**
