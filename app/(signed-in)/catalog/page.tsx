@@ -33,12 +33,12 @@ import { CatalogTable } from "./catalog-table";
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
   const actor = await getActor();
   if (!actor) redirect("/be-somebody");
 
-  const params = await searchParams;
+  const params = searchParams;
   const chosen = {
     search: one(params.q) ?? "",
     programCode: one(params.program) ?? "",

@@ -67,13 +67,14 @@ export function CatalogFilterBar({
    * the draft then matches the URL, so nothing pushes it and the character is
    * gone rather than late.
    */
-  if (followed !== incoming) {
+  useEffect(() => {
+    if (followed === incoming) return;
     setFollowed(incoming);
     if (incoming !== pushed) {
       setPushed(incoming);
       setDraft(chosen);
     }
-  }
+  }, [incoming, followed, pushed, chosen]);
 
   const push = useCallback(
     (next: ChosenFilters) => {
