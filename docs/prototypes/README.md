@@ -419,9 +419,9 @@ what it overturns; it never stands beside it.
   **No hand redraw is needed, for #65's reason exactly**:
   [#62](https://github.com/nopivnick/lineup-prototype-03/issues/62) settled that an edit page
   renders only the classes open to you, so the page is a function of `FIELD_CLASSES` and
-  follows by its own rule. What the file states in prose — the inventory, and *three of the
-  seven are not columns* — is the count that has moved, and this ledger is where it moves.
-  The **mixed** classes are still two: the new one is rows and nothing else.
+  follows by its own rule. What the file states in prose — the inventory, and which parts are rows rather than columns —
+  is the count that has moved, and this ledger is where it moves. The **mixed** classes are still three (Course assignment,
+  Offering operational, Review assignment); the new one is rows and nothing else.
 
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three
