@@ -46,7 +46,6 @@ export async function createProposal(
 ): Promise<{ proposalId: Id; reviewIds: readonly Id[] }> {
   const { tx, at } = open;
 
-
   // **The set may not be empty**, ruled rather than assumed (issues/43): a
   // proposal with no reviews is a body nobody will ever see, since the proposals
   // list groups by proposal and its rows *are* reviews, and issues/7 gave the

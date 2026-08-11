@@ -54,18 +54,14 @@ const NO_DATE_FROM_A_CALLER = [
  * survives alone inside the boundary, where the handle patterns are lifted.
  */
 const NO_DATED_DOOR = {
-  // Every spelling of the same module, because `no-restricted-imports` matches
-  // the import string as it is written and not the path it resolves to. The
-  // relative forms are the ones that matter: a writer sitting next to the module
-  // reaches it as `./dated-transaction`, and only the aliased form would have
-  // been caught.
-  group: [
-    "@/db/write/dated-transaction",
-    "**/db/write/dated-transaction",
-    "./dated-transaction",
-    "../dated-transaction",
-    "**/write/dated-transaction",
-  ],
+  // **Two patterns, because the rule matches the import string as written and
+  // not the path it resolves to.** `**/dated-transaction` covers the aliased and
+  // the walked-up spellings — `@/db/write/dated-transaction`,
+  // `../db/write/dated-transaction` — and misses the one that matters most: a
+  // module sitting beside this one reaches it as `./dated-transaction`, which is
+  // its own pattern. Verified against all three by lint, not by reading
+  // minimatch.
+  group: ["**/dated-transaction", "./dated-transaction"],
   message: NO_DATE_FROM_A_CALLER,
 };
 
@@ -142,8 +138,14 @@ export default defineConfig([
     // transaction: the seam has tests, and a fence a test cannot reach is a
     // fence nothing proves. Last, because the block above it does not match a
     // test file and the one above that shuts this door for all of `db/write/`.
+    //
+    // **`db/write/` and not `db/`.** `db/machine-states.test.ts` needs no
+    // database at all and sits under the base rule like any other module; a
+    // wider glob here would have lifted *no page holds a handle* off it for
+    // nothing, which is a second fence quietly widened by a change about the
+    // first.
     name: "only-the-seed-dates-a-write/tests-may-open-one",
-    files: ["db/**/*.test.ts"],
+    files: ["db/write/**/*.test.ts"],
     rules: {
       "no-restricted-imports": "off",
     },

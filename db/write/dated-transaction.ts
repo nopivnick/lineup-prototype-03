@@ -24,11 +24,9 @@ import type { At, OpenTransaction } from "./transaction";
  * two places that may import it: `db/seed.ts`, and the tests that exercise the
  * seam.
  *
- * That is issues/107 choosing the map's habitual move over a warning: issues/15
- * narrowed an event union so divergence had no code path, issues/28 made an
- * unclassified column unwritable, issues/30 bought a composite foreign key so a
- * rule could not be got wrong. **Take the mistake off the table rather than warn
- * about it.**
+ * The full statement — the three shapes issues/107 weighed, and why this is the
+ * map's habitual move rather than a warning — is `OpenTransaction` in
+ * `docs/data-access/data-access.ts`. Not restated here.
  *
  * The one line this shares with `writeToClasses` is deliberately not factored
  * out into a shared opener taking an `at`. Such a function would live in

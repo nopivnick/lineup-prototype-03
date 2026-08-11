@@ -135,11 +135,12 @@ export type At = Date;
  *   narrowing acts on the *caller* and the writers still had to receive the
  *   moment somehow;
  * - **rewriting every `*_at` default to read a per-transaction setting**, so the
- *   writers take nothing at all. Genuinely available — `now()` cannot be shadowed
- *   but a default can be changed — and rejected on the ground #13, #28 and #30
- *   each rejected a trigger on: *where would a reader find it*. A reader of
- *   `createProposal` would see no date anywhere and no way to learn where one
- *   came from.
+ *   writers take nothing at all. This one **corrects #107's own premise**, which
+ *   read *there is no way out through Postgres*: what cannot be shadowed is
+ *   `now()`, and the defaults themselves were never examined. So it was
+ *   available, and it was rejected on the ground #13, #28 and #30 each rejected
+ *   a trigger on — *where would a reader find it*. A reader of `createProposal`
+ *   would see no date anywhere and no way to learn where one came from.
  *
  * **The dated opener is fenced to the seed**, with the same
  * `no-restricted-imports` rule that keeps database handles out of pages (#9).
