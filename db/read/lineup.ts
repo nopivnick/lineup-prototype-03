@@ -607,23 +607,31 @@ type Mutable = Omit<LineupGroup, "sectionCount" | "sections"> & {
  */
 function asMeeting(row: MeetingJson[number]): Meeting {
   switch (row.kind) {
-    case "weekly":
+    case "weekly": {
+      if (row.dayOfWeek === null || row.startTime === null || row.endTime === null) {
+        throw new Error("Invalid meeting row: weekly meetings require dayOfWeek, startTime, and endTime.");
+      }
       return {
         kind: "weekly",
-        dayOfWeek: row.dayOfWeek ?? 0,
+        dayOfWeek: row.dayOfWeek,
         startTime: clock(row.startTime),
         endTime: clock(row.endTime),
         room: row.room,
       };
-    case "dates":
+    }
+    case "dates": {
+      if (row.startDate === null || row.endDate === null || row.startTime === null || row.endTime === null) {
+        throw new Error("Invalid meeting row: dates meetings require startDate, endDate, startTime, and endTime.");
+      }
       return {
         kind: "dates",
-        startDate: row.startDate ?? "",
-        endDate: row.endDate ?? "",
+        startDate: row.startDate,
+        endDate: row.endDate,
         startTime: clock(row.startTime),
         endTime: clock(row.endTime),
         room: row.room,
       };
+    }
     case "async":
       return { kind: "async" };
     default:
