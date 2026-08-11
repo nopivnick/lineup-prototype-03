@@ -10,6 +10,7 @@ import {
   courseProposal,
   courseProposalReview,
   courseProposalReviewArea,
+  courseRequirementCategory,
   offering,
   offeringArea,
   offeringInstructor,
@@ -665,6 +666,7 @@ const TABLES: Readonly<Record<string, PgTable>> = {
   course_proposal: courseProposal,
   course_proposal_review: courseProposalReview,
   course_proposal_review_area: courseProposalReviewArea,
+  course_requirement_category: courseRequirementCategory,
   offering,
   offering_area: offeringArea,
   offering_instructor: offeringInstructor,
@@ -691,6 +693,7 @@ const OWNED_BY: Readonly<Record<string, "a course" | "a class" | "a review" | "t
   course_proposal: "a review",
   course_proposal_review: "a review",
   course_proposal_review_area: "a review",
+  course_requirement_category: "a course",
   offering: "a class",
   offering_area: "a class",
   offering_instructor: "a class",
@@ -707,13 +710,16 @@ function kindOf(record: FieldWriteRecord): string {
 
 /**
  * The parent key a row write inherits from its record, overwriting whatever the
- * caller passed. `program_code` rides along on the two tables whose composite
+ * caller passed. `program_code` rides along on the three tables whose composite
  * foreign key checks it against both ends (issues/25, issues/30), so a caller
- * cannot claim one program's area for another's course.
+ * cannot claim one program's area for another's course, nor — on
+ * `course_requirement_category` — one program's requirement category for
+ * another's course (issues/106).
  */
 function parentKey(table: string, context: Context): Record<string, unknown> {
   switch (table) {
     case "course_area":
+    case "course_requirement_category":
       return {
         course_id: expect(context.recordId, "course"),
         program_code: context.course?.programCode,
@@ -861,6 +867,7 @@ async function stamp(
     course_proposal: "course_proposal",
     course_proposal_review: "course_proposal_review",
     course_proposal_review_area: "course_proposal_review",
+    course_requirement_category: "course",
     offering: "offering",
     offering_area: "offering",
     offering_instructor: "offering",

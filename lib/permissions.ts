@@ -1,5 +1,5 @@
 /**
- * **The permission model** — the three transition matrices, the thirteen field
+ * **The permission model** — the three transition matrices, the fourteen field
  * classes, the three read tiers, the fourth page-level read predicate, the chair
  * bypass and the invariant list, in one module.
  *
@@ -441,8 +441,10 @@ export type FieldClass = {
  *
  * issues/8 named seven columns before most of these tables existed; issues/10
  * completed the map, the one place that ticket adds a rule rather than applying
- * one; issues/61 split the Roster class in two, taking the count to thirteen.
- * issues/62 gave seven of these classes a screen and added nobody to them.
+ * one; issues/61 split the Roster class in two, taking the count to thirteen, and
+ * issues/106 classified `course_requirement_category`, taking it to fourteen.
+ * issues/62 gave seven of these classes a screen and added nobody to them;
+ * issues/106's is the eighth, inheriting one by issues/62's own rule.
  *
  * `updated_at` / `updated_by` are deliberately **not** a class anyone chooses to
  * write — they are a side effect of the writer — but they are listed at the end
@@ -504,7 +506,16 @@ export const FIELD_CLASSES = [
     columns: ["course.area_head"],
     rows: ["course_area"],
     settledBy: ["issues/32", "issues/4", "issues/10"],
-    note: "State-blind, and the first Course field that is: `Approved` asserts nothing whatever about the area, because **proposers never requested one** (issues/32). Director alone — an area-head route was rejected structurally, since a course with no head has no such actor, so the route could only ever apply to *re*assignment, which is the incumbent naming their own successor. The writer also refuses a netid not holding the `area_head` role (standing principle 6) and refuses any write that would leave the area set empty or the head null: assignment is monotone, which is what makes the create-time gate on offerings sufficient forever.",
+    note: "State-blind, and the first Course field that is: `Approved` asserts nothing whatever about the area, because **proposers never requested one** (issues/32). Director alone — an area-head route was rejected structurally, since a course with no head has no such actor, so the route could only ever apply to *re*assignment, which is the incumbent naming their own successor. The writer also refuses a netid not holding the `area_head` role (standing principle 6) and refuses any write that would leave the area set empty or the head null: assignment is monotone, which is what makes the create-time gate on offerings sufficient forever. **What a course *counts toward* is not here** — same writer, different rule, and issues/106 gave it the class below.",
+  },
+  {
+    name: "Course requirement categories",
+    writers: [{ role: "program_director", via: "program_director(course.program_code)" }],
+    stateGate: { gate: "state-blind" },
+    columns: [],
+    rows: ["course_requirement_category"],
+    settledBy: ["issues/106", "issues/25", "issues/28", "issues/32"],
+    note: "**The table issues/28's growth case predicted, arriving** (issues/106). issues/25 put the course→category mapping in scope because the Catalog displays it, the table landed in the schema, and no class claimed it — so *a column with no class is unwritable* made it unwritable, which is how issues/78's seed found it. The course's own program director, because the **seat-sharing question cannot arise here**: the composite foreign keys check `program_code` against the course on one side and the category on the other, so a course's categories are always its own program's, where an offering's are by definition another's (issues/30). A class of its own rather than a line in Course assignment, and the whole of the difference is monotonicity. issues/32's *no write may leave the area set empty* exists because the Offering create path reads the area set; **no gate anywhere reads categories**, so carrying that rule across would refuse an ordinary curriculum revision for no stated reason. An `area_head` route was declined: a head heads an *area*, and a category is what the program's degree requires.",
   },
   {
     name: "Offering operational",
@@ -636,7 +647,7 @@ export const UNCLASSIFIED = {
   note: "No field class names this column, so nothing may write it. Classify it in `FIELD_CLASSES` — and in `docs/permissions/permissions.ts`, which is authoritative — behind a closed ticket.",
 } as const satisfies FieldClass;
 
-/** The same thirteen, widened off their literal types so they can be indexed. */
+/** The same fourteen, widened off their literal types so they can be indexed. */
 const CLASSES: readonly FieldClass[] = FIELD_CLASSES;
 
 function indexBy(keysOf: (fieldClass: FieldClass) => readonly string[]) {

@@ -57,7 +57,7 @@ Three consequences worth having in view before reading the artifact:
 | `Relationship`, `Route` | the scope half of a permission, and the rule that conjunctions are OR'd independently |
 | `CHAIR_BYPASS` | the chair's one OR-clause, and the three things it never reaches |
 | `COURSE_PROPOSAL_REVIEW_MATRIX`, `COURSE_MATRIX`, `OFFERING_MATRIX` | who fires which transition, plus the two creation acts |
-| `FIELD_CLASSES` | the thirteen-class field map, moved here from `docs/schema/` |
+| `FIELD_CLASSES` | the fourteen-class field map, moved here from `docs/schema/` |
 | `READ_TIERS` | the three tiers, each with a may-read and a may-act predicate |
 | `ROLES_PAGE` | the fourth read predicate, which governs a page rather than a table |
 | `INVARIANTS`, `FURTHER_INVARIANTS`, `REVOCATION_REFUSALS` | the actorless rules that bind the chair and the seed too |
@@ -361,6 +361,52 @@ the same drafting pass.
   fixed silently, per [#50](https://github.com/nopivnick/lineup-prototype-03/issues/50).
   **The invariant lists in the two files now agree**, entry for entry and citation for
   citation, modulo the copy's `issues/n` style — so `lib/permissions.ts` needs no edit.
+
+- **`course_requirement_category` is classified, and it is a fourteenth class rather than a
+  line added to a thirteenth** — by
+  [`course_requirement_category` is in no field class, so nothing may write it](https://github.com/nopivnick/lineup-prototype-03/issues/106),
+  raised by [#78](https://github.com/nopivnick/lineup-prototype-03/issues/78) while building
+  the seed. **This is #28's growth case arriving on schedule.** The map was declared as
+  *data* so that adding a column later would force someone to classify it rather than
+  leaving an open door; a table reached `docs/schema/classes.sql`, nobody classified it, and
+  the field writer refused it — correctly and loudly. What made it visible was a build
+  effort: [#25](https://github.com/nopivnick/lineup-prototype-03/issues/25) put the
+  course→category mapping in scope because the Catalog displays it and
+  [#74](https://github.com/nopivnick/lineup-prototype-03/issues/74) asks each Catalog row to
+  carry it, so the seed had seventeen rows to write and no path to write them through. It
+  wrote them raw beside the reference data, named the hole in a comment, and filed the
+  ticket rather than widening a writer to make itself pass.
+
+  **The writer is the course's own program director, and there was never a second candidate.**
+  The one place this model scopes a tag by the *tag's* program rather than the record's is
+  seat sharing, and that question **cannot arise on this table**: the composite foreign keys
+  check `program_code` against the course on one side and the category on the other, so a
+  course's categories are always its own program's. An offering's are by definition another
+  program's, which is the whole of what
+  [#30](https://github.com/nopivnick/lineup-prototype-03/issues/30) left as the sole
+  exception. The two rules read alike and are about opposite things.
+
+  **The class is separate because monotonicity is, and monotonicity had a reason.**
+  [#32](https://github.com/nopivnick/lineup-prototype-03/issues/32) refuses any write that
+  empties a course's area set for one stated purpose — the Offering create path refuses a
+  course with no area and no head, so the create-time gate is only sufficient forever if the
+  set cannot be emptied afterwards. **No gate anywhere reads categories.** Folding the table
+  into Course assignment would therefore have imported a refusal with no argument behind it,
+  and it would refuse an ordinary curriculum revision that drops a requirement — the map's
+  standing preference for the loud under-grant does not extend to inventing a rule nobody
+  ruled. And carving categories back out of the inherited rule is the separate class wearing
+  a disguise, so it is a separate class. The `area_head` route the artifact declines was
+  weighed here and lost on the same axis.
+
+  **The seed's raw write is deleted**, and `db/seed.ts` now writes the rows through
+  `writeFields` as each course's program director at the moment the course is minted — so
+  the acceptance criteria [#78](https://github.com/nopivnick/lineup-prototype-03/issues/78)
+  wrote for itself hold, and the reference data plus the `person` rows are once more the
+  only writes in the run with no in-app author. **One consequence is visible in the
+  fixtures**: the field writer stamps the record any row write hangs off, so every course
+  now carries `updated_at` / `updated_by` where only C1 did. That is the write showing up,
+  not a course claiming an edit it never had, and step 10's seat-sharing tags already
+  stamped O22 the same way.
 
 ## What #65 left for the prototypes
 

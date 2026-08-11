@@ -439,7 +439,8 @@ export type FieldClass = {
  *
  * #8 named seven columns before most of these tables existed; #10 completed the map,
  * which is the one place that ticket adds a rule rather than applying one. #61 then
- * split the Roster class in two, taking the count to thirteen.
+ * split the Roster class in two, taking the count to thirteen, and #106 classified
+ * `course_requirement_category` — the growth case, arriving — taking it to fourteen.
  *
  * **This map lived in `docs/schema/README.md` until #50 moved it here**, on the
  * grounds that it is #28's third ruling and went to schema only because permissions
@@ -452,7 +453,8 @@ export type FieldClass = {
  *
  * #62 gave seven of these classes a screen and added nobody to them: an edit page
  * per record, rendering only the classes open to you, with the rest stated as
- * refusals in the rail.
+ * refusals in the rail. #106's is the eighth, and it inherits that page by #62's
+ * own rule rather than by a redraw.
  */
 export const FIELD_CLASSES = [
   {
@@ -510,7 +512,15 @@ export const FIELD_CLASSES = [
     stateGate: { gate: "state-blind" },
     columns: ["course.area_head", "course_area rows"],
     settledBy: ["#32", "#4", "#10"],
-    note: "State-blind, and the first Course field that is: `Approved` asserts nothing whatever about the area, because **proposers never requested one** (#32). That is what showed #8's per-artifact split was really the same field-class cut applied twice. Director alone — an area-head route was rejected structurally, since a course with no head has no such actor, so the route could only ever apply to *re*assignment, which is the incumbent naming their own successor. The writer also **refuses a netid not holding the `area_head` role** (standing principle 6) and refuses any write that would leave the area set empty or the head null: assignment is monotone, with no unassign operation, which is what makes the create-time gate sufficient forever.",
+    note: "State-blind, and the first Course field that is: `Approved` asserts nothing whatever about the area, because **proposers never requested one** (#32). That is what showed #8's per-artifact split was really the same field-class cut applied twice. Director alone — an area-head route was rejected structurally, since a course with no head has no such actor, so the route could only ever apply to *re*assignment, which is the incumbent naming their own successor. The writer also **refuses a netid not holding the `area_head` role** (standing principle 6) and refuses any write that would leave the area set empty or the head null: assignment is monotone, with no unassign operation, which is what makes the create-time gate sufficient forever. **What a course *counts toward* is not here** — same writer, different rule, and #106 gave it the class below.",
+  },
+  {
+    name: "Course requirement categories",
+    writers: [{ role: "program_director", via: "program_director(course.program_code)" }],
+    stateGate: { gate: "state-blind" },
+    columns: ["course_requirement_category rows"],
+    settledBy: ["#106", "#25", "#28", "#32"],
+    note: "**The table #28's growth case predicted, arriving** (#106). #25 put the course→category mapping in scope because the Catalog displays it, #74 asks each Catalog row to carry it, the table landed in `docs/schema/classes.sql` — and no field class ever claimed it, so *a column with no class is unwritable* made it unwritable. Correctly and loudly, which is the whole point of that rule: it surfaced when #78's seed had to write seventeen rows with no writer to write them through. The course's own program director, because **the seat-sharing question cannot arise on this table**: the composite foreign keys check `program_code` against the course on one side and the category on the other, so a course's categories are always its own program's, where an offering's are by definition another's (#30, #25). A **class of its own rather than a line added to Course assignment**, and the whole of the difference is monotonicity. #32's *no write may leave the area set empty* exists for one reason — the Offering create path refuses a course with no area and no head, so an emptied area set would break a gate the model relies on being sufficient forever. **No gate anywhere reads categories.** Carrying the rule across would be a refusal with no argument behind it, and it would refuse an ordinary curriculum revision that drops a requirement. An `area_head` route was declined on the area assignment's own ground and on one of its own: a head heads an *area*, and a category is what the **program's** degree requires. Two of the seventeen fixture courses carry a category and no head at all, so that route could never have been the only one. Under-grants are loud and over-grants are silent (#8).",
   },
   {
     name: "Offering operational",

@@ -100,7 +100,7 @@ restated.
 
 **Row types reference the schema and the machines rather than restating them.** The event
 unions come off the machines through `EventFromLogic`, the Course and review state unions
-through `StateValueFrom` (only `offering.machine.ts` exports its own), and the thirteen
+through `StateValueFrom` (only `offering.machine.ts` exports its own), and the fourteen
 field-class names off `FIELD_CLASSES` in
 [`docs/permissions/permissions.ts`](../permissions/permissions.ts). A state renamed in a
 machine is a compiler error here rather than something discovered while building.
