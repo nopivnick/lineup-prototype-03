@@ -85,6 +85,28 @@ accident:
   writers to make the seed pass. #106 is what that looks like when it closes: the table
   got a field class of its own, and the seed's raw insert became a `writeFields` call.
 
+**Nobody signs in**, by [#79](https://github.com/nopivnick/lineup-prototype-03/issues/79).
+`lib/auth/actor.ts` is the application's only identity import and has exactly one
+implementation at a time — there is no `if (dev)` anywhere, and wiring SSO means replacing
+that module's body, so *the dev path is in* and *SSO is wired* cannot both be true. Three
+things about it are structural rather than conventional:
+
+- It is gated on **`ALLOW_DEV_ACTOR` and never on `NODE_ENV`**, because Vercel sets
+  `NODE_ENV=production` on previews too and the skeleton exists to be shown on one. Without
+  the flag the module throws at import and `next build` fails; CI's build job sets it, and
+  the day SSO lands that line comes out with the reader's body.
+- **What the switcher persists is a netid and nothing else.** Roles reach the dev bar as
+  labels from `db/read/directory.ts` — one of the two anonymous reads `READ_TIERS` allows —
+  and reach a *decision* only inside the locking transaction that decides, through
+  `readActorFacts` in `db/write/rules.ts`. A set resolved at request scope would already be
+  stale.
+- **Every Server Action starts with `requireActor()`** and rejects a null actor rather than
+  guessing at one. `getActor()` returning `null` is not an error: it means nobody has been
+  chosen, and the reader lands on `/be-somebody`.
+
+The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/` and the dev bar in
+`app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose body it replaces.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
