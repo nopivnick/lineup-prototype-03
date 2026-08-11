@@ -232,6 +232,30 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   per-transaction setting, which works and which #13, #28 and #30 have each already refused
   in a trigger's shape, on *where would a reader find it*.
 
+- **`db/read/` holds the seven view-shaped modules and two dev ones** — by
+  [Be somebody: the dev identity reader and the thirteen-person switcher](https://github.com/nopivnick/lineup-prototype-03/issues/79),
+  amending this package's *the seven view-shaped read modules* where it describes the layer's
+  contents. The switcher needs a list of people and each person's roles, and **no view lists
+  people** — the Catalog is person-free by [#37](https://github.com/nopivnick/lineup-prototype-03/issues/37)
+  and the Lineup lists offerings. So `db/read/directory.ts` is a real read module by the
+  boundary rule that matters (it is where the handle may be held, and a page still writes no
+  `WHERE` clause) and is not one of the seven by the rule that names them.
+
+  Both of its reads are **anonymous, subject to no tier**, which is not a new licence:
+  `READ_TIERS` tier 1 already named them — *two anonymous reads survive, both dev-only
+  machinery the SSO swap deletes: the dev bar's user list and its role labels*. What #79
+  adds is where they live. The alternative, reading the list out of `db/fixtures.ts`, was
+  rejected for coupling identity to fixture ordering — the same ground #11 rejected an index
+  into a fixture array on.
+
+  **`getActorRoles` moved with them**, to `db/read/actor-roles.ts`, and is unchanged: still
+  keyed by netid, still `cache()`d, still emphatically the read side. The write side re-reads
+  inside the locking transaction and does not call it. The **module boundary was widened by
+  nothing** — `db/read/**` was already inside it in `eslint.config.mjs`, and #79 shut a second
+  door rather than opening one: `cookies` is now a restricted import everywhere but
+  `lib/auth/`, so *`getActor()` is the app's only identity import* fails the build rather than
+  being a claim in a doc comment.
+
 - **Two write paths became three, and this transcription counts a fourth** —
   [#61](https://github.com/nopivnick/lineup-prototype-03/issues/61) added
   [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s single **field

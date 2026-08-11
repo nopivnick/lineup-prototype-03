@@ -94,6 +94,13 @@ jobs:
   # it in front of the compiler.
   build:
     runs-on: ubuntu-latest
+    env:
+      # The dev identity reader throws at module scope without this (#11, #79),
+      # so a build carrying it does not compile — which is the gate working, not
+      # a CI quirk. `next build` evaluates every route's modules, and every route
+      # resolves an actor. The day SSO is wired, `lib/auth/actor.ts`'s body is
+      # replaced and this line comes out with it.
+      ALLOW_DEV_ACTOR: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

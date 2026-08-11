@@ -10,10 +10,13 @@ narrower than usual.
 
 ```
 npm install
-cp .env.example .env.local     # fill in four connection strings
+cp .env.example .env.local     # four connection strings, and ALLOW_DEV_ACTOR
 npm run db:reset               # drop both, migrate both, seed the fixture world
 npm run dev
 ```
+
+There is no login screen. The first thing the app asks is **who you are**, and the answer is
+one click from a list of the seed's thirteen people.
 
 `docs/` still holds the spec, and it is still reference rather than application code —
 nothing imports it into the running system. What changed is that there is now a running
@@ -98,6 +101,45 @@ write a `WHERE` clause at all, because they never hold a handle. See
 
 `drizzle()` is handed no schema, so `db.query.<table>` does not exist on the object. Every
 read is core `select()` / `leftJoin()`.
+
+## Be somebody
+
+[`lib/auth/actor.ts`](./lib/auth/actor.ts) is the application's **only identity import**, and
+there is exactly one implementation of it at a time. `getActor()` reads a cookie whose entire
+payload is a **netid** and returns `{ netid } | null`; `null` is not an error, it means nobody
+has been chosen, and the reader lands on `/be-somebody` instead — the same shape as *no
+session → sign in*. Wiring NYU's SSO means replacing that module's body, so *the dev path is
+in* and *SSO is wired* cannot both be true. There is no `if (dev)` anywhere.
+
+The module is gated on **`ALLOW_DEV_ACTOR` and never on `NODE_ENV`**: Vercel sets
+`NODE_ENV=production` on previews too, and a `NODE_ENV` gate would brick the exact deployment
+this skeleton exists to be shown on. Without the flag the module throws at import, so a build
+carrying the dev reader does not start — `next build` fails, and CI's build job sets the flag
+for that reason.
+
+**The inherited risk travels with it**: the gate is chosen *so preview deploys carry it*,
+which means a preview URL lets anyone with the link be any user. Protect the deployment.
+
+**The switcher carries a netid and nothing else** — never a role. A serialized
+`{netid, roles}` cookie would make the JSON an interface, and the role set has changed three
+times. It is not a role switcher either: permissions OR independently-evaluated
+`(role, relationship)` conjunctions, so narrowing to one active role would stop the app
+running the rule under test. *See it as instructor-only* is a fixture concern — be a person
+who holds only `instructor`.
+
+Nothing else in the app may read that cookie. `cookies` is a restricted import outside
+`lib/auth/`, under the same rule that keeps handles out of pages, so a second reader of the
+actor — a second implementation of identity — fails the build.
+
+**Roles are read where they are used**, three times in a request, each at the moment its
+answer is used. The dev bar's list of people comes from
+[`db/read/directory.ts`](./db/read/directory.ts) and the actor's own labels from
+[`db/read/actor-roles.ts`](./db/read/actor-roles.ts) — the two anonymous reads `READ_TIERS`
+allows. A *rule* consults neither: `readActorFacts` in
+[`db/write/rules.ts`](./db/write/rules.ts) re-reads `user_role` and `program_director` inside
+the locking transaction, because a set resolved at request scope would be stale by the time a
+writer used it. Every Server Action starts with `requireActor()` and rejects a null actor
+rather than guessing at one.
 
 ## The lifecycles and the rules
 
