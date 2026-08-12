@@ -1,25 +1,22 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import {
   Alert,
   Badge,
   Box,
   Button,
   Group,
-  List,
   Menu,
   Modal,
   Stack,
   Text,
   Textarea,
   TextInput,
-  Tooltip,
 } from "@mantine/core";
 import { DataTable } from "mantine-datatable";
 
-import type { ProposalGroup, ProposalReviewRow, ReviewEventName } from "@/db/read/proposals";
+import type { ProposalGroup, ProposalReviewRow, ReviewEventName } from "@/db/read/review-rows";
 import type { Refusal } from "@/db/read/shape";
 
 import { EXPLAINED_REVIEW } from "../explained-moves";
@@ -28,6 +25,9 @@ import { OpenCourse } from "../open-course";
 import { hueOf } from "../program-hue";
 import { OpenReview } from "../open-review";
 import { fireReviewEvent } from "../review-actions";
+import { reviewWhere } from "../review-where";
+import { REVIEW_TONE, Verdicts } from "../verdicts";
+import { Refused } from "../refused";
 
 /**
  * **The proposals list** (issues/42, issues/85).
@@ -140,7 +140,7 @@ export function ProposalsList({ groups }: { groups: readonly ProposalGroup[] }) 
                     accessor: "state",
                     title: "State",
                     render: (row) => (
-                      <Badge color={TONE[row.state]} variant="light">
+                      <Badge color={REVIEW_TONE[row.state]} variant="light">
                         {row.state}
                       </Badge>
                     ),
@@ -216,78 +216,15 @@ export function ProposalsList({ groups }: { groups: readonly ProposalGroup[] }) 
 }
 
 /**
- * *Physical Computing II · ITP* — which review a control is about, built once
- * and read by both controls on the row. Two spellings of one address is how the
- * menu's heading and the `↗`'s label come to name the same review differently.
+ * *Physical Computing II · ITP* — which review a control is about, built once and
+ * read by both controls on the row. The spelling is `../review-where`'s since
+ * issues/86, because the review page names the same review in its breadcrumb, its
+ * move box and its restated group header: two spellings of one address is how a
+ * menu's heading and a link's label come to name the same review differently.
  */
 function whichReview(group: ProposalGroup, review: ProposalReviewRow): string {
-  return `${group.title} · ${review.programCode}`;
+  return reviewWhere(group.title, review.programCode);
 }
-
-// ---------------------------------------------------------------------------
-// The verdict chips
-// ---------------------------------------------------------------------------
-
-/**
- * **`ITP ✓ · IMA ◐ · LOW ✗`** — every program's verdict on the group header,
- * shown whether or not the reader's arms reach that review (issues/42).
- *
- * Two signals per chip, the glyph and the hue, so the verdict does not rest on
- * colour; the state is in the tooltip in words, which is the third. They are
- * **not** narrowed by the filter: the chips are what the department has decided,
- * and the filter is a question about today's work.
- *
- * **Each chip is a link, and that is the load-bearing half.** A chip whose row
- * the filter has dropped — an `Approved` sibling under the default *In play* —
- * would otherwise announce a review and offer no way to reach it. A chip outside
- * the reader's arms opens the review **read-only**, which `getReviewPage`
- * settled on this control's account: refusing the page after the chip has
- * already stated the verdict would be incoherent.
- */
-function Verdicts({ verdicts }: { verdicts: ProposalGroup["verdicts"] }) {
-  return (
-    <Group gap={4}>
-      {verdicts.map((verdict) => (
-        <Tooltip
-          key={verdict.reviewId}
-          withArrow
-          label={`${verdict.programCode} — ${verdict.state}. Open this review.`}
-        >
-          <Badge
-            component={Link}
-            href={`/reviews/${verdict.reviewId}`}
-            color={TONE[verdict.state]}
-            variant="light"
-            size="sm"
-            style={{ cursor: "pointer" }}
-          >
-            {verdict.programCode} {GLYPH[verdict.state]}
-          </Badge>
-        </Tooltip>
-      ))}
-    </Group>
-  );
-}
-
-/**
- * One glyph per review state, and typed as a total `Record` over the state union
- * so a state added to the machine is a compiler error here rather than a chip
- * that renders with no verdict at all.
- */
-const GLYPH: Readonly<Record<ProposalReviewRow["state"], string>> = {
-  Proposed: "○",
-  Developing: "◐",
-  Approved: "✓",
-  Rejected: "✗",
-};
-
-/** The two ends of the lifecycle read as ends; the two in play read as in play. */
-const TONE: Readonly<Record<ProposalReviewRow["state"], string>> = {
-  Proposed: "gray",
-  Developing: "yellow",
-  Approved: "green",
-  Rejected: "orange",
-};
 
 const PROPOSED = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -518,24 +455,3 @@ function MoveBox({
   );
 }
 
-/**
- * A refusal, rendered as the one value it is (issues/14): the sentence, and —
- * where the refusal's whole content is data elsewhere in the system — the
- * dependency listed beneath it (issues/38).
- */
-function Refused({ refusal }: { refusal: Refusal }) {
-  return (
-    <Box>
-      <Text size="xs" c="dimmed">
-        {refusal.sentence}
-      </Text>
-      {refusal.dependencies.length > 0 ? (
-        <List size="xs" c="dimmed" withPadding>
-          {refusal.dependencies.map((dependency) => (
-            <List.Item key={dependency}>{dependency}</List.Item>
-          ))}
-        </List>
-      ) : null}
-    </Box>
-  );
-}

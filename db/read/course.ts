@@ -25,6 +25,7 @@ import {
   type CourseEventName,
   type NotOfferableYet,
 } from "./course-rows";
+import { bodyHasDrifted } from "./review-rows";
 import {
   asLineupRow,
   netidsOn,
@@ -282,10 +283,18 @@ export async function getCoursePage(
       mintedFrom: {
         reviewId: String(record.reviewId),
         programCode: record.reviewProgramCode,
-        bodyHasDriftedSince:
-          record.proposalTitle !== record.title ||
-          record.proposalDescription !== record.description ||
-          record.proposalCredits !== record.credits,
+        // **The comparator is `db/read/review-rows.ts`'s**, shared with the
+        // review page, which states the same fact about any mint on its
+        // proposal (issues/86). A fact whose entire content is that two records
+        // disagree is the last one two screens should each derive.
+        bodyHasDriftedSince: bodyHasDrifted(
+          {
+            title: record.proposalTitle,
+            description: record.proposalDescription,
+            credits: record.proposalCredits,
+          },
+          { title: record.title, description: record.description, credits: record.credits },
+        ),
       },
       actions: mayAct
         ? courseActionsFor(

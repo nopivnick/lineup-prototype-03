@@ -1,9 +1,9 @@
-import { Box, Group, Stack, Text } from "@mantine/core";
+import { Group, Stack, Text } from "@mantine/core";
 
 import type { History, HistoryLine } from "@/db/read/shape";
 
 import { Named } from "../../named";
-import { stamp } from "../../stamp";
+import { HistoryRow } from "../../history-row";
 
 /**
  * **History is a sentence per row, full width, at the foot of the main column**
@@ -48,8 +48,8 @@ export function OfferingHistory({ history }: { history: History }) {
       </Group>
 
       <Stack gap={0}>
-        <Line
-          dot={<Dot derived />}
+        <HistoryRow
+          derived
           said={
             <Text size="sm">
               <Named who={history.creation.by} /> slated it
@@ -59,9 +59,8 @@ export function OfferingHistory({ history }: { history: History }) {
         />
 
         {history.moves.map((move, index) => (
-          <Line
+          <HistoryRow
             key={index}
-            dot={<Dot />}
             said={
               <Text size="sm">
                 <Named who={move.actor} bold /> {said(move)}
@@ -84,35 +83,6 @@ export function OfferingHistory({ history }: { history: History }) {
         ))}
       </Stack>
     </Stack>
-  );
-}
-
-function Line({ dot, said, at }: { dot: React.ReactNode; said: React.ReactNode; at: string }) {
-  return (
-    <Group gap="sm" align="flex-start" wrap="nowrap" py={6}>
-      <Box pt={5}>{dot}</Box>
-      <Box>
-        {said}
-        <Text size="xs" c="dimmed">
-          {stamp(at)}
-        </Text>
-      </Box>
-    </Group>
-  );
-}
-
-/** Hollow for the derived creation line, filled for a move the log actually holds. */
-function Dot({ derived = false }: { derived?: boolean }) {
-  return (
-    <Box
-      w={9}
-      h={9}
-      style={{
-        borderRadius: "50%",
-        border: "1.5px solid var(--mantine-color-dimmed)",
-        background: derived ? "transparent" : "var(--mantine-color-dimmed)",
-      }}
-    />
   );
 }
 

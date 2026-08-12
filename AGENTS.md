@@ -355,6 +355,72 @@ record on another screen. Two controls point at routes that do not exist yet, bo
 own words: `Propose a course` at `/propose`, which #88 builds, and every row's `↗` at
 `/reviews/:id`, which #86 builds.
 
+**The seventh screen is the review page**, built by
+[#86](https://github.com/nopivnick/lineup-prototype-03/issues/86): `db/read/review.ts` is the
+**last of the seven** view-shaped read modules the map names — the data-access seam is complete
+with it — and `app/(signed-in)/reviews/[reviewId]/` is the screen, which takes
+#83's page conventions unchanged. It is **the first read in the whole map that returns the same
+record at two fidelities**. Five things about it are structural rather than conventional:
+
+- **The two fidelities are Tier 3's may-read against its may-act, and they are one type.**
+  Reachability is the **proposal's** — any one arm opens every sibling, which is #42's deliberate
+  widening — and fidelity is the **review's**. A review outside your arms opens read-only: `actions`
+  and `edit` `null`, controls **and** refusals absent together (#38), and the body, the assignment,
+  the siblings and the history **with its reasons** intact, which was the entire justification. A
+  second, thinner page type was refused: the thing that must not drift is precisely what a read-only
+  reader keeps. `fidelity` is stated rather than inferred from `actions === null`, because a
+  *finished* review at the acting fidelity carries an **empty** action set and must not get the
+  read-only banner.
+- **The history is never absent here, and the *last changed* box goes with it.** On the Course and
+  Offering pages both are Tier 2's — *if you can do nothing, you may not see the record of who did*
+  — so a `student` and an `advisor` lose them. `course_proposal_review_transition` rows are **Tier
+  3's own subject**, and Tier 3's may-read is what admitted this reader, so `ReviewPage.history` is
+  not nullable. The stamp is the **later of the review's and the proposal's**, because this page's
+  `Edit` control is the only one in the skeleton that opens two stamped tables and a box reading
+  either alone would sit unmoved after an edit made from that very page.
+- **`db/read/review-rows.ts` is the sixth shared module**, and it moved on the terms
+  `reviewActionsFor` stated in its own comment while it still lived in `db/read/proposals.ts`. It
+  carries `ProposalGroup` as well as the row: the page **restates the group header above the
+  record**, so a second assembly would be a second answer to *what has every program decided* on the
+  one screen whose justification is that the answer is not the reader's to guess.
+- **The record-level refusal names no program**, which is #84's rule arriving on the third record
+  page: `getReviewPage` reaches one not-visible answer from four worlds and a program name is a fact
+  it could only have by reading the record it is refusing. The **group is the unit of the read** — a
+  self-join fetches every sibling in one statement, because the tier cannot be answered off the
+  addressed review alone. Two `classes` statements and one `people` statement; a refused review
+  costs one, an address that is not an id costs none.
+- **`describe` now says the `Developing` qualifier out loud**, which is #84's `whoMay` correction one
+  route along and the second time a rail found a route description saying less than the rule. #65 put
+  that condition **in the relationship** rather than in the state gate, so an `Approved` ITP review of
+  a proposal IMA has sent back refused ITP's own director with *"Only … ITP's program director … can
+  change this record's proposal body"* — a sentence naming a role its reader holds, with no *Not now*
+  beside it to explain the shape.
+
+**Four renderings moved up beside `named.tsx`, `stamp.ts` and `program-hue.ts`**, all for the reason
+those moved — a rendering the map spends paragraphs on, carried privately by two screens, is how one
+copy quietly stops obeying the paragraph:
+
+- **`verdicts.tsx`** — the verdict chip, now on the proposals list and on the page its chips open. A
+  glyph or a hue meaning one thing on one screen and another on the next would break the only work
+  either does, which is being recognised across a click. The page's copy adds one prop, *which chip
+  is you are here*, rendered as a filled chip against light ones — a second signal beside the
+  tooltip's words rather than a colour of its own, the hue being already spent on the verdict.
+- **`refused.tsx`** — `Refused` and `LabelledRefusal`, the rendering of #14's one-object rule and
+  #38's *name the dependency and list it*. Five screens carried an identical private copy; the fifth
+  is what made the count worth the move.
+- **`history-row.tsx`** — the history's chrome and **not its sentences**. #41 settled that a line may
+  invent wording the machine never said and may never invent a fact, so each page keeps its own
+  `SAID` map. What is shared is the hollow-versus-filled dot, which is a **rule**: #13 refused a
+  genesis row, so the opening line is derived rather than logged and the dot is the only thing that
+  says so.
+- **`review-where.ts`** — *Physical Computing II · ITP*, the label three screens put on one review.
+  A plain module and not a `"use client"` one, deliberately: a Server Component imports it, and a
+  client module's exports reach the server as client **references**, which is #85's trap and
+  typechecks and builds before it fails.
+
+The rail's `Edit` control points nowhere here too, which #86 sanctioned in as many words, and
+`/reviews/:id/edit` is #62's.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

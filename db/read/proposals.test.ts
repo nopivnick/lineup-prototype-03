@@ -34,14 +34,8 @@ import { writeToClasses, type Id } from "@/db/write/transaction";
 import { writeFields } from "@/db/write/write-fields";
 
 import { getActorFacts } from "./actor-facts";
-import {
-  getProposalsPage,
-  mayProposeACourse,
-  type ProposalGroup,
-  type ProposalReviewRow,
-  type ProposalsFilters,
-  type ReviewEventName,
-} from "./proposals";
+import { getProposalsPage, mayProposeACourse, type ProposalsFilters } from "./proposals";
+import type { ProposalGroup, ProposalReviewRow, ReviewEventName } from "./review-rows";
 
 /**
  * **The round-trip counter**, the same device `db/read/lineup.test.ts` uses:

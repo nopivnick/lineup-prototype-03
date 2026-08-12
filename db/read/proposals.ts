@@ -1,23 +1,10 @@
 import "server-only";
 
-import { asc, desc, eq, sql } from "drizzle-orm";
-import type { EventFromLogic } from "xstate";
+import { asc, desc, eq } from "drizzle-orm";
 
-import {
-  area,
-  course,
-  courseProposal,
-  courseProposalReview,
-  courseProposalReviewArea,
-} from "@/db/classes/schema";
+import { course, courseProposal, courseProposalReview } from "@/db/classes/schema";
 import { classesDb } from "@/db/handles";
-import {
-  notYours,
-  permitted,
-  routesFor,
-  type ActorFacts,
-  type Subject,
-} from "@/db/write/rules";
+import { permitted, routesFor, type ActorFacts } from "@/db/write/rules";
 import type { Netid } from "@/db/write/transaction";
 import type { Actor } from "@/lib/auth/actor";
 import {
@@ -27,15 +14,16 @@ import {
 } from "@/lib/machines/course-proposal-review.machine";
 
 import { getActorFacts } from "./actor-facts";
-import { qualified } from "./qualified";
 import {
-  mayActOnReview,
-  mayOpenProposals,
-  type OwnTag,
-  type PermittedAction,
-  type Visible,
-} from "./shape";
-import { stitchNames, type Directory, type StitchedName } from "./stitch";
+  armsReach,
+  asReviewRow,
+  REVIEW_AREAS,
+  type ProposalGroup,
+  type ProposalReviewRow,
+  type ReviewRowSource,
+} from "./review-rows";
+import { mayOpenProposals, type Visible } from "./shape";
+import { stitchNames, type Directory } from "./stitch";
 
 /**
  * **The proposals list: one group per proposal, one row per review** (issues/42,
@@ -70,86 +58,13 @@ import { stitchNames, type Directory, type StitchedName } from "./stitch";
  * **The tier narrows in this module rather than in the query**, which is a
  * departure from the Lineup and the Course page and the one thing here a build
  * agent reading issues/82 alone would do differently. See `reachable` below.
- */
-
-/**
- * **One group per proposal.** The shared body sits here and is stated once —
- * title, credits, who proposed it and when — and a review row carries only what
- * differs between siblings.
- */
-export type ProposalGroup = {
-  proposalId: string;
-  title: string;
-  credits: number;
-  proposedBy: StitchedName;
-  proposedAt: string;
-  /**
-   * **Every program's verdict, whether or not your arms reach it** — `ITP ✓ ·
-   * IMA ◐ · LOW ✗` (issues/42).
-   *
-   * Never narrowed by the filter either: the filter says which reviews are worth
-   * a row today, and the chips say what the department has decided, which is a
-   * fact about the proposal rather than about the reader's current question.
-   *
-   * **`reviewId` rides on each chip, which widens the artifact's
-   * `{ programCode, state }` by one field** (issues/85, amending issues/42's
-   * `ProposalGroup`). The chip is not a label: in variant D it is the **control
-   * that opens that review**, and `getReviewPage`'s own reasoning is written on
-   * that premise — *refusing the page when they click it would be incoherent,
-   * because the chip has already leaked the verdict*. Without the id the chip
-   * cannot be a link, and the filter then hides reviews the chips announce: a
-   * sibling that is `Approved` has no row under the default view, so the only
-   * route to it on this screen would be gone. Recorded in
-   * `docs/data-access/README.md`.
-   */
-  verdicts: readonly { reviewId: string; programCode: string; state: ReviewState }[];
-  /** Every review, as rows — narrowed by the filter and by nothing else. */
-  reviews: readonly ProposalReviewRow[];
-};
-
-/**
- * One review: **the row *is* the request** (issues/10), which is why no
- * requested-programs table exists and why this row carries a program rather than
- * the proposal carrying a list of them.
- */
-export type ProposalReviewRow = {
-  reviewId: string;
-  programCode: string;
-  state: ReviewState;
-  areaHead: StitchedName | null;
-  areas: readonly OwnTag[];
-  /**
-   * The course this review's `approve` minted, where it has one (issues/42,
-   * issues/49). `course.minted_from_review_id` is the column issues/42 added and
-   * issues/49 tightened to `NOT NULL`, so this join is the one route from a
-   * decision to its consequence.
-   */
-  mintedCourse: { courseId: string; courseNumber: string } | null;
-  /**
-   * **`null` is read-only, not *can never act*** — which is this module's one
-   * departure from the Catalog's and the Lineup's reading of the same field.
-   *
-   * There, a `null` action set means the reader holds no acting role at all and
-   * the column is absent from the table. Here the whole screen is already refused
-   * to those readers, and what `null` marks is a **sibling review outside your
-   * arms**: issues/38's rule that read-only means controls *and* refusals absent
-   * rather than greyed. A refused control the reader was never eligible for is
-   * dead text explaining a button that was never there.
-   */
-  actions: readonly PermittedAction<ReviewEventName>[] | null;
-};
-
-/**
- * The review machine's event names, read off the machine rather than restated
- * (issues/13's rule that a hand-maintained second list is the thing that gets
- * forgotten).
  *
- * Named `ReviewEventName` and not `ReviewEvent` because
- * `db/write/apply-transition.ts` already owns that name for the richer thing a
- * *transition* carries — here `approve` arrives with the course number its mint
- * will use. A row offers a move; the writer takes the move and what came with it.
+ * **The group, the row and the permitted-action set are `db/read/review-rows.ts`**
+ * since issues/86, which built the second view of a review. They lived here while
+ * there was one, and moved on the terms `reviewActionsFor` itself stated: two
+ * screens offering different moves on one record, neither of them the writer's
+ * answer, is what a second intersection produces.
  */
-export type ReviewEventName = EventFromLogic<typeof reviewMachine>["type"];
 
 /**
  * **Four filters, and finished reviews stay in the query and out of the
@@ -265,40 +180,20 @@ export async function mayProposeACourse(actor: Actor): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
-// The one statement's children
+// The one statement's rows
 // ---------------------------------------------------------------------------
 
 /**
- * A review's areas, as JSON beside the review row — the review-level half of the
- * assignment `approve` copies into `course_area` (issues/25, issues/32).
- *
- * The composite foreign key makes *a review's areas are its own program's* a
- * database rule, so these render unlabelled for the reason a course's own tags
- * do: the only program name a screen puts against a record other than its own is
- * a seat-sharing grant, and seat sharing attaches to a section.
+ * One row of the one statement: a review, with its proposal's body repeated
+ * beside it. The review's own half is `ReviewRowSource`, shared with the record
+ * page that reads the same columns.
  */
-const REVIEW_AREAS = sql<readonly OwnTag[]>`(
-  SELECT coalesce(json_agg(json_build_object('name', ${qualified(area.name)}) ORDER BY ${qualified(area.name)}), '[]'::json)
-  FROM ${courseProposalReviewArea}
-  JOIN ${area} ON ${qualified(area.areaId)} = ${qualified(courseProposalReviewArea.areaId)}
-  WHERE ${qualified(courseProposalReviewArea.courseProposalReviewId)}
-      = ${qualified(courseProposalReview.courseProposalReviewId)}
-)`;
-
-/** One row of the one statement: a review, with its proposal's body repeated beside it. */
-type Row = {
+type Row = ReviewRowSource & {
   proposalId: number;
   title: string;
   credits: number;
   createdBy: Netid;
   createdAt: Date;
-  reviewId: number;
-  programCode: string;
-  status: string | null;
-  areaHead: Netid | null;
-  areas: readonly OwnTag[];
-  mintedCourseId: number | null;
-  mintedCourseNumber: string | null;
 };
 
 /** A proposal and its reviews, before either the tier or the filter has been asked. */
@@ -365,13 +260,13 @@ function shown(
   const out: ProposalGroup[] = [];
 
   for (const group of groups) {
-    const arms = group.reviews.map((review) => mayActOnReview(facts, subjectFor(group, review)));
+    const arms = group.reviews.map((review) => armsReach(facts, review, group));
     // **Reachability is the proposal's, not the review's** — any one arm opens
     // every sibling, which is issues/42's deliberate widening.
     if (!arms.some(Boolean)) continue;
 
     const reviews = group.reviews.map((review, index) =>
-      asRow(group, review, facts, directory, arms[index] ?? false),
+      asReviewRow(review, group, facts, directory, arms[index] ?? false),
     );
 
     const kept = reviews.filter((review) => matches(filters.view, review));
@@ -397,92 +292,6 @@ function shown(
   }
 
   return out;
-}
-
-function asRow(
-  group: Gathered,
-  review: Row,
-  facts: ActorFacts,
-  directory: Directory,
-  mayAct: boolean,
-): ProposalReviewRow {
-  const state = review.status as ReviewState;
-
-  return {
-    reviewId: String(review.reviewId),
-    programCode: review.programCode,
-    state,
-    areaHead: review.areaHead ? directory(review.areaHead) : null,
-    areas: review.areas,
-    mintedCourse:
-      review.mintedCourseId !== null && review.mintedCourseNumber !== null
-        ? { courseId: String(review.mintedCourseId), courseNumber: review.mintedCourseNumber }
-        : null,
-    actions: mayAct ? reviewActionsFor(state, subjectFor(group, review), facts) : null,
-  };
-}
-
-/**
- * The record a permission is scoped to, assembled once and read by both
- * questions this module asks of it — *does an arm of the tier reach this
- * review* and *may this actor fire this move*. They are different questions over
- * the same subject, and building it twice is how the two come to disagree about
- * which review they were talking about.
- */
-function subjectFor(group: Gathered, review: Row): Subject {
-  return {
-    review: {
-      programCode: review.programCode,
-      areaHead: review.areaHead,
-      state: review.status ?? "",
-    },
-    proposal: { createdBy: group.createdBy },
-  };
-}
-
-/**
- * **Machine legality AND permissions, intersected here** — the same terms in the
- * same order as `applyTransition`, computed one step earlier so a row can say
- * what it offers before anybody clicks (issues/28, issues/37).
- *
- * The review machine carries **no invariants**, unlike the Course's
- * `noLiveOfferings` and the Offering's retired-course rule, so the intersection
- * is two terms rather than three and every refusal here is a permission
- * refusal — the writer's own sentence, `notYours`, so what the greyed control
- * says and what `applyTransition` throws cannot drift apart.
- *
- * A move the machine does not offer is **absent** rather than greyed: `Approved`
- * and `Rejected` are final, so a finished review carries no menu rather than an
- * empty one, and *finished* is a shape of the lifecycle rather than a refusal.
- *
- * It sits in this module rather than in a `review-rows.ts` because there is
- * exactly one view of a review row today. When the review page arrives it
- * becomes the second, and this function moves out beside `offeringActionsFor`
- * for the reason that one moved: two screens offering different moves on one
- * record, neither of them the writer's answer, is what a second intersection
- * produces.
- */
-export function reviewActionsFor(
-  state: ReviewState,
-  subject: Subject,
-  facts: ActorFacts,
-): readonly PermittedAction<ReviewEventName>[] {
-  return movesFrom(state).map((event) => {
-    const routes = routesFor("course_proposal_review", event);
-    return permitted(routes, facts, subject)
-      ? { event, permitted: true }
-      : { event, permitted: false, refusal: notYours(event, "this review", routes, subject) };
-  });
-}
-
-/**
- * The edges the machine draws out of one state, read off the machine itself.
- * `.can()` is deliberately not what asks — it folds guards in, and this machine
- * has none to fold, so asking it would be asking a different question that
- * happens to agree.
- */
-function movesFrom(state: ReviewState): readonly ReviewEventName[] {
-  return reviewMachine.states[state].ownEvents as readonly ReviewEventName[];
 }
 
 /**
