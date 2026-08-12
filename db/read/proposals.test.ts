@@ -29,12 +29,23 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { applyTransition, type ReviewEvent } from "@/db/write/apply-transition";
 import { createProposal } from "@/db/write/create-proposal";
 import { WriteRefused } from "@/db/write/refusal";
-import { DATABASES_CONFIGURED, freshWorld, WHO, type World } from "@/db/write/test-world";
+import {
+  DATABASES_CONFIGURED,
+  freshWorld,
+  refusalFrom,
+  WHO,
+  type World,
+} from "@/db/write/test-world";
 import { writeToClasses, type Id } from "@/db/write/transaction";
 import { writeFields } from "@/db/write/write-fields";
 
 import { getActorFacts } from "./actor-facts";
-import { getProposalsPage, mayProposeACourse, type ProposalsFilters } from "./proposals";
+import {
+  getProposalsPage,
+  getProposeForm,
+  mayProposeACourse,
+  type ProposalsFilters,
+} from "./proposals";
 import type { ProposalGroup, ProposalReviewRow, ReviewEventName } from "./review-rows";
 
 /**
@@ -409,6 +420,112 @@ describe.skipIf(!DATABASES_CONFIGURED)("getProposalsPage", () => {
     // state has two wordings rather than one.
     expect(await mayProposeACourse({ netid: WHO.coordinator })).toBe(false);
     expect(await mayProposeACourse({ netid: WHO.student })).toBe(false);
+  });
+
+  // --- The propose form ------------------------------------------------------
+
+  test("the form's options are the programs, and the option is the row it mints", async () => {
+    // Every program, in the order the verdict chips read in on the list the
+    // submit lands on. Each one carries the fact that tells it apart from the
+    // others on a form that is otherwise a column of codes.
+    const form = await getProposeForm({ netid: WHO.instructor });
+    if (!form.mayPropose) throw new Error("The instructor was refused the propose form.");
+
+    expect(form.programs).toEqual([
+      { code: "IMA", name: "Interactive Media Arts", degreeLevel: "undergraduate" },
+      { code: "ITP", name: "Interactive Telecommunications", degreeLevel: "graduate" },
+    ]);
+  });
+
+  test("all three create arms reach the form, and the control and the page agree", async () => {
+    // **The availability of the create control comes from the permitted-action
+    // set**, so the arms the matrix names all reach the page behind it. The
+    // director holding no `instructor` role is the cast correction issues/65 made
+    // to the prototype's hand-written world.
+    for (const netid of [WHO.instructor, WHO.itpDirector, WHO.areaHead, WHO.chair]) {
+      const form = await getProposeForm({ netid });
+      expect({ netid, mayPropose: form.mayPropose }).toEqual({ netid, mayPropose: true });
+      expect({ netid, control: await mayProposeACourse({ netid }) }).toEqual({
+        netid,
+        control: true,
+      });
+    }
+  });
+
+  test("a reader with no create arm gets the writer's own sentence, not a page's", async () => {
+    // The refusal the page states one step early is the one `createProposal`
+    // throws at whoever posts the form anyway (issues/14) — so it names the three
+    // routes rather than quoting the matrix, and it is the same object on both
+    // sides.
+    for (const netid of [WHO.coordinator, WHO.student]) {
+      const form = await getProposeForm({ netid });
+      if (form.mayPropose) throw new Error(`${netid} was offered the propose form.`);
+
+      expect(form.refusal).toEqual({
+        sentence: "Only an instructor, a program director or an area head can propose a course.",
+        dependencies: [],
+      });
+
+      // And it is the writer's, checked by asking the writer.
+      const thrown = await refusalFrom(
+        writeToClasses((open) =>
+          createProposal(
+            open,
+            { title: "Refused", description: null, credits: 2, programs: ["ITP"] },
+            netid,
+          ),
+        ),
+      );
+      expect(thrown.refusals[0]).toEqual(form.refusal);
+    }
+  });
+
+  test("a refused reader costs no round trip, there being no form to fill", async () => {
+    const facts = await cost(() => getActorFacts(WHO.student));
+    const refused = await cost(() => getProposeForm({ netid: WHO.student }));
+    expect(subtract(refused, facts)).toEqual({ classes: 0, people: 0 });
+
+    // And the form itself is one statement against `classes` and none at all
+    // against `people`: a form asks nobody's name.
+    const offered = await cost(() => getProposeForm({ netid: WHO.instructor }));
+    expect(subtract(offered, await cost(() => getActorFacts(WHO.instructor)))).toEqual({
+      classes: 1,
+      people: 0,
+    });
+  });
+
+  // --- Where submitting lands ------------------------------------------------
+
+  test("a submitted proposal is the list's first group, with one review per program", async () => {
+    // **Submitting lands on the proposals list, at the new group** (issues/43's
+    // one amendment to variant A), and this is the half of that a read module can
+    // answer: the group the reader is sent to is on the page they are sent to, at
+    // the top, under the default filter, with a row and a chip per program they
+    // checked.
+    const { proposalId } = await writeToClasses((open) =>
+      createProposal(
+        open,
+        {
+          title: "Machine Vision Systems",
+          description: "One body, two catalogs.",
+          credits: 4,
+          programs: ["ITP", "IMA"],
+        },
+        WHO.instructor,
+      ),
+    );
+
+    const groups = await pageFor(WHO.instructor, "in-play");
+    expect(groups[0]?.proposalId).toBe(String(proposalId));
+
+    const minted = groupFor(groups, String(proposalId));
+    expect(minted.reviews.map((review) => review.programCode)).toEqual(["IMA", "ITP"]);
+    expect(minted.verdicts.map((verdict) => verdict.state)).toEqual(["Proposed", "Proposed"]);
+    // Nothing is approved by submitting, which is one of the absences the form
+    // states: no course number anywhere on the new group, and no assignment.
+    expect(minted.reviews.every((review) => review.mintedCourse === null)).toBe(true);
+    expect(minted.reviews.every((review) => review.areas.length === 0)).toBe(true);
+    expect(minted.reviews.every((review) => review.areaHead === null)).toBe(true);
   });
 
   // --- The property the whole set exists for --------------------------------

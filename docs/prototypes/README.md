@@ -588,6 +588,33 @@ what it overturns; it never stands beside it.
   The `Edit` control ships pointing nowhere, on #83's reasoning verbatim and with #86's sanction,
   and `/reviews/:id/edit` is #62's.
 
+- **Variant A's landing is a banner and a marked group, and the propose form's absences are four
+  lines rather than three** — by [#88](https://github.com/nopivnick/lineup-prototype-03/issues/88),
+  which built `create-forms.html`'s propose half. Variant A's three statements of *the boxes are the
+  rows* all ship — the section header, each option and the live count — and so does the amendment
+  that submitting lands on the proposals list rather than on a record.
+
+  **What *at the new group* turned out to be** is a `?new=` parameter, a banner naming the proposal
+  and the reviews it opened, and a `New` badge on that group's header. The prototype's `landingA`
+  draws a whole list of its own with the new group flagged; the real screen is #85's list, which
+  already sorts newest-first, so the group is where the reader is looking without being re-sorted
+  there. The banner's facts — the title, the count, the programs — are read **off the group the page
+  had already rendered** and never off the parameter, so an id naming a proposal the reader cannot
+  reach highlights nothing and says nothing. A pinned group was rejected for the reason #37 gives
+  about empty groups: the one thing this list is read for is what came in most recently, and a
+  render in which that is untrue is worse than a missing badge.
+
+  **The fourth absence is *nothing else is created*.** #43 states it in this ledger's prose and
+  variant A's `absencesNote` carries three lines, not four — no number, no area or head, nothing
+  approved. The fourth is the one a build agent most needs and a reader most easily mistakes for a
+  missing screen, so it is on the page: no course directly, and no person, role, term, program, area
+  or requirement category.
+
+  **The prototype's `writesPanel` is variant C's device and stays there.** A's live count already
+  states the fan-out in the terms the reader is choosing in, and a panel naming `course_proposal`
+  and `course_proposal_review` states it in the terms the schema is written in, which is the one
+  audience the running application does not have.
+
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three
   variants* over files holding four, and no title named the settled variant; every title now

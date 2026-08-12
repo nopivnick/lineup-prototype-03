@@ -489,7 +489,7 @@ function describe(route: Route, subject: Subject): string {
 
   switch (route.via) {
     case "flat":
-      return route.role === "chair" ? "the department chair" : `a ${route.role.replace("_", " ")}`;
+      return route.role === "chair" ? "the department chair" : named(route.role.replace("_", " "));
     case "offering_instructor position 0 of this offering":
       return "the lead instructor";
     case "program_director(offering.program_code)":
@@ -514,6 +514,21 @@ function describe(route: Route, subject: Subject): string {
 
 function director(programCode: string | undefined): string {
   return programCode ? `${programCode}'s program director` : "the program's director";
+}
+
+/**
+ * ***An* instructor**, not *a instructor* (issues/88).
+ *
+ * Three of the seven roles begin with a vowel — `instructor`, `area_head` and
+ * `advisor` — and the flat arm's article was fixed at *a*. It went unseen for as
+ * long as it did because a flat route only ever reached a reader through a
+ * refusal nobody had a screen for: the `create` row's three arms are the widest
+ * flat set in the map, and until the propose form there was no page to state them
+ * on. The article is chosen off the word rather than off a list of roles, so a
+ * role added to `ROLES` reads correctly without anybody remembering this.
+ */
+function named(role: string): string {
+  return `${/^[aeiou]/i.test(role) ? "an" : "a"} ${role}`;
 }
 
 /**

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { Button, Container, Group, Stack, Text, Title } from "@mantine/core";
+import { Alert, Button, Container, Group, Stack, Text, Title } from "@mantine/core";
 
 import { getProposalsPage, mayProposeACourse } from "@/db/read/proposals";
+import type { ProposalGroup } from "@/db/read/review-rows";
 import { getActor, type Actor } from "@/lib/auth/actor";
 
 import { ProposalsFilterBar } from "./proposals-filters";
@@ -53,6 +54,20 @@ export default async function ProposalsPage({
   const mayPropose = await mayProposeACourse(actor);
 
   /**
+   * **Where a submitted proposal lands** (issues/43, issues/88): here, at the
+   * group it just wrote, rather than on a record — a proposal has no page of its
+   * own, and landing on a review means picking one of three by sort order.
+   *
+   * The id is a **query parameter and a public input**, and it is answered by
+   * looking for it among the groups the tier and the filter already produced.
+   * There is no second read and no lookup: a proposal the reader cannot reach is
+   * simply not found, so the banner cannot state a title, a count or a verdict
+   * that the page would not have rendered anyway.
+   */
+  const justProposed = one(params.new);
+  const arrived = groups.find((group) => group.proposalId === justProposed) ?? null;
+
+  /**
    * **Asked only on the empty path, and only when a filter could be the reason.**
    *
    * The default view hides finished reviews, so *no groups* on it is ambiguous in
@@ -91,11 +106,13 @@ export default async function ProposalsPage({
           {mayPropose ? <Propose /> : null}
         </Group>
 
+        {arrived ? <JustProposed group={arrived} /> : null}
+
         {reachable ? (
           <>
             <ProposalsFilterBar view={view} matched={reviews} />
             {groups.length > 0 ? (
-              <ProposalsList groups={groups} />
+              <ProposalsList groups={groups} newProposalId={arrived?.proposalId ?? null} />
             ) : (
               <Nothing
                 heading="Nothing matches that filter"
@@ -113,6 +130,31 @@ export default async function ProposalsPage({
         )}
       </Stack>
     </Container>
+  );
+}
+
+/**
+ * **The arrival, and it says what was written** (issues/43, issues/88).
+ *
+ * The proposer's first sight of what they caused is the fan-out itself, which is
+ * the whole argument for landing here: one body, one row and one chip per program
+ * they checked, none of them decided. The count is read off the group's verdicts
+ * rather than off the query parameter — the parameter says *which proposal*, and
+ * everything the sentence states is a fact the page had already read.
+ *
+ * It is not dismissible, because it goes away by itself: it is a fact about how
+ * this render was reached, and any click that leaves `?new=` behind drops it.
+ */
+function JustProposed({ group }: { group: ProposalGroup }) {
+  const opened = group.verdicts.length;
+  return (
+    <Alert color="green" title="Proposed">
+      <Text size="sm">
+        <b>{group.title}</b> — {opened} {opened === 1 ? "review" : "reviews"} opened,{" "}
+        {group.verdicts.map((verdict) => verdict.programCode).join(" and ")}. Each program decides
+        on its own, so they can answer differently; nothing was approved by submitting it.
+      </Text>
+    </Alert>
   );
 }
 
