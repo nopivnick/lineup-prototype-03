@@ -327,6 +327,66 @@ reason. `staff` and `unstaff` appear nowhere on the screen and nowhere in the ac
 **non-exposure rather than a check**: there is no branch refusing them, so a browser naming one
 gets the same answer as a browser naming nonsense.
 
+## Roles
+
+The third screen, at [`/roles`](./app/(signed-in)/roles): the authority structure the chair is the
+sole author of, one person at a time. A read-only strip of the three programs sits above a list of
+role-holders; selecting somebody opens a record stating **all seven roles, held or not**, what each
+one lets them do, its refusal where it has one, and who granted it and when — so a grant is a fact
+with provenance rather than a checkbox.
+
+**It does not inherit the Catalog's `⋯ n` menu**, and a build agent reading
+[#37](https://github.com/nopivnick/lineup-prototype-03/issues/37) alone would build it here. #37
+rejected reasons-in-the-open **for row height in a grouped table** and named it the strongest
+option it had; this page is one record at a time, so the premise of that rejection is absent and
+the rejected option wins. Every refusal is stated in the open, under the control it explains.
+
+**A refusal names its dependency and lists it** — the third clause of the refusal wording, and the
+clause this page exists to make necessary. Three of the four revocation refusals turn on data the
+chair cannot see from a person-centric page, so naming the person is not enough:
+
+> Nora Applebaum heads the area of 9 courses that have not been retired. Hand those courses to
+> another area head first.
+> · ITPG-GT 2233 — Physical Computing (Approved) · ITPG-GT 2048 — Live Web (Approved) · …
+
+The sentences live in [`db/write/rules.ts`](./db/write/rules.ts) and are **shared with the field
+writer**, which throws them at whoever clicks anyway — the same device the Catalog's `retire` and
+the Lineup's `retry` use, for the same reason: a second copy of the wording is how a rule and its
+explanation drift apart. The only difference between the two sides is the name: the page has run
+the stitch and names the person, and the writer has no directory and names the netid.
+
+**A non-chair sees the same page with the controls _and_ the refusals absent** — not greyed. A
+refusal explains why a control will not fire, and a refusal with no control is dead text explaining
+a button that was never there. That is what makes the dependency reads conditional: a non-chair's
+page issues neither of them, and `db/read/roles.test.ts` asserts it by counting round trips. Sign
+in as Theo Vance and every role carries a control; sign in as Priya Raman and the same fourteen
+records are there with nothing to click and nothing explaining why.
+
+**The last-chair lock renders before it is triggered**, rather than on the attempt: the
+alternative is discovering by clicking that you nearly locked the department out of role management,
+recoverable only with a `psql` session. Grant `chair` to somebody else and the lock lifts, live —
+[#34](https://github.com/nopivnick/lineup-prototype-03/issues/34)'s rule is *never empty*, not
+*never revocable*.
+
+**Appointing a director is one control on the person**, with two writes behind it: the role row
+rides along with the program row, inserted only if absent, so the chair is never asked to think
+about whether this person is a newcomer or an existing director gaining a second program. Standing
+principle 6 is checked by the writer against the state the write **leaves** rather than the one it
+found, which is what lets the two writes be one act. There is no un-appoint control, which is why
+`vm7781` holding `program_director` and directing nothing is a state the seed can reach and the app
+cannot.
+
+**Granting goes through a search over the directory and there is no free-text netid field**: a typo
+in one grants a role to nobody and is indistinguishable from a legitimate grant made ahead of the
+directory feed. The same box narrows the holder list, and for the chair it reaches past it into
+`people`. **A netid with no `people` row renders** — `xq7742` holds `instructor` and `area_head`
+and the directory has never heard of them — because a role that gates whether somebody may be
+staffed must not be invisible to the only page that can revoke it. The page cannot mint one.
+
+The page is open to **anybody holding a role other than `student`** — the fourth read predicate,
+which governs a page rather than a table. A student who also teaches keeps it; a student who does
+not gets no nav item and a route that refuses.
+
 ## Checks
 
 ```

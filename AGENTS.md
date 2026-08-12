@@ -181,6 +181,38 @@ visible. Five things about it are structural rather than conventional:
   is now the single source both the type-level `ExposedOfferingEvent` and the two runtime
   filters read, so `staff` and `unstaff` cannot be half-hidden.
 
+**The third screen is the roles page**, built by
+[#87](https://github.com/nopivnick/lineup-prototype-03/issues/87): `db/read/roles.ts` is the
+authority structure read one person at a time, `app/(signed-in)/roles/` is the screen, and it is
+where **the fourth read predicate** and **the refusal's third clause** become code. Four things
+about it are structural rather than conventional:
+
+- **It does not inherit the `⋯ n` menu**, and a build agent reading
+  [#81](https://github.com/nopivnick/lineup-prototype-03/issues/81) or
+  [#37](https://github.com/nopivnick/lineup-prototype-03/issues/37) alone would build it here. The
+  menu won there over reasons-in-the-open **on row height in a grouped table**, and named
+  reasons-in-the-open the strongest option; this page is one record at a time, so the premise of
+  that rejection is absent and the rejected option wins. What *is* inherited is #14's one-object
+  rule and #37's *absent, never empty*.
+- **The four revocation refusals moved into `db/write/rules.ts`**, joining `stillTeaching`,
+  `courseRetired` and `routesFor` there for the same reason: the refusal stated in the open under a
+  control the chair cannot use and the exception `writeFields` throws are one sentence. They take
+  the person's name as an argument, which is the only thing the two sides can differ on — the read
+  side has run the stitch and names the person, the writer has no directory and names the netid.
+  The **dependency lists** are ordered on both sides so `db/read/roles.test.ts` can compare them.
+- **The two dependency reads are the chair's alone and a test counts them.** A non-chair sees no
+  control, so a refusal computed for them would be dead text bought with two round trips. The map
+  priced *three* conditional queries and the third is the program strip's own read — recorded in
+  `docs/data-access/README.md` rather than issued twice.
+- **Appointing a director is one `writeFields` call**, and standing principle 6 is now checked
+  against the state the write **leaves** rather than the one it found — the device
+  `monotoneAssignment` already used in the same function. Without it the newcomer half of *the role
+  row rides along with the program* refuses itself. The act is `db/write/authorization.ts` and is
+  **not a fifth write path**: it holds no check and writes no row, and it is there rather than in
+  the Server Action because an action is an actor-resolution wrapper and nothing more. There is
+  still **no un-appoint control**, which is what `SEED_ONLY` in `docs/fixtures/fixtures.ts` says it
+  is: a missing screen, not a missing rule.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

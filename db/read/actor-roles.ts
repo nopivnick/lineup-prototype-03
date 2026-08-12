@@ -52,7 +52,15 @@ export const getActorRoles = cache(async function getActorRoles(netid: Netid): P
  * therefore something the server hands down with the roles.
  */
 export function inDeclaredOrder(roles: readonly Role[]): readonly Role[] {
-  return [...roles].sort((a, b) => DECLARED_ORDER.indexOf(a) - DECLARED_ORDER.indexOf(b));
+  return [...roles].sort((a, b) => ROLES.indexOf(a) - ROLES.indexOf(b));
 }
 
-const DECLARED_ORDER = Object.keys(ROLE_KIND) as readonly Role[];
+/**
+ * **The seven roles, in the order `lib/permissions.ts` declares them**, which is
+ * also the order the roles page states them in — every role on every record, held
+ * or not (issues/38), with `chair` last because the map declares it last.
+ *
+ * Read off `ROLE_KIND` rather than typed out, so a role added to the model appears
+ * on the roles page and in a person's chips without anybody choosing to bring it.
+ */
+export const ROLES = Object.keys(ROLE_KIND) as readonly Role[];

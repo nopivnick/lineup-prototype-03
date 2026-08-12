@@ -1,8 +1,12 @@
+import { redirect } from "next/navigation";
 import { Anchor, Container, Stack, Text, Title } from "@mantine/core";
 import { Table, getTableName, is } from "drizzle-orm";
 
 import * as classesSchema from "@/db/classes/schema";
 import * as peopleSchema from "@/db/people/schema";
+import { getActorRoles } from "@/db/read/actor-roles";
+import { mayOpenRolesPage } from "@/db/read/shape";
+import { getActor } from "@/lib/auth/actor";
 
 import { ScaffoldTable, type ScaffoldRow } from "./scaffold-table";
 
@@ -38,11 +42,21 @@ function tablesOf(
  * links out of a scaffold index. The alternative is a client component per link, which
  * is a lot of machinery to soft-navigate away from a page that lists table names.
  */
-export default function HomePage() {
+export default async function HomePage() {
   const rows = [
     ...tablesOf("people", peopleSchema),
     ...tablesOf("classes", classesSchema),
   ];
+
+  /**
+   * **The roles page's link is the nav item, and a `student` does not get one**
+   * (issues/38). The fourth read predicate governs a page rather than a table, so
+   * the link and the route agree by asking the same function — the route still
+   * refuses on its own, because a link nobody rendered is not a check.
+   */
+  const actor = await getActor();
+  if (!actor) redirect("/be-somebody");
+  const roles = await getActorRoles(actor.netid);
 
   return (
     <Container size="sm" py="xl">
@@ -63,6 +77,14 @@ export default function HomePage() {
           stitch. It is also where the read tiers first show: what a student
           sees there is a smaller list, not a flagged one.
         </Text>
+        {mayOpenRolesPage(roles) ? (
+          <Text>
+            The third is <Anchor href="/roles">Roles</Anchor> — who holds what, one
+            person at a time, with every refusal stated in the open rather than
+            behind a menu. Only the chair writes it; everybody else reads it with
+            the controls and the refusals absent together.
+          </Text>
+        ) : null}
         <ScaffoldTable rows={rows} />
       </Stack>
     </Container>

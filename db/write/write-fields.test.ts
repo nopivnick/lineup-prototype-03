@@ -16,6 +16,7 @@ import {
   offeringArea,
   offeringInstructor,
   offeringMeeting,
+  programDirector,
   userRole,
 } from "@/db/classes/schema";
 import { classesDb } from "@/db/handles";
@@ -471,7 +472,12 @@ describe.skipIf(!DATABASES_CONFIGURED)("writeFields", () => {
         WHO.chair,
       ),
     );
-    expect(refused.refusals[0]!.sentence).toBe("The last chair cannot be removed.");
+    // The sentence is `db/write/rules.ts`'s and is shared with `db/read/roles.ts`,
+    // which renders the lock **before** it is triggered rather than on the attempt
+    // (issues/38). The writer has no directory, so it names the netid.
+    expect(refused.refusals[0]!.sentence).toBe(
+      `${WHO.chair} is the only chair. Nobody else can grant a role, so removing this one would leave the department with no way to appoint anyone. Grant chair to somebody else first.`,
+    );
     expect(await rolesOf(WHO.chair)).toEqual(["chair"]);
   });
 
@@ -487,16 +493,25 @@ describe.skipIf(!DATABASES_CONFIGURED)("writeFields", () => {
       ),
     );
 
+    // Each dependency is **named and listed** — clause 3 of the refusal wording
+    // (issues/38) — and the list is the one `db/read/roles.ts` states under the
+    // same control one step earlier, which `db/read/roles.test.ts` compares.
     const instructor = await refusalFrom(revoke(WHO.instructor, "instructor"));
-    expect(instructor.refusals[0]!.sentence).toContain("has not finished");
-    expect(instructor.refusals[0]!.dependencies).toHaveLength(1);
+    expect(instructor.refusals[0]!.sentence).toContain("has not finished teaching");
+    expect(instructor.refusals[0]!.dependencies).toEqual([
+      "ITPG-GT 2233 sec 1, Fall 2025 — Staffed (lead)",
+    ]);
 
     const head = await refusalFrom(revoke(WHO.areaHead, "area_head"));
     expect(head.refusals[0]!.sentence).toContain("not been retired");
-    expect(head.refusals[0]!.dependencies).toEqual(["ITPG-GT 2233 — Approved"]);
+    expect(head.refusals[0]!.dependencies).toEqual([
+      "ITPG-GT 2233 — A course numbered ITPG-GT 2233 (Approved)",
+    ]);
 
     const directorRefusal = await refusalFrom(revoke(WHO.itpDirector, "program_director"));
-    expect(directorRefusal.refusals[0]!.dependencies).toEqual(["ITP"]);
+    expect(directorRefusal.refusals[0]!.dependencies).toEqual([
+      "ITP — Interactive Telecommunications",
+    ]);
   });
 
   test("appointing a director refuses a netid without the role — principle 6 again", async () => {
@@ -512,6 +527,41 @@ describe.skipIf(!DATABASES_CONFIGURED)("writeFields", () => {
       ),
     );
     expect(refused.refusals[0]!.sentence).toContain("without the program director role");
+  });
+
+  test("appointing a director is one write that carries the role with it", async () => {
+    // **Two writes that must not read as two acts** (issues/34, issues/38). The
+    // roles page has one control per program, and the chair is never asked whether
+    // this person is a newcomer or an existing director gaining a second program —
+    // so principle 6 is checked against the state the write **leaves**, exactly as
+    // the monotone assignment gate is.
+    await write(
+      {
+        record: { authorization: true },
+        rows: [
+          { table: "user_role", op: "insert", values: { netid: WHO.instructor, role: "program_director" } },
+          { table: "program_director", op: "insert", values: { program_code: "ITP", netid: WHO.instructor } },
+        ],
+      },
+      WHO.chair,
+    );
+
+    expect(await rolesOf(WHO.instructor)).toEqual(["instructor", "program_director"]);
+    expect(await directs(WHO.instructor)).toEqual(["ITP"]);
+
+    // The second program is the other half of the same act, and it is one row:
+    // the role is already there, so the caller sends the relationship alone.
+    await write(
+      {
+        record: { authorization: true },
+        rows: [
+          { table: "program_director", op: "insert", values: { program_code: "IMA", netid: WHO.instructor } },
+        ],
+      },
+      WHO.chair,
+    );
+    expect(await directs(WHO.instructor)).toEqual(["IMA", "ITP"]);
+    expect(await rolesOf(WHO.instructor)).toEqual(["instructor", "program_director"]);
   });
 
   // --- The proposal body's gate is not a state of the record ---------------
@@ -662,5 +712,13 @@ async function meetingCountOf(offeringId: Id): Promise<number> {
 async function rolesOf(netid: string): Promise<string[]> {
   const rows = await classes().select({ role: userRole.role }).from(userRole).where(eq(userRole.netid, netid));
   return rows.map((row) => row.role).sort();
+}
+
+async function directs(netid: string): Promise<string[]> {
+  const rows = await classes()
+    .select({ programCode: programDirector.programCode })
+    .from(programDirector)
+    .where(eq(programDirector.netid, netid));
+  return rows.map((row) => row.programCode).sort();
 }
 

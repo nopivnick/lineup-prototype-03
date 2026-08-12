@@ -1,6 +1,6 @@
 import "server-only";
 
-import { READ_TIERS, type ReadTier, type Role } from "@/lib/permissions";
+import { READ_TIERS, ROLES_PAGE, type ReadTier, type Role } from "@/lib/permissions";
 
 import type { Meeting } from "@/db/write/create-offering";
 import type { Refusal } from "@/db/write/refusal";
@@ -142,3 +142,59 @@ if (ACTING_ROLES.length === 0) {
       "whichever it is, `canEverAct` has to be told where to read it.",
   );
 }
+
+/**
+ * **The fourth read predicate, which governs a page rather than a table**
+ * (issues/38): *holds any role other than `student`*.
+ *
+ * `ROLES_PAGE.mayRead` is where it is settled, and this is that sentence as code.
+ * It cannot be derived from routes the way `canEverAct` is — the predicate has no
+ * arms, being a complement rather than a list — so it is restated here and
+ * nowhere else, and it is checked against the constant it restates below.
+ *
+ * **Never *does not hold `student`*.** ITP is full of graduate students who teach,
+ * and issues/11 refuses role-narrowing, so all of an actor's roles are live at
+ * once: under the second reading a student who is also an instructor loses the
+ * page. A `student` and nobody else gets no page at all — no nav item, and the
+ * route refuses, which is *absent rather than empty* scaled from a control to a
+ * whole page.
+ *
+ * It takes the roles rather than `ActorFacts` because both of its callers hold a
+ * different shape: the read module has the facts, and the page that decides
+ * whether to render the nav item has the actor's role list.
+ */
+export function mayOpenRolesPage(roles: Iterable<Role>): boolean {
+  for (const role of roles) {
+    if (role !== NOT_A_ROLE_HOLDER) return true;
+  }
+  return false;
+}
+
+const NOT_A_ROLE_HOLDER: Role = "student";
+
+/**
+ * The predicate above says `student` because `ROLES_PAGE` does. A rewording that
+ * moved the exempt role would otherwise leave this reading the old one silently —
+ * an over-grant, which the map calls the quiet kind of mistake.
+ */
+if (!ROLES_PAGE.mayRead.includes(NOT_A_ROLE_HOLDER)) {
+  throw new Error(
+    `ROLES_PAGE.mayRead no longer names \`${NOT_A_ROLE_HOLDER}\`, so the roles page's read predicate ` +
+      "has moved and `mayOpenRolesPage` is still restating the old one (issues/38).",
+  );
+}
+
+/**
+ * **A record-level read result** (issues/41, issues/38).
+ *
+ * A list row outside its tier is simply **absent** — invisibility is never
+ * something a page has to remember to honour, because the tiers filter in the
+ * query. But a page has a URL and has to answer, so a module serving a whole page
+ * returns this instead.
+ *
+ * The roles page is the first to use it and uses it for the whole page: the
+ * fourth read predicate is not about a record at all, so `{ visible: false }` here
+ * means *there is no Roles page for you*, and what it renders is the page's to
+ * word.
+ */
+export type Visible<T> = { visible: true; page: T } | { visible: false };
