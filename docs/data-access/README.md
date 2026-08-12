@@ -487,6 +487,54 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   `course_requirement_category`, with no screen edited — which is #62's *the edit page is a
   function of `FIELD_CLASSES`* holding for the record page too.
 
+- **`OfferingPage` carries its term as a sentence, and the row assembly gained two exports** — by
+  [#84](https://github.com/nopivnick/lineup-prototype-03/issues/84), which built the sixth read
+  module. `termCode` alone would have made the page look the pair of `term` columns up itself, and
+  `termLabel` in `db/write/rules.ts` is the one place they become *Fall 2025* — a page that
+  formatted it would be a second copy of the format and a third round trip. It rides on the page
+  for the reason `CourseSectionGroup.termLabel` rides on the group.
+
+  `db/read/offering-rows.ts` now exports `offeringActionsFor` and `asMeeting` beside the row
+  assembly. Both are the shared-assembly rule holding one level down: **a class has two screens
+  now**, and a second intersection of machine legality, invariants and permissions — or a second
+  reading of `offering_meeting`'s declared `kind` — is the drift the module exists to prevent.
+  It is what `courseActionsFor` already is to the Catalog and the Course page.
+
+  **A record's address is now the digits of its id and no leading zero**, in both record modules.
+  #83 stated the rule — *one record has exactly one address*, which is why `Number` was rejected for
+  reading `" 12 "`, `"1e3"` and `"0x0c"` — and shipped a `[0-9]+` pattern that missed a case:
+  `/courses/007` rendered the same course as `/courses/7`, giving one record countably many
+  addresses. The Server Action revalidates the canonical one, so a move fired from the odd address
+  left the reader looking at a page known to be stale. Both modules were corrected together, because
+  two answers to *what is an address* is the drift the pair exists to prevent.
+
+- **A record page answers *Seat-sharing tags* with a candidate program, not with no program** —
+  by #84. Thirteen of the fourteen field classes are a question about *this record*, so
+  `editAffordanceFor` asks once with the record's own subject. Seat-sharing is a question about a
+  **row that does not exist yet**: the scope comes from the tag's own program, and `writeFields`
+  evaluates the arm once per row against that row's program. Passing no `tagProgramCode` — the
+  obvious reading, and the one #84 shipped first — refuses the class to every reader but the chair,
+  which is a **refusal the writer would not throw**: IMA's director opening ITP's class is told the
+  tags are not theirs while `writeFields` accepts exactly that write. So `getOfferingPage` asks the
+  question the rail can honestly ask — *is there any tag this actor could write here* — and answers
+  it with any program they direct that is not the class's own, the writer refusing a class that
+  shares seats with itself. Which candidate is picked never reaches a reader: where one exists the
+  class is open and no sentence renders.
+
+  **The two sides' sentences differ here and nowhere else**, and the difference is knowledge rather
+  than rule: the writer holds the row and names the program it claims for; the rail holds none and
+  falls back to the program-less wording. `db/read/offering.test.ts` asserts both, and asserts that
+  the *answers* agree by asking `writeFields` for real.
+
+- **`whoMay` de-duplicates the descriptions it joins** — by #84. A route is a `(role,
+  relationship)` conjunction evaluated separately, and #8's rule against unioning roles first is
+  untouched; what changed is the **sentence**. *Seat-sharing tags* names two routes, one through
+  `area` and one through `requirement_category`, and on a record page — where there is no tag in
+  hand and therefore no `tagProgramCode` — both describe *the program's director*, so the rail read
+  *"Only the program's director or the program's director can change this class's seat sharing"*.
+  Distinct descriptions are untouched and the first occurrence keeps its place, so no refusal that
+  named two different things changes a word.
+
 ## Two things this transcription had to derive
 
 Neither is a decision, and both are recorded here so that if either reads as one, it is a

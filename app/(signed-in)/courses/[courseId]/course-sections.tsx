@@ -16,7 +16,8 @@ import type { LineupRow } from "@/db/read/offering-rows";
 import type { Meeting } from "@/db/read/shape";
 import { rosterShape } from "@/lib/roster";
 
-import { NamedLine } from "./named";
+import { NamedLine } from "../../named";
+import { OpenClass } from "../../open-class";
 
 /**
  * **The course's sections, grouped by term, newest first** (issues/41).
@@ -37,7 +38,14 @@ import { NamedLine } from "./named";
  * and killed* to stay indistinguishable to a reader who may not see the
  * difference.
  */
-export function CourseSections({ groups }: { groups: readonly CourseSectionGroup[] }) {
+export function CourseSections({
+  groups,
+  courseNumber,
+}: {
+  groups: readonly CourseSectionGroup[];
+  /** Only ever the `↗`'s accessible name — *ITPG-GT 2233 §2* — and never rendered. */
+  courseNumber: string;
+}) {
   if (groups.length === 0) {
     return (
       <Paper withBorder p="md" radius="md">
@@ -79,6 +87,21 @@ export function CourseSections({ groups }: { groups: readonly CourseSectionGroup
                   </TableTd>
                   <TableTd>
                     <Meets meetings={row.meetings} />
+                  </TableTd>
+                  {/*
+                    **The `↗` issues/83 left for this ticket** (issues/41,
+                    issues/84). The row already carried everything it needed and
+                    what was missing was the page to point at, so what lands here
+                    is a control rather than a change of shape. It is the one
+                    control every reader gets: these rows are already narrowed to
+                    the reader's tier, so none of them leads to a page that
+                    refuses.
+                  */}
+                  <TableTd w={40} align="right">
+                    <OpenClass
+                      offeringId={row.offeringId}
+                      where={`${courseNumber} §${row.sectionNumber}`}
+                    />
                   </TableTd>
                 </TableTr>
               ))}

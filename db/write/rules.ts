@@ -487,9 +487,22 @@ function director(programCode: string | undefined): string {
   return programCode ? `${programCode}'s program director` : "the program's director";
 }
 
-/** *Only A, B or C can …* — and *nobody* where the route list is empty, which is a refusal in its own right (issues/28). */
+/**
+ * *Only A, B or C can …* — and *nobody* where the route list is empty, which is a
+ * refusal in its own right (issues/28).
+ *
+ * **De-duplicated, because two routes can describe the same person** (issues/84).
+ * A route is a `(role, relationship)` conjunction and every one of them is
+ * evaluated separately — that is issues/8's rule and nothing here weakens it —
+ * but *Seat-sharing tags* names two of them, one through `area` and one through
+ * `requirement_category`, and both describe **the program's director**. Without
+ * this the class page's rail read *"Only the program's director or the program's
+ * director can change this class's seat sharing"*, which is one sentence saying
+ * one thing twice. Distinct descriptions are untouched, and the first occurrence
+ * keeps its place, so no existing refusal changes a word.
+ */
 export function whoMay(routes: readonly Route[], subject: Subject): string {
-  const named = routes.map((route) => describe(route, subject));
+  const named = [...new Set(routes.map((route) => describe(route, subject)))];
   if (named.length === 0) return "nobody";
   if (named.length === 1) return named[0]!;
   return `${named.slice(0, -1).join(", ")} or ${named.at(-1)!}`;

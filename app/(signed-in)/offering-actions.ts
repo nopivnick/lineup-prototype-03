@@ -25,6 +25,13 @@ import { machine as offeringMachine, OFFERING_STATES } from "@/lib/machines/offe
  * It opens the transaction through `writeToClasses` and says nothing about *when*:
  * the column defaults answer. `writeToClassesAt` is fenced to the seed by an ESLint
  * rule, so this module could not date a write if it wanted to (issues/107).
+ *
+ * **It moved up here from `lineup/actions.ts` when the Offering machine gained a
+ * second screen** (issues/84), which is what happened to `fireCourseEvent` when
+ * the Course page joined the Catalog (issues/83). The Lineup's `⋯ n` menu and the
+ * class page's rail render one permitted-action set in two treatments, so they
+ * fire it through one wrapper — and it revalidates both, because a `cancel`
+ * clicked in the rail changes the row in the Lineup, and the reverse.
  */
 
 /**
@@ -53,7 +60,7 @@ const EXPOSED: ReadonlySet<string> = new Set(
 /**
  * Fire one Offering move, and hand back the refusal if the writer refused.
  *
- * The row's `⋯ n` menu already intersected the three terms server-side, so a refusal
+ * Both screens already intersected the three terms server-side, so a refusal
  * reaching here means the world moved between the render and the click — a grant
  * revoked, a course retired, a lead who declined in another tab. Returning it rather
  * than throwing is what lets the reader see the same sentence the greyed control
@@ -95,17 +102,28 @@ export async function fireOfferingEvent(
   } catch (thrown) {
     if (thrown instanceof WriteRefused) {
       // **A refusal revalidates too**, and for a sharper reason than success does.
-      // The row's menu already intersected the three terms, so a refusal reaching
+      // Both screens had already intersected the three terms, so a refusal reaching
       // here means the world moved between the render and the click — which makes
-      // the menu the reader is looking at *known* to be wrong. Returning the
+      // the controls the reader is looking at *known* to be wrong. Returning the
       // sentence without re-reading would leave a live control that refuses
       // identically on every further click until somebody reloads by hand.
-      revalidatePath("/lineup");
+      revalidate(id);
       return { refusals: thrown.refusals };
     }
     throw thrown;
   }
 
-  revalidatePath("/lineup");
+  revalidate(id);
   return null;
+}
+
+/**
+ * Both screens, because a move fired from either changes both — and the class page
+ * is the one a `kill` takes out from under its own reader, which is a redirect no
+ * more than the Lineup's vanishing row is: `Dead` is outside no tier, so the page
+ * re-reads as a `Dead` class with nothing left to do to it.
+ */
+function revalidate(id: number): void {
+  revalidatePath("/lineup");
+  revalidatePath(`/classes/${id}`);
 }

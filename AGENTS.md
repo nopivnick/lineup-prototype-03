@@ -253,6 +253,52 @@ words; the minted-review link points at `/reviews/:id`, which #83 asked for outr
 and the section rows carry **no `↗`**, which no criterion mentions. It returns with the Offering page
 and needs no change of shape.
 
+**The fifth screen is the Offering page**, built by
+[#84](https://github.com/nopivnick/lineup-prototype-03/issues/84): `db/read/offering.ts` is the
+sixth view-shaped read module and `app/(signed-in)/classes/[offeringId]/` is the screen, which takes
+#83's page conventions unchanged. Four things about it are structural rather than conventional:
+
+- **It is the read that can be refused on the record itself**, and the refusal **names no state**.
+  `getOfferingPage` reaches one not-visible answer from three worlds — an address that is not an id,
+  an id that names nothing, and a class outside the reader's tier — and they are one answer in one
+  wording, because the moment they differ the difference *is* the leak. The mechanism is that the
+  tier narrows **in the query**, through the same `visibleOfferingStates` call the Lineup and the
+  Course page narrow with, which is what makes *the same predicate thins the sibling list on the
+  page it refuses from* true by construction. **The wording departs from variant D's**, which names
+  a course number, a section and a term: every one of those is a fact the page could only have by
+  reading the row it is refusing, so a sentence built from them would answer the three worlds
+  differently. Recorded as an amendment in `docs/prototypes/README.md`.
+- **The history names the person an act was about**, off `subject_netid` and never off the roster:
+  the roster is present-tense and the log is not, so a class offered, withdrawn and re-offered has
+  an `offer` row whose subject is not on the roster at all. `db/read/offering.test.ts` builds
+  exactly that class.
+- **`fireOfferingEvent` moved up to `app/(signed-in)/offering-actions.ts`**, as `fireCourseEvent`
+  did when the Course machine gained a second screen, and it revalidates both `/lineup` and
+  `/classes/:id`. `named.tsx` and `stamp.ts` moved up beside it for the same reason: two record
+  pages must state a person and a moment identically.
+- **`db/read/offering-rows.ts` now exports `offeringActionsFor` and `asMeeting`**, and
+  `whoMay` de-duplicates the descriptions it joins — the *Seat-sharing tags* class names two routes
+  that describe the same person when there is no tag in hand, and the rail was reading *"Only the
+  program's director or the program's director"*.
+- **The rail answers *Seat-sharing tags* with a candidate program**, which is the one field class
+  whose scope points **away** from the record. `writeFields` evaluates it per row against that row's
+  program, so a record page passing no `tagProgramCode` states a refusal the writer would not throw
+  — IMA's director may write IMA's tag onto ITP's class. `getOfferingPage` asks *is there any tag
+  this actor could write here* instead. A build agent adding the Review page's rail should expect
+  the other thirteen classes to need none of this.
+
+Two smaller corrections came out of the review and are recorded in `docs/data-access/README.md`:
+`/courses/007` and `/classes/007` no longer render the record `7` does — #83 stated *one record has
+exactly one address* and shipped a pattern that missed leading zeros, and the Server Actions
+revalidate the canonical path — and `EXPLAINED`, the two moves that ask why, is
+`app/(signed-in)/explained-moves.ts` rather than a constant in each of the two screens that render
+them.
+
+The rail's `Edit` control points nowhere here too, which #84 sanctioned in as many words, and the
+section `↗` deferred by #83 lands with this page — on the Course page's sections **and** the
+Lineup's rows, since both lists are places a class is reached from. No row in either leads to a page
+its reader is refused: both narrow on the predicate this page refuses with.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

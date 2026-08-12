@@ -116,6 +116,10 @@ describe.skipIf(!DATABASES_CONFIGURED)("getCoursePage", () => {
     // A URL is a public input, so the answer has to survive one that is not a
     // number at all — and it is the same answer, in the same words.
     expect(await getCoursePage("not-a-course", AS)).toEqual({ visible: false });
+    // And one that is a number naming a real course by a second address, which
+    // issues/84 closed: a record has exactly one, or the Server Action
+    // revalidates a path the reader is not on.
+    expect(await getCoursePage(`0${course.physicalComputing}`, AS)).toEqual({ visible: false });
   });
 
   // --- The sections, grouped by term, newest first ---------------------------
