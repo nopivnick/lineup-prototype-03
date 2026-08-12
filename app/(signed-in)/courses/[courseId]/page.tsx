@@ -260,7 +260,7 @@ function NotOfferableYet({ page }: { page: CoursePage }) {
 
   return (
     <Badge color="orange" variant="light">
-      Not offerable yet — no {missing}
+      Not offerable yet — missing {missing}
     </Badge>
   );
 }
