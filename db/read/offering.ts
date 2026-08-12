@@ -329,9 +329,9 @@ const CLASS_ID = /^(?:0|[1-9][0-9]*)$/;
  * refusal that varied with `Set` iteration order would be a different page on
  * two renders.
  *
- * The chair needs none of this — `permitted()`'s own clause sits ahead of the
- * routes — which is why this returns `undefined` for them and the class is open
- * regardless.
+  * The chair needs none of this — `permitted()`'s own clause sits ahead of the
+  * routes — so where the chair bypass applies, `tagProgramCode` is ignored and the
+  * class is open regardless.
  */
 function aTagThisActorCouldWrite(facts: ActorFacts, ownProgramCode: string): string | undefined {
   return [...facts.directorOf].filter((code) => code !== ownProgramCode).sort()[0];

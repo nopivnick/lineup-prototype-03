@@ -320,11 +320,11 @@ and the tooltip names who granted it and when. Seat sharing is the only place a 
 the course's own appears anywhere, so every program name this screen renders is a grant.
 
 Offering transitions fire from here for real, through
-[`app/(signed-in)/offering-actions.ts`](<./app/(signed-in)/offering-actions.ts>), which holds no
+[`app/(signed-in)/offering-actions.ts`](./app/(signed-in)/offering-actions.ts), which holds no
 rules and which the class page's rail fires through too. `cancel` and `kill` open a free-text **why**
 box first — those are the two acts that end something the department had committed to, and the two
 where the state pair in the log cannot reconstruct the reason. Which two is
-[`explained-moves.ts`](<./app/(signed-in)/explained-moves.ts>), shared rather than answered once per
+[`explained-moves.ts`](./app/(signed-in)/explained-moves.ts), shared rather than answered once per
 screen. `staff` and `unstaff` appear nowhere on the screen and nowhere in the action, which is
 **non-exposure rather than a check**: there is no branch refusing them, so a browser naming one
 gets the same answer as a browser naming nonsense.
