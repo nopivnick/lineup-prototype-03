@@ -213,6 +213,46 @@ about it are structural rather than conventional:
   still **no un-appoint control**, which is what `SEED_ONLY` in `docs/fixtures/fixtures.ts` says it
   is: a missing screen, not a missing rule.
 
+**The fourth screen is the Course page**, built by
+[#83](https://github.com/nopivnick/lineup-prototype-03/issues/83): `db/read/course.ts` is the fourth
+view-shaped read module, `app/(signed-in)/courses/[courseId]/` is the screen, and it settles **the
+page conventions the Offering, Review and three edit pages inherit wholesale** — the record left, a
+sticky rail right, the history in sentences at the foot of the main column. Five things about it are
+structural rather than conventional:
+
+- **A row's assembly moved out of the view that first needed it.** `db/read/offering-rows.ts` holds
+  `LineupRow`, the three child JSON fragments, the Offering tier and the per-row permitted-action
+  set; `db/read/course-rows.ts` holds the Course permitted-action set, the *not offerable yet*
+  marker and the two course tag fragments. Both are shared with the list view that used to own
+  them, because a second assembly is a second **intersection** of machine legality, invariants and
+  permissions — two screens offering different moves on one record, neither of them the writer's
+  answer. `db/read/` now holds seven view modules and five shared ones.
+- **`db/read/qualified.ts` exists because Drizzle renders a column unqualified when the select names
+  one table.** The Lineup never saw it — its select joins `course` — and the Course page's sections
+  query names one table and hit `WHERE "offering_id" = "offering_id"` on the first run. A shared
+  `sql` fragment that is only correct in the queries it was first pasted into is a trap for the next
+  caller, and the next caller is a later ticket's detail page.
+- **The two field-class refusals moved into `db/write/rules.ts`**, joining `stillTeaching`,
+  `courseRetired` and the four revocation refusals for the same reason: `notNowField` and
+  `notYoursField` are what `writeFields` throws and what the rail states one step earlier. `OWNED_BY`
+  moved with them, and `fieldClassesOn(machine)` **derives** which classes surface on a record from
+  it — which is why #106's fourteenth class reached the course page's rail without anybody editing a
+  screen.
+- **`getCoursePage` computes `EditAffordance`, and `/courses/:id/edit` still adds no read module**
+  (#62). `editAffordanceFor` is in `db/read/shape.ts` with the rest of what a record page ships
+  beside the record, because the Offering and Review pages are the same page with a different
+  record.
+- **`lastChanged: null` carries two facts and the page tells them apart by looking at `history`.**
+  For a reader with a history section it is *never changed since it was created*, stated in words;
+  for a Tier 2 reader the box is not rendered at all and nothing about `updated_by` reaches them.
+
+Two controls point at routes that do not exist yet and one the prototype draws is absent, and the
+line between them is **what #83's acceptance criteria asked for** rather than whether the
+destination is built: the rail's `Edit` control points nowhere, which #83 sanctioned in as many
+words; the minted-review link points at `/reviews/:id`, which #83 asked for outright and #86 builds;
+and the section rows carry **no `↗`**, which no criterion mentions. It returns with the Offering page
+and needs no change of shape.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

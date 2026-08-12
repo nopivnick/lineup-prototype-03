@@ -47,6 +47,13 @@ const EXPOSED: ReadonlySet<string> = new Set(
  * a grant revoked, a class slated. Returning it rather than throwing is what
  * lets the reader see the same sentence the greyed control would have carried,
  * and it is a **relay**, not a rule: the wording is the writer's.
+ *
+ * **One action for one machine, and the Course machine now has two screens**
+ * (issues/83): the Catalog's `⋯ n` menu and the Course page's rail render the
+ * same permitted-action set in two treatments, so they fire it through the same
+ * wrapper. It lives here rather than beside either route for that reason, and
+ * it revalidates both — a `retire` clicked in the rail changes the row in the
+ * Catalog, and the reverse.
  */
 export async function fireCourseEvent(
   courseId: string,
@@ -72,5 +79,6 @@ export async function fireCourseEvent(
   }
 
   revalidatePath("/catalog");
+  revalidatePath(`/courses/${id}`);
   return null;
 }

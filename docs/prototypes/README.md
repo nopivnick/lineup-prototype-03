@@ -443,6 +443,33 @@ what it overturns; it never stands beside it.
   is the count that has moved, and this ledger is where it moves. The **mixed** classes are still three (Course assignment,
   Offering operational, Review assignment); the new one is rows and nothing else.
 
+- **The Course page ships with two of variant D's links absent, and neither is a change of
+  shape** — by [#83](https://github.com/nopivnick/lineup-prototype-03/issues/83), which built
+  `course-offering-detail.html`'s course half.
+
+  Variant D gives each row of the *Sections* table the same `↗` the Catalog row carries, so that
+  the Course page is the second place a class page is reached from. **That `↗` is absent**, and the
+  **minted-review link ships** even though `/reviews/:id` is
+  [#86](https://github.com/nopivnick/lineup-prototype-03/issues/86)'s and equally unbuilt. The two
+  calls look inconsistent and the line between them is not *does the route exist* — it is **what
+  #83's acceptance criteria asked for**: *the page links the review whose `approve` minted the
+  course* is one of the twelve, and no criterion mentions the section `↗`. A ticket's stated scope
+  is the deliverable; a control it did not ask for is not something to add on the way past, and one
+  it did ask for is not something to withhold because the destination is a later ticket's. The
+  section `↗` returns with the Offering page and needs no change of shape — the rows are
+  `LineupRow`s and already carry everything it wants.
+
+  The **`Edit` control ships and points nowhere**, which #83 sanctioned in as many words: the count
+  beneath it — *2 of 3 sections are yours* — is already this actor's true answer, and greying the
+  control would read as *not yours*, the one thing it must not say to somebody two classes are open
+  to. A line beneath says the edit page is not built yet.
+
+  **The section rows carry no `⋯ n` menu**, which is variant D's own behaviour rather than a
+  deferral: the table is a way *in* to a class, and the class's moves are the Offering page's. The
+  rows are the Lineup's `LineupRow` and carry the permitted-action set regardless, because a row
+  type that meant one thing on one screen and another here is the drift the shared assembly exists
+  to prevent.
+
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three
   variants* over files holding four, and no title named the settled variant; every title now

@@ -40,14 +40,18 @@ import {
   holdsRole,
   lastChair,
   liveSeatsOf,
-  notYours,
+  notNowField,
+  notYoursField,
+  OWNED_BY,
   peopleKnows,
-  permitted,
   readActorFacts,
+  recordNoun,
   stillDirects,
   stillHeadsCourses,
   stillOnLiveRosters,
   type ActorFacts,
+  type FieldWriteOwner,
+  type GateStates,
   type Subject,
 } from "./rules";
 import { moment, type At, type ClassesTx, type Id, type Netid, type OpenTransaction } from "./transaction";
@@ -142,7 +146,7 @@ export async function writeFields(
   // rather than refusing.
   for (const table of [...Object.keys(byTable(columns)), ...rows.map((row) => row.table)]) {
     const owner = OWNED_BY[table];
-    if (owner && owner !== kindOf(write.record)) {
+    if (owner && ownerNoun(owner) !== kindOf(write.record)) {
       throw new Error(`A field write on ${kindOf(write.record)} may not name ${table}.`);
     }
   }
@@ -171,7 +175,7 @@ export async function writeFields(
       continue;
     }
 
-    const notNow = await stateRefusal(tx, fieldClass, context);
+    const notNow = notNowField(fieldClass, gateStates(context));
     if (notNow) refusals.push(notNow);
 
     const notYoursRefusal = roleRefusal(fieldClass, facts, context, work);
@@ -285,54 +289,25 @@ function positionOf(row: FieldRowWrite): unknown {
 }
 
 // ---------------------------------------------------------------------------
-// The state predicate — an invariant, so it binds the chair and the seed
+// The two predicates — both sentences are `db/write/rules.ts`'s
 // ---------------------------------------------------------------------------
+//
+// The state half is an invariant, so it binds the chair and the seed; the role
+// half is a permission, and the chair sits one clause ahead of it and of
+// nothing else. Both wordings moved into `rules.ts` when the record pages
+// gained an `Edit` control (issues/83), for the reason `stillTeaching` moved:
+// the refusal stated in the open under a control the reader cannot use and the
+// exception thrown at whoever clicks anyway are one sentence.
 
-async function stateRefusal(
-  tx: ClassesTx,
-  fieldClass: FieldClass,
-  context: Context,
-): Promise<Refusal | null> {
-  const gate = fieldClass.stateGate;
-  if (gate.gate !== "states") return null;
-
-  // The Proposal body's gate is the one that is not a state of the record being
-  // edited: the body is shared, so it is open while **any** of the proposal's
-  // reviews is `Developing` (issues/65). The per-review condition that decides
-  // *whose* `develop` opened it rides in the relationship instead.
-  if (gate.states.some((state) => state.startsWith("Developing —"))) {
-    const developing = context.siblingReviewStates.includes("Developing");
-    return developing
-      ? null
-      : refusal("The proposal body can only be changed while a program has it under development.");
-  }
-
-  const current = stateOf(gate.machine, context);
-  if (current !== null && gate.states.includes(current)) return null;
-
-  return refusal(
-    `${fieldClass.name} can only be changed while the ${noun(gate.machine)} is ${gate.states.join(" or ")}; this one is ${current ?? "not loaded"}.`,
-  );
+/** The record's own states, as the shared gate reads them. */
+function gateStates(context: Context): GateStates {
+  return {
+    course: context.course?.status ?? null,
+    offering: context.offering?.status ?? null,
+    review: context.review?.status ?? null,
+    siblingReviews: context.siblingReviewStates,
+  };
 }
-
-function stateOf(machine: MachineName, context: Context): string | null {
-  switch (machine) {
-    case "course":
-      return context.course?.status ?? null;
-    case "offering":
-      return context.offering?.status ?? null;
-    case "course_proposal_review":
-      return context.review?.status ?? null;
-  }
-}
-
-function noun(machine: MachineName): string {
-  return machine === "course_proposal_review" ? "review" : machine === "offering" ? "class" : "course";
-}
-
-// ---------------------------------------------------------------------------
-// The role predicate — a permission, and the chair sits one clause ahead of it
-// ---------------------------------------------------------------------------
 
 function roleRefusal(
   fieldClass: FieldClass,
@@ -347,17 +322,13 @@ function roleRefusal(
   if (fieldClass.name === "Seat-sharing tags") {
     for (const row of work.rows) {
       const tagProgramCode = context.tagPrograms.get(rowTagKey(row));
-      const subject: Subject = { ...context.subject, tagProgramCode };
-      if (!permitted(fieldClass.writers, facts, subject)) {
-        return notYours("change", "this class's seat sharing", fieldClass.writers, subject);
-      }
+      const refused = notYoursField(fieldClass, facts, { ...context.subject, tagProgramCode });
+      if (refused) return refused;
     }
     return null;
   }
 
-  return permitted(fieldClass.writers, facts, context.subject)
-    ? null
-    : notYours("change", `this record's ${fieldClass.name.toLowerCase()}`, fieldClass.writers, context.subject);
+  return notYoursField(fieldClass, facts, context.subject);
 }
 
 // ---------------------------------------------------------------------------
@@ -711,29 +682,17 @@ function tableNamed(table: string): PgTable {
 }
 
 /**
- * Which record each table hangs off. `course_proposal` belongs to the review
- * because the body is shared and the edit page is the review's (issues/62); the
- * two authorization tables belong to no record at all (issues/34).
+ * The record a table hangs off is `OWNED_BY` in `db/write/rules.ts`, shared with
+ * the record pages, which read it to work out which field classes surface on
+ * them at all (issues/62, issues/83). This is that map's answer as a reader's
+ * noun.
  */
-const OWNED_BY: Readonly<Record<string, "a course" | "a class" | "a review" | "the roles page">> = {
-  course: "a course",
-  course_area: "a course",
-  course_proposal: "a review",
-  course_proposal_review: "a review",
-  course_proposal_review_area: "a review",
-  course_requirement_category: "a course",
-  offering: "a class",
-  offering_area: "a class",
-  offering_instructor: "a class",
-  offering_meeting: "a class",
-  offering_requirement_category: "a class",
-  program_director: "the roles page",
-  user_role: "the roles page",
-};
-
 function kindOf(record: FieldWriteRecord): string {
-  if ("authorization" in record) return "the roles page";
-  return record.machine === "course" ? "a course" : record.machine === "offering" ? "a class" : "a review";
+  return ownerNoun("authorization" in record ? "authorization" : record.machine);
+}
+
+function ownerNoun(owner: FieldWriteOwner): string {
+  return owner === "authorization" ? "the roles page" : `a ${recordNoun(owner)}`;
 }
 
 /**

@@ -1,10 +1,24 @@
 import "server-only";
 
-import { READ_TIERS, ROLES_PAGE, type ReadTier, type Role } from "@/lib/permissions";
+import {
+  READ_TIERS,
+  ROLES_PAGE,
+  type FieldClassName,
+  type MachineName,
+  type ReadTier,
+  type Role,
+} from "@/lib/permissions";
 
 import type { Meeting } from "@/db/write/create-offering";
 import type { Refusal } from "@/db/write/refusal";
-import type { ActorFacts } from "@/db/write/rules";
+import {
+  fieldClassesOn,
+  notNowField,
+  notYoursField,
+  type ActorFacts,
+  type GateStates,
+  type Subject,
+} from "@/db/write/rules";
 
 import type { StitchedName } from "./stitch";
 
@@ -198,3 +212,155 @@ if (!ROLES_PAGE.mayRead.includes(NOT_A_ROLE_HOLDER)) {
  * word.
  */
 export type Visible<T> = { visible: true; page: T } | { visible: false };
+
+// ---------------------------------------------------------------------------
+// What a record page ships beside the record — issues/41's page conventions
+// ---------------------------------------------------------------------------
+//
+// The three detail pages inherit these wholesale: a record on the left, what you
+// may do about it on the right in a sticky rail, and its history in sentences at
+// the bottom (issues/41, issues/42, issues/62). They are here rather than in the
+// Course page's own module because the Offering and Review pages are the same
+// page with a different record, and a second copy of any of them would be a
+// second answer to a question issues/41 settled once.
+
+/**
+ * **A record's history, as the detail pages read it** (issues/40, issues/41).
+ *
+ * `null` for `student` and `advisor`: the history section is **absent, not
+ * empty** — issues/37's *absent rather than empty*, scaled from a column to a
+ * page by issues/38 and to a section by issues/41 — on issues/28's Tier 2
+ * predicate: *if you can do nothing, you may not see the record of who did*.
+ * The rail's *last changed* box goes with it, being the same class of fact.
+ */
+export type History = {
+  /**
+   * **Derived from `created_by` / `created_at` on the entity row, not a log row.**
+   * issues/13 refused a genesis row and made `from_state` `NOT NULL`; a rendered
+   * line derived from the entity is not one. The alternative is a history that
+   * begins *"named Nora as lead instructor"* and sends the reader elsewhere to
+   * learn where the thing came from.
+   */
+  creation: { by: StitchedName; at: string };
+  moves: readonly HistoryLine[];
+};
+
+/**
+ * One row of a `*_transition` table, with its netids stitched to names.
+ *
+ * `event`, `fromState` and `toState` are **exactly machine values** and that
+ * meaning is load-bearing (issues/13) — the log is not a general audit log, and
+ * a later effort inherits a table to add to rather than a table to reshape. The
+ * page renders a **sentence** per row from them; the sentence may invent wording
+ * the machine never said, and may not invent a fact.
+ *
+ * `subject` is `actor_netid`'s counterpart: `actor_netid` records who
+ * **clicked**, and a decline is routinely recorded by an admin taking a refusal
+ * by email (issues/15). issues/41 then gave `offer` and `accept` a subject too —
+ * the roster survives the event but not the offering, so a log read after a
+ * withdraw-and-re-offer would otherwise have an `offer` row attributable to
+ * nobody and an `accept` row attributable to whoever holds position 0 *now*.
+ *
+ * `reason` is issues/10's free text, and it is what makes the log read like a
+ * real one rather than a set of bare state changes — which is why the detail
+ * pages render a sentence per row rather than the raw seven-column table.
+ */
+export type HistoryLine = {
+  event: string;
+  fromState: string;
+  toState: string;
+  actor: StitchedName;
+  subject: StitchedName | null;
+  reason: string | null;
+  at: string;
+};
+
+/**
+ * `updated_at` / `updated_by`, rendered as *last changed* in the rail
+ * (issues/40, issues/41).
+ *
+ * Complementary to the log rather than redundant with it: **issues/17 deleted
+ * the transition a field write used to fire**, so this stamp is the only trace
+ * of the edits the log is forbidden to record — sharpest for exactly the
+ * historical corrections a reader would most want attributable. `null` means
+ * never changed since creation, which the page states in words rather than as an
+ * empty box.
+ */
+export type LastChanged = { by: StitchedName; at: string } | null;
+
+/**
+ * **The record page rail's `Edit` control and everything it needs** (issues/62).
+ *
+ * A record's field classes disagree about their writer and about their state
+ * rule — that is why there are fourteen of them — so *everything you may change*
+ * is **actor-shaped**, and the same URL is a different page for a coordinator
+ * and for a director.
+ *
+ * - `open` is what the edit form will ask for. Where it is empty the record page
+ *   carries **no `Edit` control at all** and every class's refusal instead.
+ * - The control's label does not vary with the actor; the **count** beneath it
+ *   does — *2 of 3 sections are yours*. A control whose name changes per reader
+ *   stops being one act.
+ * - `refused` carries **two refusals per class, not one**, because issues/28 ANDs
+ *   a state predicate and a role predicate and checks them **separately**.
+ *   Labelled *Not yours* and *Not now*. Stating one hides the wall the reader
+ *   walks into next: an `Approved` course read by another program's director
+ *   refuses its body on both counts. This is why a field refusal is sometimes two
+ *   sentences where a transition refusal is always one.
+ */
+export type EditAffordance = {
+  open: readonly FieldClassName[];
+  refused: readonly {
+    fieldClass: FieldClassName;
+    notYours: Refusal | null;
+    notNow: Refusal | null;
+  }[];
+};
+
+/**
+ * **The record module computes it, and the edit route adds no read module of its
+ * own** (issues/62, and `EDIT_ROUTES` in `docs/data-access/`).
+ *
+ * The affordance is not something `/courses/:id/edit` introduces: the **record**
+ * page needs it, to render the `Edit` control with its count and, where nothing
+ * is yours, every class's refusal instead. Once the record module computes it, an
+ * edit module would return a subset of what the record module already returns.
+ *
+ * Both sentences are the writer's own — `notNowField` and `notYoursField` in
+ * `db/write/rules.ts` — so the refusal stated in the rail ahead of the click and
+ * the one `writeFields` throws at whoever clicks anyway cannot drift apart. The
+ * classes are derived from `FIELD_CLASSES` by which tables the record owns, so a
+ * fifteenth class surfaces here without anybody editing a screen, which is what
+ * issues/106 did to the course page.
+ *
+ * **The chair sits ahead of `notYours` and never ahead of `notNow`** (issues/34,
+ * issues/62): a chair gets the `Edit` control on an `Approved` course and the body
+ * section is still absent from the form. That is `permitted()`'s own clause rather
+ * than a rule stated here.
+ */
+export function editAffordanceFor(
+  machine: MachineName,
+  facts: ActorFacts,
+  subject: Subject,
+  states: GateStates,
+): EditAffordance {
+  const open: FieldClassName[] = [];
+  const refused: {
+    fieldClass: FieldClassName;
+    notYours: Refusal | null;
+    notNow: Refusal | null;
+  }[] = [];
+
+  for (const fieldClass of fieldClassesOn(machine)) {
+    const notNow = notNowField(fieldClass, states);
+    const notYours = notYoursField(fieldClass, facts, subject);
+
+    if (notNow === null && notYours === null) {
+      open.push(fieldClass.name);
+    } else {
+      refused.push({ fieldClass: fieldClass.name, notYours, notNow });
+    }
+  }
+
+  return { open, refused };
+}

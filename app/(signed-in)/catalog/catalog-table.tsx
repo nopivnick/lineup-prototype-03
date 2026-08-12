@@ -18,7 +18,8 @@ import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import type { CatalogGroup, CatalogRow } from "@/db/read/catalog";
 import type { Refusal } from "@/db/read/shape";
 
-import { fireCourseEvent } from "./actions";
+import { fireCourseEvent } from "../course-actions";
+import { OpenCourse } from "../open-course";
 
 /**
  * **The Catalog's table** (issues/37, issues/81).
@@ -145,6 +146,16 @@ export function CatalogTable({ groups }: { groups: readonly CatalogGroup[] }) {
                         },
                       ]
                     : []),
+                  {
+                    accessor: "courseId",
+                    title: "",
+                    sortable: false,
+                    textAlign: "right",
+                    width: 44,
+                    render: (row) => (
+                      <OpenCourse courseId={row.courseId} courseNumber={row.courseNumber} />
+                    ),
+                  },
                 ]}
               />
             </Box>

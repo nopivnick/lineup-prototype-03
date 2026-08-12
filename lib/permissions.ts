@@ -628,6 +628,28 @@ export const FIELD_CLASSES = [
 ] as const satisfies readonly FieldClass[];
 
 /**
+ * **The fourteen names, as a union rather than as `string`** (issues/62).
+ *
+ * `EditAffordance` is a list of field classes and a list of refusals against
+ * field classes, and the thing that makes it worth naming them is that a class
+ * renamed here is then a compiler error at every renderer rather than a section
+ * that quietly stops matching. Read off the map, so a fifteenth arrives without
+ * anybody choosing to bring it — the same move `CourseEventName` makes on the
+ * machine.
+ */
+export type FieldClassName = ClassifiedField["name"];
+
+/**
+ * One of the fourteen, **with its literal name kept**. `FieldClass` widens
+ * `name` to `string`, which is right for the writer — it groups an unclassified
+ * column under a class the map never wrote — and wrong for anything that reports
+ * a class *by name*, since a widened name needs a cast to become a
+ * `FieldClassName` again and a cast is the compiler check this union was added
+ * to buy.
+ */
+export type ClassifiedField = (typeof FIELD_CLASSES)[number];
+
+/**
  * **The default, and the whole of issues/28's *a column with no class is
  * unwritable*.**
  *

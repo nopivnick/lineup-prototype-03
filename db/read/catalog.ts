@@ -1,7 +1,6 @@
 import "server-only";
 
 import { and, asc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
-import type { EventFromLogic } from "xstate";
 
 import {
   area,
@@ -13,24 +12,27 @@ import {
   requirementCategory,
 } from "@/db/classes/schema";
 import { classesDb } from "@/db/handles";
-import {
-  permitted,
-  notYours,
-  routesFor,
-  stillTeaching,
-  type ActorFacts,
-  type Subject,
-} from "@/db/write/rules";
 import type { Actor } from "@/lib/auth/actor";
-import {
-  COURSE_STATES,
-  machine as courseMachine,
-  type CourseState,
-} from "@/lib/machines/course.machine";
+import { COURSE_STATES, type CourseState } from "@/lib/machines/course.machine";
 import { LIVE_STATES } from "@/lib/machines/offering.machine";
 
 import { getActorFacts } from "./actor-facts";
+import {
+  courseActionsFor,
+  notOfferableYet,
+  type CourseEventName,
+  type NotOfferableYet,
+} from "./course-rows";
 import { canEverAct, type OwnTag, type PermittedAction } from "./shape";
+
+/**
+ * The permitted-action set and the *not offerable yet* marker are
+ * `db/read/course-rows.ts`'s, shared with the Course page (issues/83): two views
+ * of one course must offer the same moves and name the same refusal, or the
+ * `⋯ n` menu and the rail's buttons are two answers rather than two treatments
+ * of one (issues/40, issues/41).
+ */
+export type { CourseEventName };
 
 /**
  * **The Catalog: every Course eligible to be offered, grouped by program, with
@@ -160,7 +162,7 @@ export async function getCatalogPage(
       status,
       notOfferableYet: notOfferableYet(areasHeld.length, row.areaHead),
       actions: columnExists
-        ? actionsFor(status, record, liveOf.get(row.courseId) ?? [], facts)
+        ? courseActionsFor(status, record, liveOf.get(row.courseId) ?? [], facts)
         : null,
     });
   }
@@ -231,17 +233,11 @@ export type CatalogRow = {
   requirementCategories: readonly OwnTag[];
   status: CourseState;
   /**
-   * **Derived, not stored** — true when `course_area` is empty or
-   * `course.area_head` is null (issues/37), naming which of the two is missing
-   * so the tooltip can say it.
-   *
-   * This is issues/32's create-time gate made visible one step earlier, where a
-   * director can act on it, and it is the closest the Catalog gets to a Course
-   * state that issues/32 proved could not exist: the machine is flat and
-   * `Approved ⇄ Revising` has no room for a fourth state. What could not be a
-   * state is a derived marker instead.
+   * **Derived, not stored**, and shared with the Course page — see
+   * `notOfferableYet` in `db/read/course-rows.ts` for the derivation and the
+   * argument (issues/37, issues/32).
    */
-  notOfferableYet: { missingArea: boolean; missingAreaHead: boolean } | null;
+  notOfferableYet: NotOfferableYet;
   /**
    * **Absent — not empty — for an actor who can never act** (issues/37). An
    * always-empty column is dead width advertising a capability the reader will
@@ -249,18 +245,6 @@ export type CatalogRow = {
    */
   actions: readonly PermittedAction<CourseEventName>[] | null;
 };
-
-/**
- * The Course machine's event names, read off the machine rather than restated
- * (issues/13's rule that a hand-maintained second list is the thing that gets
- * forgotten).
- *
- * Named `CourseEventName` and not `CourseEvent` because `db/write/apply-transition.ts`
- * already owns that name for the richer thing a *transition* carries — the event
- * plus its payload and its optional `reason`. A list row offers a move; the
- * writer takes the move and what came with it.
- */
-export type CourseEventName = EventFromLogic<typeof courseMachine>["type"];
 
 // ---------------------------------------------------------------------------
 // The filters
@@ -305,72 +289,6 @@ function narrow(filters: CatalogFilters): SQL | undefined {
   }
 
   return and(...clauses);
-}
-
-// ---------------------------------------------------------------------------
-// The per-row permitted-action set
-// ---------------------------------------------------------------------------
-
-/**
- * **Machine legality AND invariants AND permissions, intersected here** — the
- * same three terms in the same order as `applyTransition`, computed one step
- * earlier so a row can say what it offers before anybody clicks (issues/28,
- * issues/37).
- *
- * Every move the machine offers from this state is listed, the permitted ones
- * clickable and the refused ones carrying their reason: `⋯ 0` says *nothing to
- * do here* without opening anything, and opening it says why. A move the machine
- * does not offer at all is **absent** rather than greyed — the state is not a
- * refusal, it is the shape of the lifecycle, and `Retired` is final so its rows
- * carry no menu at all.
- *
- * The `retire` guard is the one invariant a Course row carries, and its refusal
- * is `stillTeaching`'s sentence rather than one written here, so what the greyed
- * control says and what the writer throws cannot drift apart.
- */
-function actionsFor(
-  status: CourseState,
-  record: { programCode: string; areaHead: string | null },
-  live: readonly { termCode: string; status: string }[],
-  facts: ActorFacts,
-): readonly PermittedAction<CourseEventName>[] {
-  const subject: Subject = { course: record };
-
-  return movesFrom(status).map((event) => {
-    if (event === "retire" && live.length > 0) {
-      return { event, permitted: false, refusal: stillTeaching(live) };
-    }
-
-    const routes = routesFor("course", event);
-    return permitted(routes, facts, subject)
-      ? { event, permitted: true }
-      : { event, permitted: false, refusal: notYours(event, "this course", routes, subject) };
-  });
-}
-
-/**
- * The edges the machine draws out of one state, **guards included**, read off
- * the machine itself.
- *
- * `.can()` is deliberately not what asks: it folds the guard in, and a guarded
- * edge is precisely the one that has to be listed and greyed with its reason.
- */
-function movesFrom(status: CourseState): readonly CourseEventName[] {
-  return courseMachine.states[status].ownEvents as readonly CourseEventName[];
-}
-
-/**
- * **The two inputs issues/32's create-time gate reads**, checked one step before
- * the create path reads them. `null` is a course that can be offered, so the
- * marker is an object exactly when there is something to say.
- */
-function notOfferableYet(
-  areaCount: number,
-  areaHead: string | null,
-): { missingArea: boolean; missingAreaHead: boolean } | null {
-  const missingArea = areaCount === 0;
-  const missingAreaHead = areaHead === null;
-  return missingArea || missingAreaHead ? { missingArea, missingAreaHead } : null;
 }
 
 function collect(rows: readonly { courseId: number; name: string }[]): Map<number, OwnTag[]> {

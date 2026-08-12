@@ -21,6 +21,7 @@ import type { LineupGroup, LineupRow, OfferingEventName } from "@/db/read/lineup
 import type { ForeignTag, Meeting, Refusal } from "@/db/read/shape";
 import { rosterShape } from "@/lib/roster";
 
+import { OpenCourse } from "../open-course";
 import { fireOfferingEvent } from "./actions";
 
 /**
@@ -136,6 +137,14 @@ export function LineupTable({
                 <Text size="sm" c="dimmed">
                   {group.sectionCount} {group.sectionCount === 1 ? "section" : "sections"}
                 </Text>
+                {/*
+                  **The group header *is* a course**, so it carries the same `↗`
+                  the Catalog row does and it is literally the same control
+                  (issues/41, issues/83).
+                */}
+                <Box ml="auto">
+                  <OpenCourse courseId={group.courseId} courseNumber={group.courseNumber} />
+                </Box>
               </Group>
             ),
           },
