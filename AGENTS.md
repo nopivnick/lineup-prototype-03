@@ -435,9 +435,12 @@ are structural rather than conventional:
 - **The program section is the ticket**, and it says *the boxes are the rows* in the three places
   variant A says it: the section header, each option, and a live count reading *submitting writes 2
   reviews*. There is no requested-programs table, so *which programs* is not a field beside the form
-  — a `course_proposal_review` **is** the request. The empty set is refused by `createProposal` and
-  not by the form, which is why the sentence under the disabled button and the one the writer throws
-  are the same rule stated once.
+  — a `course_proposal_review` **is** the request. **The empty set is refused by `createProposal`
+  and not by the form**, and `noProgramsRequested` in `db/write/rules.ts` is that sentence, joining
+  `stillTeaching`, `courseRetired`, the four revocation refusals and the two field refusals on the
+  terms they all moved: two callers. The read module ships it as `ProposeForm.emptySet`, the form
+  states it under a disabled submit, the writer throws it at whoever posts an empty set anyway, and
+  `db/read/proposals.test.ts` compares the two.
 - **The refused reader gets the writer's own sentence**, not a page's. `/propose` is refused rather
   than emptied for anyone holding no create arm — the list's control is already absent for them, and
   a link nobody rendered is not a check — and what it states is `notYours("propose", "a course", …)`.
@@ -452,8 +455,10 @@ are structural rather than conventional:
 - **The action is `propose/actions.ts` and holds no rules.** It resolves the actor, parses the post
   and relays the refusal. What it rejects — a blank title, a credit value that is not a positive
   integer — is **malformed rather than refused**, the same class of check as `EXPOSED` in
-  `review-actions.ts`, and unreachable through the form. The program codes are the foreign key's to
-  check, because the boxes come from the same table.
+  `review-actions.ts`, and unreachable through the form because the form disables its submit on the
+  very same function: `bodyOf` and `bodyProblem` are `propose/proposed.ts`, a plain module both
+  sides import. It is plain and not `"use client"` for `review-where.ts`'s reason. The program codes
+  are the foreign key's to check, because the boxes come from the same table.
 
 Two smaller things came with it. `describe` now says ***an* instructor** — three of the seven roles
 begin with a vowel and the flat arm's article was fixed at *a*, which went unseen because a flat

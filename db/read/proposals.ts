@@ -4,7 +4,13 @@ import { asc, desc, eq } from "drizzle-orm";
 
 import { course, courseProposal, courseProposalReview, program } from "@/db/classes/schema";
 import { classesDb } from "@/db/handles";
-import { notYours, permitted, routesFor, type ActorFacts } from "@/db/write/rules";
+import {
+  noProgramsRequested,
+  notYours,
+  permitted,
+  routesFor,
+  type ActorFacts,
+} from "@/db/write/rules";
 import type { Netid } from "@/db/write/transaction";
 import type { Actor } from "@/lib/auth/actor";
 import {
@@ -181,9 +187,16 @@ export async function mayProposeACourse(actor: Actor): Promise<boolean> {
 /**
  * The propose form, or the refusal instead of one — **one value either way**
  * (issues/14): where there is no form, the reason travels with the absence.
+ *
+ * `emptySet` is the other refusal the form renders, and it is shipped rather than
+ * worded on the page for the same reason: it is `createProposal`'s own sentence,
+ * so the reason stated under a disabled submit and the one thrown at whoever
+ * posts an empty set anyway cannot drift. It is not conditional on anything the
+ * reader has done — the form states it while nothing is checked and the writer
+ * throws it if nothing is sent.
  */
 export type ProposeForm =
-  | { mayPropose: true; programs: readonly ProgramChoice[] }
+  | { mayPropose: true; programs: readonly ProgramChoice[]; emptySet: Refusal }
   | { mayPropose: false; refusal: Refusal };
 
 /**
@@ -227,12 +240,13 @@ export async function getProposeForm(actor: Actor): Promise<ProposeForm> {
   const programs = await classesDb()
     .select({ code: program.code, name: program.name, degreeLevel: program.degreeLevel })
     .from(program)
-    // Program order, which is the order the verdict chips read in on the list the
-    // submit lands on: a proposer who checked two boxes should meet them again in
-    // the order they checked them in.
+    // **Program code order, which is the order the verdict chips read in** on the
+    // list the submit lands on and the order the reviews sit in within their
+    // group. The boxes and the rows they mint therefore read the same way round,
+    // whatever order they were checked in.
     .orderBy(asc(program.code));
 
-  return { mayPropose: true, programs };
+  return { mayPropose: true, programs, emptySet: noProgramsRequested() };
 }
 
 /**

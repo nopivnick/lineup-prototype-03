@@ -437,11 +437,37 @@ describe.skipIf(!DATABASES_CONFIGURED)("getProposalsPage", () => {
     ]);
   });
 
-  test("all three create arms reach the form, and the control and the page agree", async () => {
+  test("the form states the writer's own empty-set sentence, not a second wording", async () => {
+    // **The rule the program section is about has two staters** — the disabled
+    // submit and `createProposal` — so it is `db/write/rules.ts`'s, exactly as
+    // `stillTeaching` and `courseRetired` are. This is the comparison that keeps
+    // them one sentence.
+    const form = await getProposeForm({ netid: WHO.instructor });
+    if (!form.mayPropose) throw new Error("The instructor was refused the propose form.");
+
+    const thrown = await refusalFrom(
+      writeToClasses((open) =>
+        createProposal(
+          open,
+          { title: "Nobody will review this", description: null, credits: 4, programs: [] },
+          WHO.instructor,
+        ),
+      ),
+    );
+
+    expect(form.emptySet).toEqual(thrown.refusals[0]);
+    expect(form.emptySet.sentence).toBe(
+      "A proposal has to ask at least one program to review it.",
+    );
+  });
+
+  test("all three create arms reach the form, and so does the chair's clause", async () => {
     // **The availability of the create control comes from the permitted-action
     // set**, so the arms the matrix names all reach the page behind it. The
     // director holding no `instructor` role is the cast correction issues/65 made
-    // to the prototype's hand-written world.
+    // to the prototype's hand-written world, and the chair is here as the
+    // bypass rather than as a fourth arm — issues/34 puts them one OR-clause
+    // ahead of the term, and a page drawn from the term inherits that.
     for (const netid of [WHO.instructor, WHO.itpDirector, WHO.areaHead, WHO.chair]) {
       const form = await getProposeForm({ netid });
       expect({ netid, mayPropose: form.mayPropose }).toEqual({ netid, mayPropose: true });

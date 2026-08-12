@@ -5,8 +5,8 @@ import { machine as reviewMachine } from "@/lib/machines/course-proposal-review.
 import { MATRICES, NOBODY } from "@/lib/permissions";
 
 import { initialSnapshot } from "./apply-transition";
-import { refuse, WriteRefused } from "./refusal";
-import { notYours, permitted, readActorFacts } from "./rules";
+import { refuseAll, WriteRefused } from "./refusal";
+import { noProgramsRequested, notYours, permitted, readActorFacts } from "./rules";
 import { moment, type Id, type Netid, type OpenTransaction } from "./transaction";
 
 /**
@@ -52,8 +52,13 @@ export async function createProposal(
   // proposal no state of its own and no detail page to reach it by. One
   // validation rule closes the only way in the skeleton to create an unreachable
   // record.
+  //
+  // **The sentence is `db/write/rules.ts`'s**, because the propose form states it
+  // under a disabled submit one step earlier (issues/88) — the same move
+  // `stillTeaching` and `courseRetired` make, and for the same reason: a second
+  // copy of the wording is how a rule and its explanation drift apart.
   if (input.programs.length === 0) {
-    refuse("A proposal has to ask at least one program to review it.");
+    refuseAll([noProgramsRequested()]);
   }
 
   const facts = await readActorFacts(tx, actor);

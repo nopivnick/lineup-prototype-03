@@ -151,8 +151,8 @@ function JustProposed({ group }: { group: ProposalGroup }) {
     <Alert color="green" title="Proposed">
       <Text size="sm">
         <b>{group.title}</b> — {opened} {opened === 1 ? "review" : "reviews"} opened,{" "}
-        {group.verdicts.map((verdict) => verdict.programCode).join(" and ")}. Each program decides
-        on its own, so they can answer differently; nothing was approved by submitting it.
+        {group.verdicts.map((verdict) => verdict.programCode).join(", ")}. The form said what
+        submitting would write; this is it.
       </Text>
     </Alert>
   );
@@ -185,9 +185,10 @@ function NeverProposed() {
 
 /**
  * The control, and it is the same one in both places it appears. It points at
- * `/propose`, which is the create form's own ticket — the route does not exist
- * yet, and the affordance is this screen's to state either way, since the
- * decision that proposing starts here is what put a control beside the heading.
+ * `/propose`, which issues/88 built — and that page asks the same permission term
+ * this control is drawn from, so a reader who sees the button is never refused the
+ * page behind it. It is **the only door**: issues/42 rejected the Catalog as a
+ * second one, which is why proposing starts beside this heading.
  */
 function Propose() {
   return (

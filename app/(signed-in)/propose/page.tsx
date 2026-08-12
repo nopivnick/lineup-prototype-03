@@ -56,7 +56,7 @@ export default async function ProposePage() {
         </Stack>
 
         {form.mayPropose ? (
-          <ProposeForm programs={form.programs} />
+          <ProposeForm programs={form.programs} emptySet={form.emptySet} />
         ) : (
           <Alert color="gray" title="You cannot propose a course">
             <Stack gap="xs">

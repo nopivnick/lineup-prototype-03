@@ -65,10 +65,10 @@ export function ProposalsList({
    * make the one thing this list is read for, *what came in most recently*, stop
    * being true for one render.
    */
-  newProposalId = null,
+  newProposalId,
 }: {
   groups: readonly ProposalGroup[];
-  newProposalId?: string | null;
+  newProposalId: string | null;
 }) {
   // A refusal that arrives *after* the click: the world moved between the render
   // and the button. The menu's own refusals are stated in the menu.

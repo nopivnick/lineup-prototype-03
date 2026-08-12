@@ -22,6 +22,7 @@ import type { Refusal } from "@/db/read/shape";
 import { hueOf } from "../program-hue";
 import { Refused } from "../refused";
 import { proposeCourse } from "./actions";
+import { bodyProblem } from "./proposed";
 
 /**
  * **The form, and the interesting part of it is the program section**
@@ -44,15 +45,30 @@ import { proposeCourse } from "./actions";
  * the page from the create act's own permission term, and a refused reader never
  * reaches this component.
  */
-export function ProposeForm({ programs }: { programs: readonly ProgramChoice[] }) {
+export function ProposeForm({
+  programs,
+  emptySet,
+}: {
+  programs: readonly ProgramChoice[];
+  emptySet: Refusal;
+}) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [credits, setCredits] = useState<number | string>("");
   const [chosen, setChosen] = useState<readonly string[]>([]);
   const [refused, setRefused] = useState<readonly Refusal[] | null>(null);
   const [submitting, startSubmitting] = useTransition();
+  /**
+   * **Nothing is wrong with a form nobody has filled in yet**, which is variant
+   * A's `F.touched` and the reason the line beside the disabled button is gated
+   * on it: an empty form opening with *A proposal needs a title* tells the reader
+   * off for arriving.
+   */
+  const [touched, setTouched] = useState(false);
 
-  const problem = firstProblem({ title, credits, chosen });
+  const problem =
+    bodyProblem({ title, description, credits, programs: chosen }) ??
+    (chosen.length === 0 ? emptySet.sentence : null);
 
   const submit = () => {
     if (problem) return;
@@ -91,7 +107,10 @@ export function ProposeForm({ programs }: { programs: readonly ProgramChoice[] }
           placeholder="Physical Computing II"
           required
           value={title}
-          onChange={(event) => setTitle(event.currentTarget.value)}
+          onChange={(event) => {
+            setTouched(true);
+            setTitle(event.currentTarget.value);
+          }}
         />
         <Textarea
           label="Description"
@@ -99,7 +118,10 @@ export function ProposeForm({ programs }: { programs: readonly ProgramChoice[] }
           autosize
           minRows={4}
           value={description}
-          onChange={(event) => setDescription(event.currentTarget.value)}
+          onChange={(event) => {
+            setTouched(true);
+            setDescription(event.currentTarget.value);
+          }}
         />
         <NumberInput
           label="Credits"
@@ -112,7 +134,10 @@ export function ProposeForm({ programs }: { programs: readonly ProgramChoice[] }
           // that the line beneath the label wraps into a column three words wide.
           w={260}
           value={credits}
-          onChange={setCredits}
+          onChange={(value) => {
+            setTouched(true);
+            setCredits(value);
+          }}
         />
       </Section>
 
@@ -129,7 +154,10 @@ export function ProposeForm({ programs }: { programs: readonly ProgramChoice[] }
           label="Request a review from"
           required
           value={[...chosen]}
-          onChange={setChosen}
+          onChange={(value) => {
+            setTouched(true);
+            setChosen(value);
+          }}
         >
           <Stack gap="xs" mt="xs">
             {programs.map((choice) => (
@@ -172,8 +200,7 @@ export function ProposeForm({ programs }: { programs: readonly ProgramChoice[] }
           </Text>
         ) : (
           <Text size="sm" c="dimmed">
-            No programs checked, so submitting would write no reviews. A proposal with none is a
-            record nothing here can reach again, so at least one is required.
+            No programs checked, so submitting would write no reviews. {emptySet.sentence}
           </Text>
         )}
       </Section>
@@ -187,9 +214,10 @@ export function ProposeForm({ programs }: { programs: readonly ProgramChoice[] }
         </Button>
         {/*
           A disabled control says what would make it live, rather than leaving the
-          reader to work out which of four fields it is waiting on.
+          reader to work out which of four fields it is waiting on — but only once
+          they have started, which is variant A's `F.touched`.
         */}
-        {problem ? (
+        {problem && touched ? (
           <Text size="sm" c="dimmed">
             {problem}
           </Text>
@@ -256,28 +284,4 @@ function Section({
       </Stack>
     </Card>
   );
-}
-
-/**
- * The first thing standing between this form and a submit, in the order the
- * fields are asked — one sentence, because a list of four is a wall and the
- * reader fixes them one at a time anyway.
- *
- * The program rule is the writer's and is stated in its own words above; the
- * other two are this form's own validity, and `asWritten` in `./actions` refuses
- * a post that carries them anyway.
- */
-function firstProblem({
-  title,
-  credits,
-  chosen,
-}: {
-  title: string;
-  credits: number | string;
-  chosen: readonly string[];
-}): string | null {
-  if (title.trim().length === 0) return "A proposal needs a title.";
-  if (!(Number(credits) > 0)) return "A proposal needs a credit value greater than zero.";
-  if (chosen.length === 0) return "Check at least one program to review it.";
-  return null;
 }

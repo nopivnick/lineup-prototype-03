@@ -8,6 +8,8 @@ import { WriteRefused, type Refusal } from "@/db/write/refusal";
 import { writeToClasses } from "@/db/write/transaction";
 import { requireActor } from "@/lib/auth/actor";
 
+import { bodyOf, bodyProblem, type Proposed } from "./proposed";
+
 /**
  * **A Server Action is an actor-resolution wrapper and nothing more** (issues/28,
  * issues/11, issues/81, issues/85).
@@ -29,22 +31,6 @@ import { requireActor } from "@/lib/auth/actor";
  */
 
 /**
- * **What the form asks for, as it arrives from a browser.**
- *
- * Every field is the untrusted shape rather than the writer's: `credits` is what
- * a number input posts, and the programs are whatever came back checked. What
- * turns this into `CreateProposalInput` is `asWritten` below, which is parsing
- * and not ruling — the difference being that a value it rejects is one **the form
- * cannot produce**.
- */
-export type Proposed = {
-  title: string;
-  description: string;
-  credits: number | string;
-  programs: readonly string[];
-};
-
-/**
  * Propose a course, and land on the proposals list at the new group.
  *
  * **Submitting lands on the list rather than on a record** — issues/43's one
@@ -61,9 +47,22 @@ export type Proposed = {
  * revoked in another tab — or that the post did not come from the form at all.
  * The wording is the writer's; this is a relay.
  */
-export async function proposeCourse(proposed: Proposed): Promise<Refused> {
+export async function proposeCourse(
+  proposed: Proposed,
+): Promise<{ refusals: readonly Refusal[] } | null> {
   const actor = await requireActor();
-  const input = asWritten(proposed);
+
+  // **A body that is not well formed is a malformed post rather than a refused
+  // one**, which is the same class of check as `EXPOSED` in `review-actions.ts`
+  // and answered the same way: a Server Action is a public endpoint, and none of
+  // these is reachable through the form, which disables its own submit on the
+  // very same function. What is *not* checked here is anything the department
+  // rules — who may propose, and that the program set is not empty — because
+  // both are `createProposal`'s and both reach the screen as its own sentence.
+  const input = bodyOf(proposed);
+  if (!input) {
+    throw new Error(bodyProblem(proposed) ?? "That proposal is not well formed.");
+  }
 
   let proposalId: string;
   try {
@@ -84,51 +83,4 @@ export async function proposeCourse(proposed: Proposed): Promise<Refused> {
   // reviews this transaction just wrote.
   revalidatePath("/proposals");
   redirect(`/proposals?new=${proposalId}`);
-}
-
-type Refused = { refusals: readonly Refusal[] } | null;
-
-/**
- * **The post, parsed** — and everything it rejects is malformed rather than
- * refused, which is the same class of check as `EXPOSED` in `review-actions.ts`
- * and answered the same way.
- *
- * A Server Action is a public endpoint, so the three body fields are checked
- * here; none of these throws is reachable through the form, which disables its
- * own submit on each of them and states why. The distinction the map cares about
- * is which of the form's four rules is a **rule**: the non-empty program set is,
- * because a proposal with no reviews is a record nothing in the skeleton can
- * reach again, and it therefore lives in `createProposal` where the seed and the
- * tests meet it too (issues/43). A blank title is a bad submission of a form.
- *
- * **A blank description is an absence and not an empty string**, the same reading
- * `fireReviewEvent` gives a blank reason: the column is nullable and the two are
- * different facts.
- *
- * **The program codes are the database's to check.** An unknown code violates
- * `course_proposal_review`'s foreign key onto `program`, which is one statement of
- * the rule rather than a second copy of the program list kept here; the boxes the
- * form draws come from that same table. Duplicates are dropped rather than sent —
- * `UNIQUE (course_proposal_id, program_code)` would refuse them, and *asked twice*
- * is plainly *asked*.
- */
-function asWritten(proposed: Proposed) {
-  const title = proposed.title.trim();
-  if (title.length === 0) {
-    throw new Error("A proposal needs a title.");
-  }
-
-  const credits = Number(proposed.credits);
-  if (!Number.isSafeInteger(credits) || credits <= 0) {
-    throw new Error(`${proposed.credits} is not a number of credits.`);
-  }
-
-  const description = proposed.description.trim();
-
-  return {
-    title,
-    description: description.length > 0 ? description : null,
-    credits,
-    programs: [...new Set(proposed.programs.map((code) => code.trim()).filter(Boolean))],
-  };
 }

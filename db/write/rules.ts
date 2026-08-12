@@ -221,6 +221,24 @@ export function courseRetired(): Refusal {
   return refusal("This class cannot be revived, because its course has been retired.");
 }
 
+/**
+ * **A proposal asking nobody** — the one rule the propose form's program section
+ * is about (issues/43, issues/88).
+ *
+ * Here for the reason `stillTeaching` and `courseRetired` are here: **two
+ * callers**. `createProposal` throws it at whoever posts an empty set anyway, and
+ * the form states it under a disabled submit one step earlier — where it is not
+ * a validation message but the reason the section exists, since there is no
+ * requested-programs table and a proposal with no reviews is a record nothing in
+ * the skeleton can reach again.
+ *
+ * It names **no actor**, being an invariant rather than a permission: the chair
+ * is refused it too, which `db/write/create-paths.test.ts` asserts.
+ */
+export function noProgramsRequested(): Refusal {
+  return refusal("A proposal has to ask at least one program to review it.");
+}
+
 // ---------------------------------------------------------------------------
 // The four revocation refusals — one sentence each, shared by both sides
 // ---------------------------------------------------------------------------

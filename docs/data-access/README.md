@@ -649,6 +649,13 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   refused reader costs nothing beyond the facts that refused them, there being no form for the
   programs to be checkboxes on. `db/read/proposals.test.ts` counts both.
 
+  It ships **two** of the writer's sentences, not one. `emptySet` is `noProgramsRequested` in
+  `db/write/rules.ts`, which moved there on the terms `stillTeaching` and `courseRetired` moved:
+  two callers, the form stating it under a disabled submit and `createProposal` throwing it at
+  whoever posts an empty set anyway. It is the one rule the program section is *about*, so a
+  paraphrase on the page would be the one place in this screen where a rule and its explanation
+  could drift.
+
 - **`describe` says *an* instructor** — by #88, and it is the third time a rail or a page found the
   writer's wording saying something slightly other than the rule (after #84's `whoMay` and #86's
   `Developing` qualifier). The flat arm's article was fixed at *a*, and three of the seven roles

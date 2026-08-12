@@ -604,11 +604,21 @@ what it overturns; it never stands beside it.
   about empty groups: the one thing this list is read for is what came in most recently, and a
   render in which that is untrue is worse than a missing badge.
 
-  **The fourth absence is *nothing else is created*.** #43 states it in this ledger's prose and
-  variant A's `absencesNote` carries three lines, not four — no number, no area or head, nothing
-  approved. The fourth is the one a build agent most needs and a reader most easily mistakes for a
-  missing screen, so it is on the page: no course directly, and no person, role, term, program, area
-  or requirement category.
+  **The fourth absence is *nothing else is created*.** #43 states it in this ledger's prose — see
+  *The two create forms* above — and variant A's `absencesNote` carries three lines, not four: no
+  number, no area or head, nothing approved. The fourth is the one a build agent most needs and a
+  reader most easily mistakes for a missing screen, so it is on the page: no course directly, and no
+  person, role, term, program, area or requirement category. **The artifact is not redrawn**, on
+  #84's and #86's precedent: nothing in `absencesNote` has gone stale, which is what rule 3 of
+  [`docs/agents/spec-packages.md`](../agents/spec-packages.md) governs — its three lines are still
+  the answer, and the fourth was always this README's rather than the HTML's.
+
+  **The empty-set sentence is the writer's**, which the prototype could not have shown:
+  `proposeErrors` invents *"A proposal with no programs would never be reviewed by anyone."* beside
+  a rule that in the built system is `createProposal`'s and reaches the page as a `Refusal`. The
+  page states what the writer would throw, so the line under the count and the refusal a hand-written
+  post would meet are one sentence — `noProgramsRequested` in `db/write/rules.ts`, moved there on the
+  terms `stillTeaching` and `courseRetired` moved.
 
   **The prototype's `writesPanel` is variant C's device and stays there.** A's live count already
   states the fan-out in the terms the reader is choosing in, and a panel naming `course_proposal`
