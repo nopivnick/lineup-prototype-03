@@ -8,7 +8,6 @@ import {
   Button,
   Divider,
   Group,
-  List,
   Modal,
   Paper,
   Stack,
@@ -23,6 +22,7 @@ import type { OfferingState } from "@/lib/machines/offering.machine";
 import { EXPLAINED } from "../../explained-moves";
 import { fireOfferingEvent } from "../../offering-actions";
 import { stamp } from "../../stamp";
+import { Refused, LabelledRefusal } from "../../refused";
 
 /**
  * **The rail, inherited wholesale from the Course page** (issues/41, issues/83,
@@ -305,8 +305,8 @@ function Changes({ edit }: { edit: EditAffordance }) {
             <Text size="sm" fw={600}>
               {refused.fieldClass}
             </Text>
-            {refused.notYours ? <Labelled label="Not yours" refusal={refused.notYours} /> : null}
-            {refused.notNow ? <Labelled label="Not now" refusal={refused.notNow} /> : null}
+            {refused.notYours ? <LabelledRefusal label="Not yours" refusal={refused.notYours} /> : null}
+            {refused.notNow ? <LabelledRefusal label="Not now" refusal={refused.notNow} /> : null}
           </Box>
         ))}
       </Stack>
@@ -367,40 +367,6 @@ function ReasonBox({
         </Group>
       </Stack>
     </Modal>
-  );
-}
-
-/** ***Not yours*** and ***Not now***, labelled, because both can be true at once (issues/62). */
-function Labelled({ label, refusal }: { label: string; refusal: Refusal }) {
-  return (
-    <Group gap={6} align="flex-start" wrap="nowrap" mt={2}>
-      <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ whiteSpace: "nowrap" }}>
-        {label}
-      </Text>
-      <Refused refusal={refusal} />
-    </Group>
-  );
-}
-
-/**
- * A refusal, rendered as the one value it is (issues/14): the sentence, and —
- * where the refusal's whole content is data elsewhere in the system — the
- * dependency listed beneath it (issues/38).
- */
-function Refused({ refusal }: { refusal: Refusal }) {
-  return (
-    <Box>
-      <Text size="xs" c="dimmed">
-        {refusal.sentence}
-      </Text>
-      {refusal.dependencies.length > 0 ? (
-        <List size="xs" c="dimmed" withPadding>
-          {refusal.dependencies.map((dependency) => (
-            <List.Item key={dependency}>{dependency}</List.Item>
-          ))}
-        </List>
-      ) : null}
-    </Box>
   );
 }
 

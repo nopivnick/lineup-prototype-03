@@ -452,6 +452,33 @@ export function permitted(
 }
 
 /**
+ * **The two routes whose `Developing` condition rides in the relationship**
+ * (issues/65), said out loud (issues/86).
+ *
+ * `describe` used to drop the qualifier and answer for these two exactly as it
+ * answers for their unconditioned siblings, which made the Proposal body's
+ * refusal read *"Only … ITP's program director … can change this record's
+ * proposal body"* **to ITP's program director** — a sentence naming a role its
+ * reader holds, which is clause 2 of the wording (*name the person or the role*)
+ * arriving as a claim the reader can disprove by looking at their own dev bar. It
+ * is reachable because the class's **state** gate is satisfied by **any** sibling
+ * being `Developing` while each **route** is scoped to its own review, so an
+ * `Approved` ITP review of a proposal IMA has sent back refuses its own director
+ * on the role half alone, with no *Not now* beside it to explain the shape.
+ *
+ * The same move issues/84 made on `whoMay`, one route along: a rail is where a
+ * route description is read at length, and both times the first record page to
+ * render one found the sentence saying less than the rule.
+ *
+ * The two qualifiers are worded **differently on purpose**. A directorship is
+ * scoped to a program, so the sentence can name which review has to have been
+ * sent back — *once ITP has sent it back* — where an area headship is already an
+ * assignment on this one review and *once it has been sent back* is unambiguous.
+ * Identical qualifiers would also have read as one sentence saying one thing
+ * twice, which is the fault issues/84 removed.
+ */
+
+/**
  * **Name the role, never the rule** (issues/37). The writer has no directory to
  * resolve a netid into a name with — `people` is the other project and no
  * transaction spans the two — so it names the role and its scope. The read
@@ -470,16 +497,18 @@ function describe(route: Route, subject: Subject): string {
     case "program_director(course.program_code)":
       return director(subject.course?.programCode);
     case "program_director(course_proposal_review.program_code)":
-    case "program_director(course_proposal_review.program_code) of a review that is `Developing`":
       return director(subject.review?.programCode);
+    case "program_director(course_proposal_review.program_code) of a review that is `Developing`":
+      return `${director(subject.review?.programCode)} once ${subject.review?.programCode ?? "that program"} has sent it back`;
     case "program_director(requirement_category.program_code)":
     case "program_director(area.program_code)":
       return director(subject.tagProgramCode);
     case "course.area_head":
       return "this course's area head";
     case "course_proposal_review.area_head":
-    case "course_proposal_review.area_head of a review that is `Developing`":
       return "this review's area head";
+    case "course_proposal_review.area_head of a review that is `Developing`":
+      return "this review's area head once it has been sent back";
   }
 }
 

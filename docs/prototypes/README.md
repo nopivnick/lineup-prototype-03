@@ -508,6 +508,86 @@ what it overturns; it never stands beside it.
   way rather than decided a second time. The `Edit` control ships pointing nowhere, on #83's
   reasoning verbatim and with #84's sanction.
 
+- **The review page's record-level refusal names no program either, and the read-only rail keeps
+  *last changed*** — by [#86](https://github.com/nopivnick/lineup-prototype-03/issues/86), which
+  built `proposals-review.html`'s detail half. The rule under *Two rules whose only statement is a
+  rendering* is unchanged and its wording is not:
+
+  > There is no review here — nothing at this address is a review you can open.
+
+  in place of variant D's *"Nothing you can see has been proposed to Interactive Telecommunications
+  under that reference."* **The reason is #84's, arriving on the third record page.**
+  `getReviewPage` reaches its one not-visible answer from four worlds — an address that is not an
+  id, an id that names nothing, a review on a proposal no arm of Tier 3 reaches, and a reader who
+  holds nothing in the matrix — and a program name is a fact the page could only have by **reading
+  the record it is refusing**. The first two worlds yield none, so a sentence built from one would
+  answer those worlds differently, and the difference is the leak.
+
+  **One link now leads somewhere a reader can be refused, and it is left alone deliberately.** #83
+  shipped the Course page's *minted by ITP's review of the proposal* link because its own criteria
+  asked for it, at a time when `/reviews/:id` did not exist; a `course` is Tier 1 and a review is
+  Tier 3, so a `student` who follows it now lands on the refusal above. #84's *no row in either list
+  leads to a page its reader is refused* held because both lists narrow on the predicate the page
+  refuses with — a course page **cannot**, the two predicates being different tiers, and hiding the
+  sentence would take a Tier 3 question and a round trip onto a page that asks neither. The refusal
+  names nothing, so nothing leaks; what is lost is a click. Recorded rather than reconciled, because
+  the fix is a decision about the Course page rather than a defect in this one.
+
+  What is unchanged is everything the two-fidelity rule is about: the read-only fidelity opens the
+  body, the assignment, the siblings and the history **with its reasons**, and carries no actions
+  and no refusals. Variant D's `railReadOnly` already keeps the verdict, the minted course, the
+  drift line and *last changed*, and all four ship; **one departure**, and it is what a real record
+  forced: the stamp reads the **later of the review's and the proposal's**, where the prototype's
+  review objects carry no stamp of their own and it read the proposal's alone. An area-head
+  assignment writes `course_proposal_review.updated_at` and nothing else, so under the prototype's
+  reading the box would say *never changed* about a record that had just been assigned.
+
+  **The drift line compares values, not moments.** Variant D's `bodyDrift` asks whether the body
+  was edited *after* the mint's timestamp; both real pages ask whether the two now differ, which is
+  `db/read/course.ts`'s existing reading and the one the sentence actually makes — an edit that put
+  a title back is not drift, and a mint taken from an already-edited body is. The comparator is one
+  function, `bodyHasDrifted` in `db/read/review-rows.ts`, because a fact whose whole content is
+  that two records disagree is the last one two screens should each derive.
+
+  **The sibling rows carry no last-move sentence, and that is a deferral rather than a departure.**
+  `sibsHeader` gives each row *"Priya Raman approved it, 20 Feb"*; the built header gives the
+  program, the verdict, *you are here* / *read only*, and the `↗`. The sentence would cost a
+  transition read **per sibling** — the page reads one log, its own — and no acceptance criterion
+  asks for it: the header's stated job is *which programs decided what*, which the chips and the
+  states already answer. It returns, if it returns, with the same aggregate device the Lineup uses
+  for its children, and needs no change of shape.
+
+- **A refusal naming a `Developing`-scoped route now says so** — by #86, and it is #84's `whoMay`
+  correction one route along. `describe` answered for
+  `program_director(course_proposal_review.program_code) **of a review that is `Developing`**`
+  exactly as it answers for the unconditioned route, so the Proposal body's refusal read *"Only …
+  ITP's program director … can change this record's proposal body"* **to ITP's program director** —
+  clause 2 of the wording (*name the person or the role*) arriving as a claim its reader can
+  disprove by looking at their own dev bar.
+
+  It is reachable because #65 put the `Developing` condition **in the relationship** rather than in
+  the state gate: the class's gate is satisfied by **any** sibling being `Developing` while each
+  route is scoped to its own review, so an `Approved` ITP review of a proposal IMA has sent back
+  refuses ITP's own director on the role half alone, with no *Not now* beside it to explain the
+  shape. The sentences now read *"ITP's program director once ITP has sent it back"* and *"this
+  review's area head once it has been sent back"* — worded differently on purpose, a directorship
+  being scoped to a program and a headship already to this one review, and because identical
+  qualifiers would have been one sentence saying one thing twice, which is the fault #84 removed.
+
+  Both times the defect surfaced the same way: **a rail is where a route description is read at
+  length**, and the first record page to render one found the sentence saying less than the rule.
+
+- **The verdict chips are one component on two screens** — by #86. `app/(signed-in)/verdicts.tsx`
+  joins `named.tsx`, `stamp.ts` and `program-hue.ts` as a rendering that moved up when a second
+  screen needed it, for the reason those moved: a glyph or a hue that meant one thing on the
+  proposals list and something else on the page the chip opens would break the only work either
+  does, which is being recognised across a click. The review page's copy adds one prop — which chip
+  is *you are here* — rendered as a filled chip against light ones, a second signal beside the
+  tooltip's words rather than a colour of its own, the hue being already spent on the verdict.
+
+  The `Edit` control ships pointing nowhere, on #83's reasoning verbatim and with #86's sanction,
+  and `/reviews/:id/edit` is #62's.
+
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three
   variants* over files holding four, and no title named the settled variant; every title now

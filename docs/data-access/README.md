@@ -535,6 +535,21 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   Distinct descriptions are untouched and the first occurrence keeps its place, so no refusal that
   named two different things changes a word.
 
+- **`describe` states the `Developing` qualifier its two routes carry** — by
+  [#86](https://github.com/nopivnick/lineup-prototype-03/issues/86), and it is filed beside #84's
+  `whoMay` correction above because it is the same fault one route along: a **sentence** saying less
+  than the rule, found the first time a record page rendered it at length in a rail.
+  `program_director(course_proposal_review.program_code) of a review that is `Developing`` was
+  described exactly as its unconditioned sibling, so the Proposal body's refusal read *"Only … ITP's
+  program director … can change this record's proposal body"* **to ITP's program director**.
+
+  It is reachable because #65 put that condition **in the relationship** rather than in the state
+  gate: the class's gate is satisfied by **any** sibling review being `Developing` while each route
+  is scoped to its own, so an `Approved` ITP review of a proposal IMA has sent back refuses ITP's own
+  director on the role half alone — with no *Not now* beside it to explain the shape. The routes and
+  the rule are untouched; `db/read/review.test.ts` asserts the new sentence, which nothing asserted
+  before.
+
 - **Tier 3 narrows in the read module, not in the query** — by
   [#85](https://github.com/nopivnick/lineup-prototype-03/issues/85), which built the proposals
   list. Every list before it narrows in the `WHERE` clause, and #9's *invisible rows are absent,
@@ -585,6 +600,39 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   the page, where what a coordinator should get is the page, empty, saying *proposals reach you
   three ways and none applies*. A screen a role could in principle fill is a different fact from one
   it can never fill, and only the second is a refusal.
+
+- **`ReviewPage.history` is not nullable, and its `lastChanged` is the later of two stamps** — by
+  [#86](https://github.com/nopivnick/lineup-prototype-03/issues/86), which built the review page.
+  The artifact types the history `History | null`, matching the two record pages before it, where
+  `null` is Tier 2's *if you can do nothing, you may not see the record of who did*. That tier does
+  not govern here: `course_proposal_review_transition` rows are **Tier 3's own subject**, and Tier
+  3's may-read is what admitted the reader to the page at all, so there is no reader on this screen
+  with the record and without its log — the read-only fidelity included, where the reasons on it are
+  the whole thing the fidelity was bought for. A `null` case would be dead, and a dead case in the
+  one type whose two fidelities must not drift is worse than dead.
+
+  *Last changed* is the same fact one step along. On the other two rails it reads one table, because
+  the `Edit` control opens one; a review's `Edit` control opens **two** — the assignment stamps
+  `course_proposal_review` and the shared body stamps `course_proposal` — so a stamp reading either
+  alone would sit unmoved after an edit made from that very page, which is exactly the trace #17 left
+  the box to carry. `getReviewPage` returns the later of the two.
+
+- **`getReviewPage` reads the proposal's whole group in one statement, and the tier answers off it**
+  — by #86. Tier 3's may-read is a question about the **proposal**, so a statement fetching the
+  addressed review alone would have to go back for its siblings before it could say whether the
+  reader may see the row it already holds. The self-join makes the group the unit of the read, which
+  is also what the page needs anyway: variant D restates the group header above the record. Two
+  `classes` statements and one `people` statement, and a review the tier refuses costs one — the log
+  is read after the arms have answered. `db/read/review.test.ts` counts them.
+
+- **The review row assembly is `db/read/review-rows.ts`** — by #86, on the terms `reviewActionsFor`
+  itself stated while it still lived in `db/read/proposals.ts`: *when the review page arrives it
+  becomes the second view, and this function moves out beside `offeringActionsFor`*. It joins
+  `course-rows.ts` and `offering-rows.ts` as a module that is not one of the views, and it carries
+  `ProposalGroup` as well as the row — the review page restates the group header, and a second
+  assembly of it would be a second answer to *what has every program decided* on the one screen
+  whose justification is that the answer is not the reader's to guess. It is the third row-assembly
+  module, and `getReviewPage` is the **seventh and last** of `READ_MODULES`.
 
 ## Two things this transcription had to derive
 

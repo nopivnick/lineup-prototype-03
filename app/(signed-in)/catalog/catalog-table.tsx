@@ -7,7 +7,6 @@ import {
   Box,
   Button,
   Group,
-  List,
   Menu,
   Stack,
   Text,
@@ -20,6 +19,7 @@ import type { Refusal } from "@/db/read/shape";
 
 import { fireCourseEvent } from "../course-actions";
 import { OpenCourse } from "../open-course";
+import { Refused } from "../refused";
 
 /**
  * **The Catalog's table** (issues/37, issues/81).
@@ -232,28 +232,6 @@ function ActionMenu({
         )}
       </Menu.Dropdown>
     </Menu>
-  );
-}
-
-/**
- * A refusal, rendered as the one value it is (issues/14): the sentence, and —
- * where the refusal's whole content is data elsewhere in the system — the
- * dependency listed beneath it (issues/38).
- */
-function Refused({ refusal }: { refusal: Refusal }) {
-  return (
-    <Box>
-      <Text size="xs" c="dimmed">
-        {refusal.sentence}
-      </Text>
-      {refusal.dependencies.length > 0 ? (
-        <List size="xs" c="dimmed" withPadding>
-          {refusal.dependencies.map((dependency) => (
-            <List.Item key={dependency}>{dependency}</List.Item>
-          ))}
-        </List>
-      ) : null}
-    </Box>
   );
 }
 
