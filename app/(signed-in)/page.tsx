@@ -5,7 +5,7 @@ import { Table, getTableName, is } from "drizzle-orm";
 import * as classesSchema from "@/db/classes/schema";
 import * as peopleSchema from "@/db/people/schema";
 import { getActorRoles } from "@/db/read/actor-roles";
-import { mayOpenRolesPage } from "@/db/read/shape";
+import { mayOpenProposals, mayOpenRolesPage } from "@/db/read/shape";
 import { getActor } from "@/lib/auth/actor";
 
 import { ScaffoldTable, type ScaffoldRow } from "./scaffold-table";
@@ -83,6 +83,21 @@ export default async function HomePage() {
             person at a time, with every refusal stated in the open rather than
             behind a menu. Only the chair writes it; everybody else reads it with
             the controls and the refusals absent together.
+          </Text>
+        ) : null}
+        {/*
+          **The proposals list's link is the nav item, and the two rows that hold
+          nothing in the matrix do not get one** (issues/42, issues/85). Tier 3
+          reaches them by no arm, so the item is absent rather than disabled — the
+          same shape as the roles page's link, asking the predicate the route
+          itself refuses with.
+        */}
+        {mayOpenProposals(roles) ? (
+          <Text>
+            The fourth is <Anchor href="/proposals">Proposals</Anchor> — one group
+            per proposal and one row per program reading it, with every program&apos;s
+            verdict on the header whether or not that review is yours to move. A
+            proposal has no state of its own, and the chips are why it needs none.
           </Text>
         ) : null}
         <ScaffoldTable rows={rows} />
