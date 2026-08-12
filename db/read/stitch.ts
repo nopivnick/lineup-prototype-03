@@ -65,6 +65,19 @@ export type StitchedName = {
 export type Directory = (netid: Netid) => StitchedName;
 
 /**
+ * A stitched name **plus pronouns**, for the two places a person is presented as a
+ * person rather than as the subject of a timestamp (issues/40): the roles page's
+ * record, and the roster on an Offering page.
+ *
+ * Pronouns are deliberately **not** on `StitchedName`, which is what a list gets:
+ * on a history line or in a roster column they read as noise, and issues/40 drew
+ * the line at *is this person the record, or a fact about it*.
+ */
+export type StitchedPerson = StitchedName & { pronouns: string | null };
+
+export type PeopleDirectory = (netid: Netid) => StitchedPerson;
+
+/**
  * **One query against `people`, whatever the page's size** (issues/9).
  *
  * The netids are de-duplicated first, so a term in which one person leads eight
@@ -76,17 +89,40 @@ export type Directory = (netid: Netid) => StitchedName;
  * to stitch. A term of `Slated` sections is exactly that page.
  */
 export async function stitchNames(netids: Iterable<Netid>): Promise<Directory> {
+  const people = await stitchPeople(netids);
+  return (netid) => {
+    const found = people(netid);
+    return { netid: found.netid, displayName: found.displayName };
+  };
+}
+
+/**
+ * **The same one query, resolving people rather than names** (issues/38,
+ * issues/40).
+ *
+ * `stitchNames` is this function with `pronouns` dropped rather than a second
+ * query against the same table with one column fewer: the two differ in what a
+ * view may *display*, which is not a reason to visit `people` twice. Everything
+ * `stitchNames` promises holds here — one round trip, de-duplicated, no query at
+ * all for an empty set, and **total**, so no caller can decline to answer for a
+ * netid the directory does not know.
+ */
+export async function stitchPeople(netids: Iterable<Netid>): Promise<PeopleDirectory> {
   const wanted = [...new Set(netids)];
-  const found = new Map<Netid, string | null>();
+  const found = new Map<Netid, { displayName: string | null; pronouns: string | null }>();
 
   if (wanted.length > 0) {
     const rows = await peopleDb()
-      .select({ netid: person.netid, displayName: person.displayName })
+      .select({ netid: person.netid, displayName: person.displayName, pronouns: person.pronouns })
       .from(person)
       .where(inArray(person.netid, wanted));
 
-    for (const row of rows) found.set(row.netid, row.displayName);
+    for (const row of rows) found.set(row.netid, { displayName: row.displayName, pronouns: row.pronouns });
   }
 
-  return (netid) => ({ netid, displayName: found.get(netid) ?? null });
+  return (netid) => ({
+    netid,
+    displayName: found.get(netid)?.displayName ?? null,
+    pronouns: found.get(netid)?.pronouns ?? null,
+  });
 }

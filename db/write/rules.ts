@@ -1,10 +1,11 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
-import { programDirector, userRole } from "@/db/classes/schema";
+import { course, offering, offeringInstructor, programDirector, term, userRole } from "@/db/classes/schema";
 import { peopleDb } from "@/db/handles";
 import { person } from "@/db/people/schema";
+import { LIVE_STATES } from "@/lib/machines/offering.machine";
 import { MATRICES, NOBODY, type MachineName, type Role, type Route } from "@/lib/permissions";
 
 import { refusal, type Refusal } from "./refusal";
@@ -209,6 +210,227 @@ export function stillTeaching(live: readonly { termCode: string; status: string 
  */
 export function courseRetired(): Refusal {
   return refusal("This class cannot be revived, because its course has been retired.");
+}
+
+// ---------------------------------------------------------------------------
+// The four revocation refusals — one sentence each, shared by both sides
+// ---------------------------------------------------------------------------
+//
+// `REVOCATION_REFUSALS` in `lib/permissions.ts` states the four predicates;
+// these are their wording, and they are here for the reason `stillTeaching` and
+// `courseRetired` are here: two callers (issues/34, issues/38, issues/81).
+// `db/read/roles.ts` renders them under a control the chair cannot use, and
+// `writeFields` throws them at whoever clicks anyway, so a second copy of the
+// sentence is how a rule and its explanation drift apart.
+//
+// **`who` is the caller's best name for the person**, which is the only thing
+// that differs between the two: the writer has no directory to resolve a netid
+// with — `people` is the other project and no transaction spans the two — so it
+// passes the netid, and the read module, which runs the stitch, passes the name.
+// That is clause 2 of the refusal wording (*name the person or the role, never
+// the rule*) at the two fidelities the two sides can afford.
+//
+// All four state their **fix** in the second sentence, and none of them names a
+// control: *hand those courses to another area head* is a thing to do to the
+// world, and whether this skeleton yet has a screen for it is not what the
+// refusal is about.
+
+/** One live class blocking an `instructor` revoke. `term` is the reader's label, not the code. */
+export type LiveSeat = {
+  courseNumber: string;
+  sectionNumber: string;
+  term: string;
+  status: string;
+  /** Position 0 — said out loud, because a lead is what the class is waiting on. */
+  lead: boolean;
+};
+
+/** One non-`Retired` course blocking an `area_head` revoke. */
+export type HeadedCourse = { courseNumber: string; title: string; status: string };
+
+/**
+ * **The evidence itself is shared too, and not only the sentence** (issues/38).
+ *
+ * The two queries below are what the three data-backed refusals above are *about*,
+ * and both sides ask them: the field writer for the one netid somebody is trying to
+ * revoke, inside its locking transaction, and `db/read/roles.ts` for the whole
+ * holder set at request scope. A second copy of the projection is how the two lists
+ * drift — which is not hypothetical, since the first version of this pair differed
+ * by an `ORDER BY` and produced two orderings of the same dependencies.
+ *
+ * They take **whatever can run a `select`**, which is the one thing a transaction
+ * and a handle have in common here: the writer must ask inside its own transaction
+ * and a read module must not open one.
+ */
+type Reader = Pick<ClassesTx, "select">;
+
+/**
+ * The live classes each of these netids is on the roster of, keyed by netid.
+ *
+ * *Live* is `LIVE_STATES` — from `Slated` onward, not *teaching right now*. **Set-
+ * based over whatever it is given**, so the roles page's cost does not grow with
+ * the number of role-holders, and one round trip either way.
+ */
+export async function liveSeatsOf(
+  read: Reader,
+  netids: readonly Netid[],
+): Promise<ReadonlyMap<Netid, readonly LiveSeat[]>> {
+  if (netids.length === 0) return new Map();
+
+  const rows = await read
+    .select({
+      netid: offeringInstructor.netid,
+      position: offeringInstructor.position,
+      courseNumber: course.courseNumber,
+      sectionNumber: offering.sectionNumber,
+      semester: term.semester,
+      year: term.year,
+      status: offering.status,
+    })
+    .from(offeringInstructor)
+    .innerJoin(offering, eq(offering.offeringId, offeringInstructor.offeringId))
+    .innerJoin(course, eq(course.courseId, offering.courseId))
+    .innerJoin(term, eq(term.code, offering.termCode))
+    .where(and(inArray(offeringInstructor.netid, [...netids]), inArray(offering.status, [...LIVE_STATES])))
+    // Ordered, because the list **is** the refusal's content: two orderings of the
+    // same rows are two refusals as far as a reader is concerned.
+    .orderBy(asc(course.courseNumber), asc(offering.termCode), asc(offering.sectionNumber));
+
+  return gathered(rows, (row) => ({
+    courseNumber: row.courseNumber,
+    sectionNumber: row.sectionNumber,
+    term: termLabel(row),
+    status: row.status ?? "",
+    lead: row.position === 0,
+  }));
+}
+
+/**
+ * The non-`Retired` courses each of these netids heads the area of, keyed by netid.
+ *
+ * A `Retired` course does not block, which is the whole of what makes the
+ * assignment's monotonicity survivable: the head can be revoked once the courses
+ * they hold are out of the catalog's forward path.
+ */
+export async function headedCoursesOf(
+  read: Reader,
+  netids: readonly Netid[],
+): Promise<ReadonlyMap<Netid, readonly HeadedCourse[]>> {
+  if (netids.length === 0) return new Map();
+
+  const rows = await read
+    .select({
+      netid: course.areaHead,
+      courseNumber: course.courseNumber,
+      title: course.title,
+      status: course.status,
+    })
+    .from(course)
+    .where(and(inArray(course.areaHead, [...netids]), ne(course.status, "Retired")))
+    .orderBy(asc(course.courseNumber));
+
+  return gathered(rows, (row) => ({
+    courseNumber: row.courseNumber,
+    title: row.title,
+    status: row.status ?? "",
+  }));
+}
+
+/**
+ * Rows to *this netid's rows*, in the order they arrived. The `netid` column is
+ * nullable on one of the two queries — `course.area_head` is — and the `WHERE`
+ * has already excluded nulls, so this narrows the type rather than restating a
+ * predicate somebody could disagree with.
+ */
+function gathered<TRow extends { netid: Netid | null }, TOut>(
+  rows: readonly TRow[],
+  shape: (row: TRow) => TOut,
+): ReadonlyMap<Netid, readonly TOut[]> {
+  const found = new Map<Netid, TOut[]>();
+  for (const row of rows) {
+    if (row.netid === null) continue;
+    const already = found.get(row.netid) ?? [];
+    already.push(shape(row));
+    found.set(row.netid, already);
+  }
+  return found;
+}
+
+/**
+ * *Fall 2025* out of the two columns that make it. `term.code` is what a query
+ * joins on and *20253* is not a thing to put in front of a reader, so the label is
+ * built in one place and both sides of a refusal read the same.
+ */
+export function termLabel(term: { semester: string; year: number }): string {
+  return `${term.semester} ${term.year}`;
+}
+
+/** One `program_director` relationship row blocking the role's revoke. */
+export type DirectedProgram = { code: string; name: string };
+
+/**
+ * **`chair` refused because it is the last one** (issues/34).
+ *
+ * The one refusal of the four that names no dependency: the blocking fact is the
+ * absence of a second chair, and there is nothing to list. It is also the one
+ * whose fix is a control on this very page — grant `chair` to somebody else and
+ * the lock lifts, live, because the rule is *never empty* and not *never
+ * revocable*.
+ */
+export function lastChair(who: string): Refusal {
+  return refusal(
+    `${who} is the only chair. Nobody else can grant a role, so removing this one would leave the department with no way to appoint anyone. Grant chair to somebody else first.`,
+  );
+}
+
+/**
+ * **`instructor` refused while the netid is on a live roster** (issues/34).
+ *
+ * *Live* is `LIVE_STATES` — from `Slated` onward, not *teaching right now* — and
+ * the distinction is the whole rule: a `Concluded` offering keeps its roster rows
+ * forever, so *any roster row* would mean nobody who ever taught can be
+ * un-instructored.
+ */
+export function stillOnLiveRosters(who: string, live: readonly LiveSeat[]): Refusal {
+  const one = live.length === 1;
+  return refusal(
+    `${who} is on the roster of ${live.length} ${one ? "class that has" : "classes that have"} not finished teaching. Take them off those rosters first, or wait until those classes conclude.`,
+    live.map(
+      (seat) =>
+        `${seat.courseNumber} sec ${seat.sectionNumber}, ${seat.term} — ${seat.status}${seat.lead ? " (lead)" : ""}`,
+    ),
+  );
+}
+
+/**
+ * **`area_head` refused while the netid heads a non-`Retired` course** (issues/34,
+ * issues/32).
+ *
+ * The refusal issues/38 quotes in full, and the reason the third clause of the
+ * wording exists at all: the courses are data the chair cannot see from a
+ * person-centric page, so naming the person is not enough.
+ */
+export function stillHeadsCourses(who: string, headed: readonly HeadedCourse[]): Refusal {
+  const one = headed.length === 1;
+  return refusal(
+    `${who} heads the area of ${headed.length} ${one ? "course that has" : "courses that have"} not been retired. Hand those courses to another area head first.`,
+    headed.map((course) => `${course.courseNumber} — ${course.title} (${course.status})`),
+  );
+}
+
+/**
+ * **`program_director` refused while a `program_director` row names the netid** —
+ * standing principle 6 run backwards (issues/34, issues/51).
+ *
+ * The relationship is the thing that has to go, and the qualification survives it:
+ * removing somebody from a program is a different act with no refusal at all.
+ */
+export function stillDirects(who: string, programs: readonly DirectedProgram[]): Refusal {
+  const one = programs.length === 1;
+  return refusal(
+    `${who} still directs ${one ? "a program" : `${programs.length} programs`}. Hand ${one ? "it" : "them"} to another director first.`,
+    programs.map((program) => `${program.code} — ${program.name}`),
+  );
 }
 
 /** `machine legality AND invariants AND (permissions OR chair)` — this is the third term. */

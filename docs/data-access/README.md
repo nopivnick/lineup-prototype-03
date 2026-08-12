@@ -338,6 +338,63 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   union that `offering_meeting`'s shape CHECK enforces, and two types shaped alike is the
   drift #14's rule forbids.
 
+- **`getRolesPage` takes the search box, and its third conditional query is the program
+  strip's own read** — by
+  [The roles page](https://github.com/nopivnick/lineup-prototype-03/issues/87), which built
+  this package's third read module.
+
+  **The signature gains a filter.** `getRolesPage(actor)` is written here with none, and the
+  screen it serves has one control above the person list — a box that does two things,
+  because [#38](https://github.com/nopivnick/lineup-prototype-03/issues/38) settled both:
+  it narrows the holders, and for a chair it **reaches past them into `people`**, which is
+  what makes granting possible with no free-text netid field. So the module takes
+  `RolesFilters` for the same reason `getCatalogPage` and `getLineupPage` take theirs — the
+  page writes the query string and the module is the only thing that may write a `WHERE`
+  clause. Nothing about the decision moved; the reach costs a **second `people` statement**,
+  issued only when a chair has typed something.
+
+  **The dependency reads are two, not three.** #38 priced *three further `classes`-side
+  queries — live roster rows, non-retired headed courses, director rows — all set-based over
+  the holder set, and all skipped entirely for a non-chair*. The third is a read the page
+  already makes: the **program strip** is `program_director` in full, and it is read for every
+  reader, the strip being read-only rather than the chair's. Asking again, scoped to the
+  holder set, would be a second copy of the same rows bought to make a count come out even.
+  So the strip's rows answer `program_director`'s revocation refusal, exactly as the rows the
+  page already holds answer the last-chair lock — which #38 itself describes as *a count over
+  rows the page already has*. **What is conditional stays conditional**: a non-chair issues
+  neither of the two, and `db/read/roles.test.ts` counts round trips rather than trusting this
+  paragraph.
+
+  **`RolesPage` gains a list and `RoleGrant` gains two fields**, none of them a decision:
+  `directory` is the search's reach — the matched people who hold **nothing**, which the
+  artifact's `holders` cannot hold and which granting has to come from; and `kind` and
+  `gatesNoAction` are `ROLE_KIND` and `HOLD_NOTHING_IN_THE_MATRIX` read by the server, so that
+  *`advisor` and `student` are marked as gating no action* is a fact off the map rather than a
+  string in a component. The blurb beside each role stays copy and lives with the screen.
+
+  **`Visible<T>` and `StitchedPerson` are now code**, in `db/read/shape.ts` and
+  `db/read/stitch.ts` respectively, by the rule #81 settled: what makes something one of the
+  seven is that it is a view. `stitchNames` is `stitchPeople` with `pronouns` dropped rather
+  than a second query one column narrower — the two differ in what a view may *display*, which
+  is not a reason to visit `people` twice.
+
+  **The four write paths are still four.** `db/write/authorization.ts` is *appointing a
+  director* — the two rows of one act, the role row inserted only if absent — and it performs
+  no check, writes no row and refuses nothing: it hands both rows to `writeFields`, where the
+  chair's clause and standing principle 6 still live. It exists because the alternative was a
+  Server Action deciding which rows an act needs, and an action is an **actor-resolution
+  wrapper and nothing more** (#28, #81). Principle 6 is now evaluated against the state a
+  write **leaves** rather than the one it found — `monotoneAssignment`'s device, in the same
+  function — which is what lets the two writes be one call at all.
+
+  **The evidence behind a refusal is shared, not only its sentence.** `liveSeatsOf` and
+  `headedCoursesOf` live in `db/write/rules.ts` beside the four refusal builders, and both
+  sides call them: the field writer for the one netid being revoked, inside its locking
+  transaction, and this read module for the whole holder set at request scope. The first
+  version of this pair had two copies of the projection and they differed by an `ORDER BY`,
+  which is precisely the drift #14's one-object rule exists to prevent, one level down from
+  the sentence.
+
 - **Two write paths became three, and this transcription counts a fourth** —
   [#61](https://github.com/nopivnick/lineup-prototype-03/issues/61) added
   [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28)'s single **field

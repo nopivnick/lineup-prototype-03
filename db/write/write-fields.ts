@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, getTableColumns, inArray, ne, type SQL } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, inArray, ne, type SQL } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 
 import {
@@ -16,8 +16,10 @@ import {
   offeringInstructor,
   offeringMeeting,
   offeringRequirementCategory,
+  program,
   programDirector,
   requirementCategory,
+  term,
   userRole,
 } from "@/db/classes/schema";
 import { peopleDb } from "@/db/handles";
@@ -34,11 +36,17 @@ import {
 
 import { refusal, refuse, refuseAll, type Refusal } from "./refusal";
 import {
+  headedCoursesOf,
   holdsRole,
+  lastChair,
+  liveSeatsOf,
   notYours,
   peopleKnows,
   permitted,
   readActorFacts,
+  stillDirects,
+  stillHeadsCourses,
+  stillOnLiveRosters,
   type ActorFacts,
   type Subject,
 } from "./rules";
@@ -457,12 +465,35 @@ async function monotoneAssignment(
 }
 
 async function authorizationInvariants(tx: ClassesTx, work: Work): Promise<void> {
+  /**
+   * **Standing principle 6 is evaluated against the state this write leaves, not
+   * the one it found** (issues/34, issues/38).
+   *
+   * Appointing a director is **two writes and must not read as two acts**: the
+   * role row rides along with the program row in one call, inserted only when it
+   * is absent, so the chair is never asked whether this person is a newcomer or
+   * an existing director gaining a second program. A check reading `user_role`
+   * as it stands would refuse exactly the newcomer half of the one act the chair
+   * performs.
+   *
+   * The device is `monotoneAssignment`'s, two functions up: it computes the area
+   * set this write **leaves** rather than the one it found, for the same reason.
+   */
+  const grantedHere = new Set(
+    work.rows.flatMap((row) =>
+      row.table === "user_role" && row.op === "insert"
+        ? [grant(String(row.values.netid ?? ""), String(row.values.role ?? ""))]
+        : [],
+    ),
+  );
+
   for (const row of work.rows) {
     if (row.table === "program_director" && row.op === "insert") {
-      // Appointing a director is **two writes**, the role then this row, and the
-      // second refuses a netid without the first (standing principle 6).
       const netid = String(row.values.netid ?? "");
-      if (!(await holdsRole(tx, netid, "program_director"))) {
+      if (
+        !grantedHere.has(grant(netid, "program_director")) &&
+        !(await holdsRole(tx, netid, "program_director"))
+      ) {
         refuse(`${netid} cannot direct a program without the program director role.`);
       }
     }
@@ -474,11 +505,15 @@ async function authorizationInvariants(tx: ClassesTx, work: Work): Promise<void>
     const netid = String(row.key.netid ?? "");
     const role = String(row.key.role ?? "") as Role;
 
+    // The four sentences are `db/write/rules.ts`'s, shared with `db/read/roles.ts`
+    // so that the refusal stated in the open under a control the chair cannot use
+    // and the one thrown at whoever clicks anyway are one sentence (issues/14,
+    // issues/38). The writer has no directory, so the person is named by netid.
     if (role === "chair") {
       const chairs = await tx.select({ netid: userRole.netid }).from(userRole).where(eq(userRole.role, "chair"));
       if (chairs.length <= 1) {
         // Or the system has no one who may grant anything (issues/34).
-        refuse("The last chair cannot be removed.");
+        refuseAll([lastChair(netid)]);
       }
     }
 
@@ -487,46 +522,39 @@ async function authorizationInvariants(tx: ClassesTx, work: Work): Promise<void>
     // roster rows forever, so *any roster row* would mean nobody who ever taught
     // can be un-instructored. Read backwards, this is standing principle 6 —
     // revocation reaches the same inert pair through the other door.
+    //
+    // **The evidence is read by the shared query and not by one of this module's
+    // own**, so the list the roles page states under a locked control and the list
+    // thrown at whoever clicks anyway are the same rows in the same order. What
+    // differs is only the question's width: one netid here, the whole holder set
+    // there.
     if (role === "instructor") {
-      const live = await tx
-        .select({ offeringId: offeringInstructor.offeringId, status: offering.status })
-        .from(offeringInstructor)
-        .innerJoin(offering, eq(offering.offeringId, offeringInstructor.offeringId))
-        .where(and(eq(offeringInstructor.netid, netid), inArray(offering.status, [...LIVE_STATES])));
-      if (live.length > 0) {
-        refuse(
-          `${netid} is on the roster of ${live.length} ${live.length === 1 ? "class" : "classes"} that ${live.length === 1 ? "has" : "have"} not finished.`,
-          live.map((row) => `${row.offeringId} — ${row.status}`),
-        );
-      }
+      const live = (await liveSeatsOf(tx, [netid])).get(netid) ?? [];
+      if (live.length > 0) refuseAll([stillOnLiveRosters(netid, live)]);
     }
 
     if (role === "area_head") {
-      const headed = await tx
-        .select({ courseNumber: course.courseNumber, status: course.status })
-        .from(course)
-        .where(and(eq(course.areaHead, netid), ne(course.status, "Retired")));
-      if (headed.length > 0) {
-        refuse(
-          `${netid} heads the area of ${headed.length} ${headed.length === 1 ? "course" : "courses"} that ${headed.length === 1 ? "has" : "have"} not been retired.`,
-          headed.map((row) => `${row.courseNumber} — ${row.status}`),
-        );
-      }
+      const headed = (await headedCoursesOf(tx, [netid])).get(netid) ?? [];
+      if (headed.length > 0) refuseAll([stillHeadsCourses(netid, headed)]);
     }
 
     if (role === "program_director") {
       const directed = await tx
-        .select({ programCode: programDirector.programCode })
+        .select({ code: programDirector.programCode, name: program.name })
         .from(programDirector)
-        .where(eq(programDirector.netid, netid));
+        .innerJoin(program, eq(program.code, programDirector.programCode))
+        .where(eq(programDirector.netid, netid))
+        .orderBy(asc(programDirector.programCode));
       if (directed.length > 0) {
-        refuse(
-          `${netid} still directs ${directed.length} ${directed.length === 1 ? "program" : "programs"}.`,
-          directed.map((row) => row.programCode),
-        );
+        refuseAll([stillDirects(netid, directed)]);
       }
     }
   }
+}
+
+/** A `(netid, role)` pair as one key, so *is this grant in this write* is a set lookup. */
+function grant(netid: string, role: string): string {
+  return `${netid}:${role}`;
 }
 
 // ---------------------------------------------------------------------------

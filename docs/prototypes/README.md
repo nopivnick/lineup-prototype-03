@@ -397,6 +397,26 @@ what it overturns; it never stands beside it.
   These two entries were parked in [`docs/permissions/README.md`](../permissions/README.md)
   because this package had no ledger when #65 landed. They live here now.
 
+- **The roles page's program picker is appoint-only** — by
+  [#49](https://github.com/nopivnick/lineup-prototype-03/issues/49), which
+  [#87](https://github.com/nopivnick/lineup-prototype-03/issues/87) built to. Variant D of
+  `roles-page.html` renders a director's programs as **toggles**, appointing on one click and
+  un-appointing on the next; #49 then ruled the LowRes conflict in favour of a full complement of
+  directors and stated the consequence in `SEED_ONLY` — *`vm7781` holds `program_director` and
+  directs no program … the roles page appoints as one control writing both rows, and nothing
+  un-appoints one*, which is also what makes #38's *program with no director* empty state
+  unreachable at runtime. The later ruling wins and the toggle does not ship: a program a director
+  already has is a chip rather than a button.
+
+  **What that costs is stated rather than hidden.** `program_director`'s revocation refusal names
+  the programs it is blocked by — *hand them to another director first* — and there is no control
+  on this page that does the handing. It is the same shape as the other two dependency refusals,
+  neither of which the skeleton can act on either: handing a course to another area head is a
+  `course.area_head` write on a page that does not exist yet, and taking somebody off a roster is
+  the class's. A refusal names a thing to do to the world; whether a screen for it exists yet is
+  not what the refusal is about. #49 names the missing piece as a **control and not a rule**, which
+  is where an un-appoint ticket would start.
+
 - **Which fixture reaches *no name on file* changed; the rendering did not** — by
   [May the seed write a roster row for a netid `people` does not know?](https://github.com/nopivnick/lineup-prototype-03/issues/69).
   Four files still show `xq7742` on a roster — `catalog-lineup-views.html`,
