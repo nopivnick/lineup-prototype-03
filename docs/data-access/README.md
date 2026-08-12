@@ -408,6 +408,85 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   transition rules. It is named in this package because a build effort reading *the write
   paths* should not have to discover the largest one elsewhere.
 
+- **`db/read/` now holds five shared modules beside the seven views, and a row's assembly is
+  one of them** — by
+  [The Course detail page](https://github.com/nopivnick/lineup-prototype-03/issues/83), which
+  built this package's fourth read module and extended #81's rule a third time: what makes
+  something one of the seven is that it is a **view**.
+
+  `db/read/offering-rows.ts` holds `LineupRow`, the three child sets aggregated as JSON, the
+  Offering read tier and the per-row permitted-action set; `db/read/course-rows.ts` holds the
+  Course permitted-action set, the *not offerable yet* marker and the course's two tag
+  fragments. Both were `db/read/lineup.ts`'s and `db/read/catalog.ts`'s until the Course page
+  became a **second view of the same rows** — `CoursePage.sections` is `LineupRow` because this
+  package says so. A second assembly would have been the shallow shape *Why view-shaped and not
+  table-shaped* rejects, and worse: a second **intersection** of machine legality, invariants
+  and permissions, so two screens could offer different moves on one record with neither being
+  the writer's answer.
+
+  **`db/read/qualified.ts` is the fifth, and it is a Drizzle fact rather than a decision.**
+  Drizzle renders a column unqualified when the select it is building names a single table,
+  which is right for that table's own columns and wrong inside a **correlated subquery**: every
+  reference in a shared fragment collapses to a bare name, and `WHERE "offering_id" =
+  "offering_id"` is either ambiguous or silently self-referential. The Lineup never saw it —
+  its select joins `course` — and the Course page's sections query names one table and hit it
+  immediately. Recorded because a fragment that is only correct in the queries it was first
+  pasted into is a trap for the next caller.
+
+  **`History`, `HistoryLine`, `LastChanged`, `EditAffordance` and `Visible` are all in
+  `db/read/shape.ts`**, with `editAffordanceFor` beside them, because the Offering and Review
+  pages are the same page with a different record and #41's conventions are inherited
+  *wholesale*.
+
+- **The Course page's round trips are three `classes` statements and one `people` statement,
+  and the log is not read at all for Tier 2** — by #83, which counts them the way #82 counts
+  the stitch's two: `db/read/course.test.ts` wraps both handles.
+
+  The three are the course with its two tag sets and the proposal it was minted from; its
+  sections with their children aggregated as JSON; and its transition log. The fourth is the
+  stitch, over every netid the page displays — the area head, every roster row and seat-sharing
+  granter, and the actor and subject of every history line. **None grows with the number of
+  sections or of people.**
+
+  **The log's query is conditional**, on the same predicate the history section is: a `student`
+  and an `advisor` get no history at all, so a query issued for them would buy a round trip to
+  build something nobody may read. That is #38's *a refusal with no control is dead text*
+  applied to a query, and it is why this module's count is two for them and three for everybody
+  else.
+
+  **`lastChanged: null` carries two facts and the page tells them apart by looking at
+  `history`.** For a reader with a history section it means *never changed since it was
+  created*, which the rail states in words rather than as an empty box; for a Tier 2 reader the
+  box is not rendered at all, being the same class of fact as the history and hidden with it —
+  and nothing about `updated_by` reaches them in the payload, which the test asserts over the
+  serialised page rather than field by field.
+
+- **`bodyHasDriftedSince` is computed by comparing the two bodies, and it needs no column** —
+  by #83, deriving what [#42](https://github.com/nopivnick/lineup-prototype-03/issues/42) left
+  as a field on `mintedFrom`.
+
+  The mint **copies** title, description and credits ([#7](https://github.com/nopivnick/lineup-prototype-03/issues/7)),
+  so *has the proposal drifted* is *do the six columns still agree* — one join along
+  `course.minted_from_review_id`, which #42 added, and no timestamp comparison. A stamp-based
+  answer was rejected for being wrong in both directions: `course_proposal.updated_at` moves for
+  an edit that changed nothing a course copied, and a course edited in `Revising` drifts from
+  its proposal without the proposal being touched at all. The rendering says the two disagree
+  and does not claim which side moved, because the data does not say.
+
+- **Two field-class refusals moved into `db/write/rules.ts`, and which classes a record has is
+  derived** — by #83, joining `stillTeaching`, `courseRetired` and the four revocation refusals
+  there for the reason all of them are there: **two callers**. `notNowField` and `notYoursField`
+  are what `writeFields` throws and what a record page's rail states one step earlier.
+
+  `OWNED_BY` — which record each table hangs off — moved with them, and `fieldClassesOn(machine)`
+  reads it to derive which field classes surface on a record: a class surfaces where it names a
+  table the record owns, minus the `no-field-write` classes and minus *Roster — position 0*,
+  which the map's own note calls **not a field class**. Deriving rather than listing per screen
+  is what took the course page from two sections to three when
+  [#106](https://github.com/nopivnick/lineup-prototype-03/issues/106) classified
+  `course_requirement_category`, with no screen edited — which is #62's *the edit page is a
+  function of `FIELD_CLASSES`* holding for the record page too.
+
 ## Two things this transcription had to derive
 
 Neither is a decision, and both are recorded here so that if either reads as one, it is a

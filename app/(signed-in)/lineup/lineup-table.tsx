@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   Alert,
+  Anchor,
   Badge,
   Box,
   Button,
@@ -136,6 +138,24 @@ export function LineupTable({
                 <Text size="sm" c="dimmed">
                   {group.sectionCount} {group.sectionCount === 1 ? "section" : "sections"}
                 </Text>
+                {/*
+                  **A dedicated `↗` at the group's right edge, outside the expand
+                  target** (issues/41). The group header *is* a course, so this is
+                  the second door onto the Course page and it is the same control
+                  the Catalog row carries. A linked course number was rejected for
+                  putting a small target inside the big one whose click means
+                  *expand*.
+                */}
+                <Anchor
+                  component={Link}
+                  href={`/courses/${group.courseId}`}
+                  aria-label={`Open ${group.courseNumber}`}
+                  title={`Open ${group.courseNumber}`}
+                  fw={600}
+                  ml="auto"
+                >
+                  ↗
+                </Anchor>
               </Group>
             ),
           },

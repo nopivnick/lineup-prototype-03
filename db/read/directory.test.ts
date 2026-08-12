@@ -9,7 +9,7 @@
  *
  * It runs against `db/write/test-world.ts`'s small world rather than the seed's,
  * because the seed's thirteen are `db/seed.ts`'s subject and the property is the
- * same at seven. The world it does use carries the two cases that matter: a
+ * same at eight. The world it does use carries the two cases that matter: a
  * person holding several roles, and a netid holding a role that the directory has
  * never heard of.
  */
@@ -26,6 +26,7 @@ describe.skipIf(!DATABASES_CONFIGURED)("listDirectory", () => {
     const directory = await listDirectory();
 
     expect(directory.map((person) => person.netid)).toEqual([
+      WHO.advisor, //     AD Example
       WHO.coordinator, // CO Example
       WHO.instructor, //  DH Example
       WHO.areaHead, //    NA Example

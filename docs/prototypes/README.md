@@ -443,6 +443,30 @@ what it overturns; it never stands beside it.
   is the count that has moved, and this ledger is where it moves. The **mixed** classes are still three (Course assignment,
   Offering operational, Review assignment); the new one is rows and nothing else.
 
+- **The Course page ships with two of variant D's links absent, and neither is a change of
+  shape** — by [#83](https://github.com/nopivnick/lineup-prototype-03/issues/83), which built
+  `course-offering-detail.html`'s course half.
+
+  Variant D gives each row of the *Sections* table the same `↗` the Catalog row carries, so that
+  the Course page is the second place a class page is reached from. **That `↗` is absent**, because
+  `/classes/:id` is [#84](https://github.com/nopivnick/lineup-prototype-03/issues/84)'s and a link
+  to a route that does not exist is a 404 rather than a control that is honest about being early.
+  It returns with the Offering page, and the row type already carries everything it needs.
+
+  The **`Edit` control does ship and points nowhere**, which is the opposite call on a similar
+  fact, and #83 sanctioned it in as many words: the count beneath it — *2 of 3 sections are yours*
+  — is already this actor's true answer, and greying the control would read as *not yours*, which
+  is the one thing it must not say to somebody two classes are open to. The line beneath says the
+  edit page is not built yet. The **minted-review link** ships for the same reason inverted: #83
+  asked for it outright, and `/reviews/:id` is
+  [#86](https://github.com/nopivnick/lineup-prototype-03/issues/86)'s.
+
+  **The section rows carry no `⋯ n` menu**, which is variant D's own behaviour rather than a
+  deferral: the table is a way *in* to a class, and the class's moves are the Offering page's. The
+  rows are the Lineup's `LineupRow` and carry the permitted-action set regardless, because a row
+  type that meant one thing on one screen and another here is the drift the shared assembly exists
+  to prevent.
+
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three
   variants* over files holding four, and no title named the settled variant; every title now

@@ -6,7 +6,15 @@ import { course, offering, offeringInstructor, programDirector, term, userRole }
 import { peopleDb } from "@/db/handles";
 import { person } from "@/db/people/schema";
 import { LIVE_STATES } from "@/lib/machines/offering.machine";
-import { MATRICES, NOBODY, type MachineName, type Role, type Route } from "@/lib/permissions";
+import {
+  FIELD_CLASSES,
+  MATRICES,
+  NOBODY,
+  type FieldClass,
+  type MachineName,
+  type Role,
+  type Route,
+} from "@/lib/permissions";
 
 import { refusal, type Refusal } from "./refusal";
 import type { ClassesTx, Netid } from "./transaction";
@@ -494,4 +502,165 @@ export function notYours(act: string, thing: string, routes: readonly Route[], s
   return routes.length === 0
     ? refusal(`Nothing in the system can ${act} ${thing}.`)
     : refusal(`Only ${whoMay(routes, subject)} can ${act} ${thing}.`);
+}
+
+// ---------------------------------------------------------------------------
+// A field class's two refusals — one sentence each, shared by both sides
+// ---------------------------------------------------------------------------
+//
+// Here for the reason `stillTeaching`, `courseRetired` and the four revocation
+// refusals are here: **two callers** (issues/14, issues/62, issues/83).
+// `writeFields` throws these at whoever clicks anyway; `EditAffordance` states
+// them in the record page's rail one step earlier, under an `Edit` control that
+// is absent because nothing is yours. A second copy of either sentence is how a
+// rule and its explanation drift apart.
+//
+// **Two refusals per class and not one**, because issues/28 ANDs a state
+// predicate and a role predicate and checks them **separately**: an `Approved`
+// course read by another program's director refuses its body on both counts,
+// and stating one hides the wall the reader walks into next. That is why a field
+// refusal is sometimes two sentences where a transition refusal is always one.
+
+/**
+ * Which record each table hangs off, and **the map both sides read** — the
+ * writer to refuse a write naming another record's table, the record pages to
+ * work out which field classes surface on them at all.
+ *
+ * `course_proposal` belongs to the review because the body is shared and the
+ * edit page is the review's (issues/62); the two authorization tables belong to
+ * no record at all, being the chair's page rather than anyone's rail
+ * (issues/34).
+ */
+export type FieldWriteOwner = MachineName | "authorization";
+
+export const OWNED_BY: Readonly<Record<string, FieldWriteOwner>> = {
+  course: "course",
+  course_area: "course",
+  course_proposal: "course_proposal_review",
+  course_proposal_review: "course_proposal_review",
+  course_proposal_review_area: "course_proposal_review",
+  course_requirement_category: "course",
+  offering: "offering",
+  offering_area: "offering",
+  offering_instructor: "offering",
+  offering_meeting: "offering",
+  offering_requirement_category: "offering",
+  program_director: "authorization",
+  user_role: "authorization",
+};
+
+/** *a class*, in the department's words — and the noun both a refusal and a page use. */
+export function recordNoun(machine: MachineName): string {
+  return machine === "course_proposal_review" ? "review" : machine === "offering" ? "class" : "course";
+}
+
+/**
+ * **The field classes that surface on one record's page**, derived from the map
+ * rather than restated as a list per screen (issues/62, issues/106).
+ *
+ * A class surfaces on a record when it names a table that record owns. Two kinds
+ * are dropped, and neither is a judgement about the screen:
+ *
+ * - `no-field-write` classes — Structural, Machine-owned, Creation, Timestamps —
+ *   because there is no state in which anybody may write them, so an edit page
+ *   listing them would be offering a section that can never open;
+ * - classes whose writer list is `NOBODY` while their gate is a state, which is
+ *   only *Roster — position 0*: **not a field class**, as the map says in its own
+ *   note. Naming a lead is `staff` and goes through the transition writer.
+ *
+ * issues/106's arrival is what makes deriving worth the paragraph: it took the
+ * course page from two sections to three without anybody editing a screen.
+ */
+export function fieldClassesOn(machine: MachineName): readonly FieldClass[] {
+  return (FIELD_CLASSES as readonly FieldClass[]).filter(
+    (fieldClass) =>
+      fieldClass.stateGate.gate !== "no-field-write" &&
+      fieldClass.writers.length > 0 &&
+      tablesOf(fieldClass).some((table) => OWNED_BY[table] === machine),
+  );
+}
+
+/**
+ * The tables a class names, from both halves of the map. A `rows` entry may
+ * qualify itself in prose — *offering_instructor below position 0* — so the
+ * table is the first word of it.
+ */
+function tablesOf(fieldClass: FieldClass): readonly string[] {
+  return [
+    ...fieldClass.columns.map((column) => column.slice(0, column.lastIndexOf("."))),
+    ...(fieldClass.rows ?? []).map((entry) => entry.split(" ")[0] ?? entry),
+  ];
+}
+
+/**
+ * The states a field class's gate is read against. Not one state, because the
+ * gate names **its own** machine rather than the record's, and because one gate
+ * is not a state of any single record: the Proposal body is open while **any**
+ * of the proposal's reviews is `Developing` (issues/65), the per-review
+ * condition riding in the relationship instead.
+ */
+export type GateStates = {
+  course?: string | null;
+  offering?: string | null;
+  review?: string | null;
+  siblingReviews?: readonly string[];
+};
+
+/**
+ * **The state half of a field class's two predicates** — an invariant, so it
+ * names no actor and the chair's clause never reaches it (issues/28, issues/34).
+ * `null` when the gate is open.
+ */
+export function notNowField(fieldClass: FieldClass, states: GateStates): Refusal | null {
+  const gate = fieldClass.stateGate;
+  if (gate.gate !== "states") return null;
+
+  if (gate.states.some((state) => state.startsWith("Developing —"))) {
+    return (states.siblingReviews ?? []).includes("Developing")
+      ? null
+      : refusal("The proposal body can only be changed while a program has it under development.");
+  }
+
+  const current = stateIn(gate.machine, states);
+  if (current !== null && gate.states.includes(current)) return null;
+
+  return refusal(
+    `${fieldClass.name} can only be changed while the ${recordNoun(gate.machine)} is ${gate.states.join(" or ")}; this one is ${current ?? "not loaded"}.`,
+  );
+}
+
+function stateIn(machine: MachineName, states: GateStates): string | null {
+  switch (machine) {
+    case "course":
+      return states.course ?? null;
+    case "offering":
+      return states.offering ?? null;
+    case "course_proposal_review":
+      return states.review ?? null;
+  }
+}
+
+/**
+ * **The role half** — a permission, and the chair sits one clause ahead of this
+ * one and of nothing else (issues/34, issues/62). `null` when the actor may
+ * write the class.
+ *
+ * The subject is the caller's: for every class but one it is the record's own,
+ * and for **Seat-sharing tags** it is the *tag's* program, which is the sole
+ * scope in the model that points away from the record (issues/25, issues/30).
+ * The wording names that outright rather than reading as a bug.
+ */
+export function notYoursField(
+  fieldClass: FieldClass,
+  facts: ActorFacts,
+  subject: Subject,
+): Refusal | null {
+  if (permitted(fieldClass.writers, facts, subject)) return null;
+  return notYours("change", fieldThing(fieldClass), fieldClass.writers, subject);
+}
+
+function fieldThing(fieldClass: FieldClass): string {
+  return fieldClass.name === "Seat-sharing tags"
+    ? "this class's seat sharing"
+    : `this record's ${fieldClass.name.toLowerCase()}`;
 }

@@ -51,6 +51,14 @@ export const WHO = {
   coordinator: "co1234",
   /** Holds `student` and nothing else — the row that holds nothing in the matrix. */
   student: "st9999",
+  /**
+   * Holds `advisor` and nothing else — issues/8's **other** empty row, and the
+   * one a read tier can tell apart from `student` nowhere: both are Tier 2's
+   * *can do nothing*, so both lose the history section and the Actions column
+   * together (issues/28, issues/41). Here so that *both* can be shown to,
+   * rather than one being shown and the other assumed.
+   */
+  advisor: "ad5150",
   /** Holds `instructor`, and the directory has never heard of them. */
   ghost: "gh0000",
 } as const;
@@ -64,11 +72,21 @@ const ROLES: readonly (readonly [netid: string, role: string])[] = [
   [WHO.instructor, "instructor"],
   [WHO.coordinator, "coordinator"],
   [WHO.student, "student"],
+  [WHO.advisor, "advisor"],
   [WHO.ghost, "instructor"],
 ];
 
 /** Everyone the directory knows. `WHO.ghost` is deliberately absent from it. */
-const DIRECTORY = [WHO.chair, WHO.itpDirector, WHO.imaDirector, WHO.areaHead, WHO.instructor, WHO.coordinator, WHO.student];
+const DIRECTORY = [
+  WHO.chair,
+  WHO.itpDirector,
+  WHO.imaDirector,
+  WHO.areaHead,
+  WHO.instructor,
+  WHO.coordinator,
+  WHO.student,
+  WHO.advisor,
+];
 
 export type World = {
   itpAreaId: number;

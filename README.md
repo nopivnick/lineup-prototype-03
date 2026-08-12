@@ -387,6 +387,57 @@ The page is open to **anybody holding a role other than `student`** — the four
 which governs a page rather than a table. A student who also teaches keeps it; a student who does
 not gets no nav item and a route that refuses.
 
+## The Course page
+
+The fourth screen, at [`/courses/:id`](<./app/(signed-in)/courses>) — and with it **the page
+conventions every later detail page inherits wholesale**. Reached by a dedicated `↗` at the right
+edge of a Catalog row and of a Lineup group header, outside the expand target: a linked course
+number was free and lost on the mis-click, since it puts a small target inside a big one whose
+click already means *expand*.
+
+**The record on the left, what you may do about it on the right, its history in sentences at the
+bottom.** The rail is the only shape in which refusals-in-the-open stay in view while the record is
+read, which is [#40](https://github.com/nopivnick/lineup-prototype-03/issues/40)'s reason for
+buying a page rather than a drawer, taken literally. It holds the status, the permitted moves with
+their refusals stated beneath, the `Edit` control, and *last changed*.
+
+**The history is a sentence per row, and it opens with a derived creation line marked by a hollow
+dot.** [#13](https://github.com/nopivnick/lineup-prototype-03/issues/13) refused a genesis row —
+creation is an act but not a transition — so a history showing only log rows would begin
+mid-story. The sentences invent wording the machine never said and that is accepted; inventing a
+**fact** is not, so every clause is built from a column the log actually holds, including
+[#10](https://github.com/nopivnick/lineup-prototype-03/issues/10)'s free-text reason in quotation
+marks. Because the creation line moved into the history, the rail drops to *last changed* alone —
+and since [#17](https://github.com/nopivnick/lineup-prototype-03/issues/17) deleted the transition
+a field write used to fire, that stamp is the only trace of the edits the log is forbidden to
+record.
+
+**`student` and `advisor` get no history section — absent, not empty**, and the *last changed* box
+goes with it, being the same class of fact. That is Tier 2's boundary: *if you can do nothing, you
+may not see the record of who did*. The log is not queried for them at all.
+
+**The `Edit` control's label does not vary with the actor; the count beneath it carries the
+truth** — *2 of 3 sections are yours*. A course has three field classes since
+[#106](https://github.com/nopivnick/lineup-prototype-03/issues/106) classified
+`course_requirement_category`, and which of them are open is actor-shaped, so the same URL is a
+different page for a director and for an area head. Where nothing is open the control is **absent**
+and every class's refusal takes its place, **two per class** — labelled *Not yours* and *Not now*,
+because [#28](https://github.com/nopivnick/lineup-prototype-03/issues/28) ANDs a state predicate
+and a role predicate and checks them separately. The chair sits ahead of the first and never the
+second: a chair gets the control on an `Approved` course and the body is still shut.
+
+**The sections are the Lineup's rows, grouped by term, newest first.** The page stays term-less —
+the grouping displays the offerings' own key and is not a term selector, because
+[#3](https://github.com/nopivnick/lineup-prototype-03/issues/3) deferred term dates and *current*
+is not computable. A course never offered says so; a `student` reaches the same screen by a second
+route, every section being outside the tier, which is what keeps *never offered* and *offered and
+killed* indistinguishable.
+
+**A body-drift line says when the proposal has stopped matching the course.** The mint **copies**
+the body ([#7](https://github.com/nopivnick/lineup-prototype-03/issues/7)), so a proposal a second
+program is still developing can be edited after the first has already minted from it — and whoever
+is about to schedule or teach the course is never on the proposal screen.
+
 ## Checks
 
 ```

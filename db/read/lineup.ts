@@ -1,52 +1,39 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 
-import {
-  area,
-  course,
-  courseArea,
-  courseRequirementCategory,
-  offering,
-  offeringArea,
-  offeringInstructor,
-  offeringMeeting,
-  offeringRequirementCategory,
-  requirementCategory,
-  term,
-} from "@/db/classes/schema";
+import { course, offering, term } from "@/db/classes/schema";
 import { classesDb } from "@/db/handles";
-import type { ExposedOfferingEvent } from "@/db/write/apply-transition";
-import { NEVER_EXPOSED } from "@/db/write/apply-transition";
-import {
-  courseRetired,
-  notYours,
-  permitted,
-  routesFor,
-  type ActorFacts,
-  type Subject,
-} from "@/db/write/rules";
-import type { Netid } from "@/db/write/transaction";
 import type { Actor } from "@/lib/auth/actor";
-import {
-  COMMITTED_STATES,
-  machine as offeringMachine,
-  OFFERING_STATES,
-  type OfferingState,
-} from "@/lib/machines/offering.machine";
+import type { OfferingState } from "@/lib/machines/offering.machine";
 import { leadOf } from "@/lib/roster";
 
 import { getActorFacts } from "./actor-facts";
+import { COURSE_TAGS } from "./course-rows";
 import {
-  canEverAct,
-  type ForeignTag,
-  type Meeting,
-  type OwnTag,
-  type PermittedAction,
-} from "./shape";
-import { stitchNames, type StitchedName } from "./stitch";
+  asLineupRow,
+  netidsOn,
+  OFFERING_CHILDREN,
+  visibleOfferingStates,
+  type LineupRow,
+} from "./offering-rows";
+import type { OwnTag } from "./shape";
+import { stitchNames } from "./stitch";
 
 export { leadOf };
+
+/**
+ * `LineupRow` and everything on it moved to `db/read/offering-rows.ts` when the
+ * Course page became a second view of a set of section rows (issues/83). They
+ * are re-exported here because *the Lineup's row* is what the type is called and
+ * what its readers import it as; what moved is where it is assembled, not what
+ * it is.
+ */
+export type {
+  LineupRosterEntry,
+  LineupRow,
+  OfferingEventName,
+} from "./offering-rows";
 
 /**
  * **The Lineup: the Offerings running in one selected term, grouped on course and
@@ -100,7 +87,7 @@ export async function getLineupPage(
   // empty intersection matches nothing and says so here rather than as an `IN ()`
   // the driver would refuse to build — which is also what happens when a student
   // filters to `Declined`: nothing comes back, and nothing about *why* is stated.
-  const states = visibleStates(facts, filters.status);
+  const states = visibleOfferingStates(facts, filters.status);
   if (states.length === 0) return [];
 
   const rows = await classesDb()
@@ -110,89 +97,19 @@ export async function getLineupPage(
       status: offering.status,
       mode: offering.mode,
       enrollmentLimit: offering.enrollmentLimit,
-      // Not on the returned row. The offering's program is the scope half of every
-      // permission on this record (issues/4), and it is always its course's
-      // (issues/30), so it is read for `Subject` and never rendered: the only
-      // program name the Lineup displays is a seat-sharing grant.
       programCode: offering.programCode,
       courseId: course.courseId,
       courseNumber: course.courseNumber,
       title: course.title,
       credits: course.credits,
-      // The `retry` invariant is a predicate over the parent course's state
-      // (issues/14), read here so a greyed control can carry the reason.
       courseStatus: course.status,
 
-      roster: sql<RosterJson>`(
-        SELECT coalesce(json_agg(json_build_object(
-          'position', ${offeringInstructor.position},
-          'netid', ${offeringInstructor.netid}
-        ) ORDER BY ${offeringInstructor.position}), '[]'::json)
-        FROM ${offeringInstructor}
-        WHERE ${offeringInstructor.offeringId} = ${offering.offeringId}
-      )`,
-
-      meetings: sql<MeetingJson>`(
-        SELECT coalesce(json_agg(json_build_object(
-          'kind', ${offeringMeeting.kind},
-          'dayOfWeek', ${offeringMeeting.dayOfWeek},
-          'startDate', ${offeringMeeting.startDate},
-          'endDate', ${offeringMeeting.endDate},
-          'startTime', ${offeringMeeting.startTime},
-          'endTime', ${offeringMeeting.endTime},
-          'room', ${offeringMeeting.room}
-        ) ORDER BY ${offeringMeeting.offeringMeetingId}), '[]'::json)
-        FROM ${offeringMeeting}
-        WHERE ${offeringMeeting.offeringId} = ${offering.offeringId}
-      )`,
-
-      // The two seat-sharing tables, read as one list: *Also counts toward* is one
-      // fact about the section, and whether the other program expressed it as an
-      // area or as a requirement category is that program's own bookkeeping.
-      foreignTags: sql<ForeignTagJson>`(
-        SELECT coalesce(json_agg(tag ORDER BY tag->>'programCode', tag->>'name'), '[]'::json)
-        FROM (
-          SELECT json_build_object(
-            'programCode', ${area.programCode},
-            'name', ${area.name},
-            'grantedBy', ${offeringArea.grantedBy},
-            'grantedAt', ${offeringArea.grantedAt}
-          ) AS tag
-          FROM ${offeringArea}
-          JOIN ${area} ON ${area.areaId} = ${offeringArea.areaId}
-          WHERE ${offeringArea.offeringId} = ${offering.offeringId}
-          UNION ALL
-          SELECT json_build_object(
-            'programCode', ${requirementCategory.programCode},
-            'name', ${requirementCategory.name},
-            'grantedBy', ${offeringRequirementCategory.grantedBy},
-            'grantedAt', ${offeringRequirementCategory.grantedAt}
-          ) AS tag
-          FROM ${offeringRequirementCategory}
-          JOIN ${requirementCategory}
-            ON ${requirementCategory.requirementCategoryId}
-             = ${offeringRequirementCategory.requirementCategoryId}
-          WHERE ${offeringRequirementCategory.offeringId} = ${offering.offeringId}
-        ) tags
-      )`,
+      ...OFFERING_CHILDREN,
 
       // Course-level, so identical on every sibling section and read off the first
       // of them. Repeating them down the page costs a few bytes and saves the
       // second round trip a separate group query would be.
-      areas: sql<TagJson>`(
-        SELECT coalesce(json_agg(json_build_object('name', ${area.name}) ORDER BY ${area.name}), '[]'::json)
-        FROM ${courseArea}
-        JOIN ${area} ON ${area.areaId} = ${courseArea.areaId}
-        WHERE ${courseArea.courseId} = ${course.courseId}
-      )`,
-      requirementCategories: sql<TagJson>`(
-        SELECT coalesce(json_agg(json_build_object('name', ${requirementCategory.name}) ORDER BY ${requirementCategory.name}), '[]'::json)
-        FROM ${courseRequirementCategory}
-        JOIN ${requirementCategory}
-          ON ${requirementCategory.requirementCategoryId}
-           = ${courseRequirementCategory.requirementCategoryId}
-        WHERE ${courseRequirementCategory.courseId} = ${course.courseId}
-      )`,
+      ...COURSE_TAGS,
     })
     .from(offering)
     // issues/30's composite foreign key, used as the join it was bought to make
@@ -215,52 +132,11 @@ export async function getLineupPage(
   // together: the rosters, and the granter of every seat-sharing tag — issues/40
   // found the chip had been rendering without one, which hid the only
   // cross-program act in the system.
-  const directory = await stitchNames(
-    rows.flatMap((row) => [
-      ...row.roster.map((entry) => entry.netid),
-      ...row.foreignTags.map((tag) => tag.grantedBy),
-    ]),
-  );
+  const directory = await stitchNames(netidsOn(rows));
 
-  const columnExists = canEverAct(facts);
   const groups = new Map<number, Mutable>();
 
   for (const row of rows) {
-    const status = row.status as OfferingState;
-    const roster = row.roster.map((entry) => ({
-      position: entry.position,
-      ...directory(entry.netid),
-    }));
-
-    // **The lead is whoever holds position 0, never `roster[0]`** (issues/61), and
-    // the same call answers both questions: who scopes the lead-only permissions,
-    // and whether there is anybody there at all.
-    const lead = leadOf(roster)?.netid ?? null;
-
-    const section: LineupRow = {
-      offeringId: String(row.offeringId),
-      sectionNumber: row.sectionNumber,
-      status,
-      roster,
-      meetings: row.meetings.map(asMeeting),
-      mode: row.mode,
-      enrollmentLimit: row.enrollmentLimit,
-      foreignTags: row.foreignTags.map((tag) => ({
-        programCode: tag.programCode,
-        name: tag.name,
-        grantedBy: directory(tag.grantedBy),
-        grantedAt: tag.grantedAt,
-      })),
-      actions: columnExists
-        ? actionsFor(
-            status,
-            { programCode: row.programCode, courseStatus: row.courseStatus },
-            lead,
-            facts,
-          )
-        : null,
-    };
-
     const group = groups.get(row.courseId) ?? {
       courseId: String(row.courseId),
       courseNumber: row.courseNumber,
@@ -271,7 +147,7 @@ export async function getLineupPage(
       sections: [],
     };
     groups.set(row.courseId, group);
-    group.sections.push(section);
+    group.sections.push(asLineupRow(row, directory, facts));
   }
 
   return matching(filters.search, [...groups.values()]);
@@ -337,56 +213,6 @@ export type LineupGroup = {
   sections: readonly LineupRow[];
 };
 
-/**
- * One Offering. **Amended by issues/37**: issues/9 sketched this row as carrying
- * course title, number, term and program alongside the offering's own facts;
- * grouping moved every course-level fact onto `LineupGroup`, and the term is the
- * page's. What is left is what differs between sibling sections.
- */
-export type LineupRow = {
-  offeringId: string;
-  sectionNumber: string;
-  status: OfferingState;
-  /**
-   * In `position` order, and **each entry carries its own `position`** (issues/61).
-   * Never an array indexed by convention: `decline` and `withdraw` each `DELETE`
-   * position 0 and leave everything below it, so a gap at 0 is a shape the
-   * machine's own edges produce. `leadOf` — and `rosterShape` in `lib/roster.ts`,
-   * which the renderer uses — is how that gap is read.
-   */
-  roster: readonly LineupRosterEntry[];
-  meetings: readonly Meeting[];
-  mode: string | null;
-  enrollmentLimit: number | null;
-  /**
-   * Rendered *Also counts toward*, one line beneath the section row — the grant
-   * attaches to the section that made it, not to the course (issues/37).
-   */
-  foreignTags: readonly ForeignTag[];
-  /**
-   * **Absent — not empty — for an actor who can never act** (issues/37), on the
-   * same Tier 2 predicate the Catalog uses.
-   */
-  actions: readonly PermittedAction<OfferingEventName>[] | null;
-};
-
-/**
- * The Lineup's roster entry. **No pronouns**: a list is not where a person is
- * presented as a person (issues/40). The Offering detail page's roster is where
- * `StitchedPerson` belongs.
- */
-export type LineupRosterEntry = { position: number } & StitchedName;
-
-/**
- * The Offering moves a **row** can offer, which is the writer's own exposed union
- * rather than the machine's whole event set (issues/15, issues/28).
- *
- * `staff` and `unstaff` are absent because nothing user-facing may name them, and
- * that is inherited from `ExposedOfferingEvent` rather than restated: a row that
- * offered `staff` would be a control whose Server Action cannot exist.
- */
-export type OfferingEventName = ExposedOfferingEvent["type"];
-
 // ---------------------------------------------------------------------------
 // The filters
 // ---------------------------------------------------------------------------
@@ -408,27 +234,6 @@ export type LineupFilters = {
   programCode: string | null;
   status: readonly OfferingState[] | null;
 };
-
-/**
- * **The read tier, as a state set** (issues/28).
- *
- * `offering` is Tier 1 in `COMMITTED_STATES` — *an instructor agreed to teach this,
- * or did once* — and Tier 2 in the six states that are the department's staffing
- * process. The Tier 2 predicate is `canEverAct`, read off `READ_TIERS` in
- * `db/read/shape.ts` rather than restated as a list of roles, and it is the same
- * predicate that decides whether the Actions column exists: `student` and `advisor`
- * are exactly issues/8's two empty rows.
- *
- * The narrowing happens **in the query**, so invisibility is never something a page
- * has to remember to honour (issues/9).
- */
-function visibleStates(
-  facts: ActorFacts,
-  chosen: readonly OfferingState[] | null,
-): readonly OfferingState[] {
-  const allowed: readonly OfferingState[] = canEverAct(facts) ? OFFERING_STATES : COMMITTED_STATES;
-  return chosen === null ? allowed : allowed.filter((state) => chosen.includes(state));
-}
 
 function narrow(filters: LineupFilters, states: readonly OfferingState[]): SQL | undefined {
   const clauses: (SQL | undefined)[] = [
@@ -497,151 +302,9 @@ function haystack(group: Mutable, section: LineupRow): string {
 }
 
 // ---------------------------------------------------------------------------
-// The per-row permitted-action set
-// ---------------------------------------------------------------------------
-
-/**
- * **Machine legality AND invariants AND permissions, intersected here** — the same
- * three terms in the same order as `applyTransition`, computed one step earlier so
- * a row can say what it offers before anybody clicks (issues/28, issues/37).
- *
- * Every move the machine offers from this state and the action layer exposes is
- * listed, the permitted ones clickable and the refused ones carrying their reason.
- * A move the machine does not offer at all is **absent** rather than greyed — the
- * state is not a refusal, it is the shape of the lifecycle — so `Concluded` and
- * `Dead`, being final, carry no menu at all.
- *
- * The `retry` guard is the one invariant an Offering row carries, and its refusal is
- * `courseRetired`'s sentence rather than one written here, so what the greyed control
- * says and what the writer throws cannot drift apart. It is checked **before** the
- * permission term, in the writer's own order: a director looking at a revivable
- * section of a retired course is told the course is retired, which is the thing they
- * can act on, rather than being told the move is theirs.
- */
-function actionsFor(
-  status: OfferingState,
-  record: { programCode: string; courseStatus: string | null },
-  lead: Netid | null,
-  facts: ActorFacts,
-): readonly PermittedAction<OfferingEventName>[] {
-  const subject: Subject = {
-    offering: { programCode: record.programCode, lead },
-  };
-
-  return movesFrom(status).map((event) => {
-    if (event === "retry" && record.courseStatus === "Retired") {
-      return { event, permitted: false, refusal: courseRetired() };
-    }
-
-    const routes = routesFor("offering", event);
-    return permitted(routes, facts, subject)
-      ? { event, permitted: true }
-      : {
-          event,
-          permitted: false,
-          refusal: notYours(event, "this class", routes, subject),
-        };
-  });
-}
-
-/**
- * The edges the machine draws out of one state, minus the two nothing user-facing
- * may name.
- *
- * `.can()` is deliberately not what asks — it folds a guard in, and a guarded edge
- * is precisely the one that has to be listed and greyed with its reason. The
- * Offering machine has no guards at all since issues/17, so here the difference is
- * only that `ownEvents` is honest about a final state having none.
- */
-function movesFrom(status: OfferingState): readonly OfferingEventName[] {
-  const hidden: readonly string[] = NEVER_EXPOSED;
-  return (offeringMachine.states[status].ownEvents as readonly string[]).filter(
-    (event): event is OfferingEventName => !hidden.includes(event),
-  );
-}
-
-// ---------------------------------------------------------------------------
 // What the one query hands back
 // ---------------------------------------------------------------------------
-//
-// The children arrive as JSON beside their parent row, which is what makes the
-// `classes` side one round trip. These types are the shape of that JSON and
-// nothing else: every one of them is mapped into a row type above before it
-// leaves the module, so no caller ever sees a nullable column it has to
-// re-discriminate.
-
-type RosterJson = readonly { position: number; netid: string }[];
-
-type TagJson = readonly { name: string }[];
-
-type ForeignTagJson = readonly {
-  programCode: string;
-  name: string;
-  grantedBy: string;
-  grantedAt: string;
-}[];
-
-type MeetingJson = readonly {
-  kind: string;
-  dayOfWeek: number | null;
-  startDate: string | null;
-  endDate: string | null;
-  startTime: string | null;
-  endTime: string | null;
-  room: string | null;
-}[];
 
 type Mutable = Omit<LineupGroup, "sectionCount" | "sections"> & {
   sections: LineupRow[];
 };
-
-/**
- * `offering_meeting`'s nullable columns back into the discriminated union, which is
- * the one direction that matters: the **kind is declared** and this switch reads it
- * rather than inferring it from which columns are filled — the exact legacy failure
- * issues/10 declared the column to fix.
- *
- * `time` and `date` arrive as strings, and the seconds on a `time` are trimmed here
- * rather than in the renderer: *18:30* and *18:30:00* are the same fact, and a
- * renderer that trims is a renderer that has to know the column type.
- */
-function asMeeting(row: MeetingJson[number]): Meeting {
-  switch (row.kind) {
-    case "weekly": {
-      if (row.dayOfWeek === null || row.startTime === null || row.endTime === null) {
-        throw new Error("Invalid meeting row: weekly meetings require dayOfWeek, startTime, and endTime.");
-      }
-      return {
-        kind: "weekly",
-        dayOfWeek: row.dayOfWeek,
-        startTime: clock(row.startTime),
-        endTime: clock(row.endTime),
-        room: row.room,
-      };
-    }
-    case "dates": {
-      if (row.startDate === null || row.endDate === null || row.startTime === null || row.endTime === null) {
-        throw new Error("Invalid meeting row: dates meetings require startDate, endDate, startTime, and endTime.");
-      }
-      return {
-        kind: "dates",
-        startDate: row.startDate,
-        endDate: row.endDate,
-        startTime: clock(row.startTime),
-        endTime: clock(row.endTime),
-        room: row.room,
-      };
-    }
-    case "async":
-      return { kind: "async" };
-    default:
-      // The shape CHECK allows three values and the schema builds it from this same
-      // list, so a fourth means the migration and the code have parted company —
-      // the alarm `db/machine-states.test.ts` is for, one table over.
-      throw new Error(`${row.kind} is not a meeting kind.`);
-  }
-}
-
-function clock(time: string | null): string {
-  return (time ?? "").slice(0, 5);
-}
