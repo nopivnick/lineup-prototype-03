@@ -320,10 +320,12 @@ and the tooltip names who granted it and when. Seat sharing is the only place a 
 the course's own appears anywhere, so every program name this screen renders is a grant.
 
 Offering transitions fire from here for real, through
-[`app/(signed-in)/lineup/actions.ts`](./app/(signed-in)/lineup/actions.ts), which holds no rules.
-`cancel` and `kill` open a free-text **why** box first — those are the two acts that end something
-the department had committed to, and the two where the state pair in the log cannot reconstruct the
-reason. `staff` and `unstaff` appear nowhere on the screen and nowhere in the action, which is
+[`app/(signed-in)/offering-actions.ts`](./app/(signed-in)/offering-actions.ts), which holds no
+rules and which the class page's rail fires through too. `cancel` and `kill` open a free-text **why**
+box first — those are the two acts that end something the department had committed to, and the two
+where the state pair in the log cannot reconstruct the reason. Which two is
+[`explained-moves.ts`](./app/(signed-in)/explained-moves.ts), shared rather than answered once per
+screen. `staff` and `unstaff` appear nowhere on the screen and nowhere in the action, which is
 **non-exposure rather than a check**: there is no branch refusing them, so a browser naming one
 gets the same answer as a browser naming nonsense.
 
@@ -437,6 +439,47 @@ killed* indistinguishable.
 the body ([#7](https://github.com/nopivnick/lineup-prototype-03/issues/7)), so a proposal a second
 program is still developing can be edited after the first has already minted from it — and whoever
 is about to schedule or teach the course is never on the proposal screen.
+
+## The class page
+
+The fifth screen, at [`/classes/:id`](<./app/(signed-in)/classes>) — *a class*, in the department's
+words. It takes the Course page's conventions unchanged and is where two of
+[#41](https://github.com/nopivnick/lineup-prototype-03/issues/41)'s decisions land for the first
+time. Reached by the same dedicated `↗`, now at the right edge of a section row on the Course page
+and on the Lineup.
+
+**The record itself may be refused, and the refusal names no state.** A list row outside its tier is
+simply absent — the lists narrow in the query — but a page has a URL and has to answer. Saying
+`Declined` would leak exactly what hiding it is for; *"Not visible to you"* was rejected for
+confirming that a section exists at that number, which is half the same leak; and a silent redirect
+was rejected because a cosmetic fault must not masquerade as a broken link. **Three different worlds
+reach one answer in one wording** — an address that is not an id, an id that names nothing, and a
+class outside your tier — and it names no course and no section either, because both are facts the
+page could only have by reading the row it is refusing. Sign in as Marcus Ola, who holds `student`
+and nothing else, and open a class sitting in `Offered`: it is the same page a made-up number gets.
+
+**The same predicate that refuses the page thins the sibling list on the page it refuses from**, so
+the two agree by construction rather than by agreement: one call to `visibleOfferingStates` narrows
+the Course page's sections and decides this page's visibility, and `db/read/offering.test.ts`
+asserts the two as a set equality for every seed actor.
+
+**The history names the person an act was about, not whoever holds the seat now.** The roster is
+present-tense and the log is not, so `offer` and `accept` carry `subject_netid` — the one amendment
+#41 made to a closed ticket. Open the class that was offered to one instructor, withdrawn, and
+re-offered to another: the first *offered it to* names somebody who is not on the roster at all.
+`actor_netid` stays separate and records who **clicked**, because an acceptance arriving by email is
+routinely entered by an admin.
+
+**The roster is rows carrying their own `position`, read through `rosterShape`.** The lead is
+whoever holds 0, and both shapes with a vacant 0 say so in
+[#15](https://github.com/nopivnick/lineup-prototype-03/issues/15)'s own words — *position 0 is
+empty, so this class cannot be offered to anyone* — including the one that is **less** obvious
+rather than more: co-instructors sitting under a gap, which is what `decline` and `withdraw`
+produce. A netid the directory has stopped knowing keeps its seat, with no name and no error.
+
+**The rail is the Course page's, plus a reason box on `cancel` and `kill`** — the two acts that end
+something the department had committed to, where the state pair in the log cannot reconstruct *why*.
+The moves fire through the same Server Action the Lineup's `⋯ n` menu uses, and it revalidates both.
 
 ## Checks
 

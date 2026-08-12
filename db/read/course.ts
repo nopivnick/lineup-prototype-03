@@ -102,7 +102,13 @@ export async function getCoursePage(
   // that is not a course id is not a course that is hidden — it is a course that
   // does not exist, which is the same answer in the same words, reached without
   // a query.
-  if (!/^[0-9]+$/.test(courseId)) return { visible: false };
+  //
+  // **Leading zeros go with them** (issues/84): `/courses/007` under the original
+  // `[0-9]+` gave one record countably many addresses, which is this comment's
+  // own rule missing a case, and the Server Action revalidates the canonical one
+  // — so a move fired from the odd address left the reader on a page known to be
+  // stale. `db/read/offering.ts` says the same, in the same shape.
+  if (!/^(?:0|[1-9][0-9]*)$/.test(courseId)) return { visible: false };
   const id = Number(courseId);
   if (!Number.isSafeInteger(id)) return { visible: false };
 

@@ -9,7 +9,9 @@
  * It is its own module because both halves of the page state a time and they
  * must state it identically: the history's lines, which are a Server Component,
  * and the rail's *last changed* box, which is a Client Component because the
- * actions beside it are.
+ * actions beside it are. Since issues/84 there are two such pages, and the two
+ * must agree with each other as well — a class's history and its course's are
+ * read one click apart.
  */
 const STAMP = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",

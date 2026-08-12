@@ -470,6 +470,44 @@ what it overturns; it never stands beside it.
   type that meant one thing on one screen and another here is the drift the shared assembly exists
   to prevent.
 
+- **The record-level refusal names no course, no section and no term either** — by
+  [#84](https://github.com/nopivnick/lineup-prototype-03/issues/84), which built the Offering half
+  of `course-offering-detail.html` and is the page *Two rules whose only statement is a rendering*
+  was written for. The rule is unchanged and its wording is not:
+
+  > There is no class here — nothing at this address is a class you can open.
+
+  in place of variant D's *"There is no section here — ITPG-GT 2233 has no section 3 in Fall 2025
+  that you can see."* **The reason is the rule's own.** `getOfferingPage` reaches its one
+  not-visible answer from three different worlds — an address that is not an id, an id that names
+  nothing, and a class outside the reader's tier — and a course number, a section and a term are
+  facts the page can only have by **reading the row it is refusing**. The first two worlds yield
+  none of them, so a sentence built from them would answer *those worlds differently*, and the
+  difference is the leak: a reader comparing two addresses would learn which one holds a record.
+  That is the same objection that killed *"Not visible to you"*, arriving one step further in.
+  Variant D could name them because a prototype page is reached from a prototype list that already
+  had them in hand.
+
+  **What is unchanged is everything the rule is about**: the refusal names no state, `Declined`
+  appears nowhere, the answer is one answer in one wording, and the same predicate that produces it
+  thins the sibling list on the page it refuses from — which is now true *by construction* rather
+  than by agreement, both being one call to `visibleOfferingStates`, and asserted for every seed
+  actor as a set equality in `db/read/offering.test.ts`. The trailing qualifier *that you can see*
+  is carried by the whole sentence instead.
+
+- **The section `↗` returns, and the class page's rail is the Course rail unchanged** — by
+  [#84](https://github.com/nopivnick/lineup-prototype-03/issues/84), closing the deferral #83
+  recorded above. The rows were already `LineupRow`s, so what landed is a control — on the Course
+  page's *Sections* table and on the Lineup's section rows both, since the Lineup is the other place
+  a class is reached from. **No row in either list leads to a page its reader is refused**: both
+  lists narrow in the query on the predicate this page refuses with, so the record-level refusal is
+  reachable only by typing an address.
+
+  The rail adds exactly one thing to the Course page's: the **reason box** on `cancel` and `kill`,
+  which is the Lineup menu's own answer to *which controls ask why* (#10, #37) rendered a second
+  way rather than decided a second time. The `Edit` control ships pointing nowhere, on #83's
+  reasoning verbatim and with #84's sanction.
+
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three
   variants* over files holding four, and no title named the settled variant; every title now

@@ -242,7 +242,12 @@ export function asLineupRow(
       grantedAt: tag.grantedAt,
     })),
     actions: canEverAct(facts)
-      ? actionsFor(status, { programCode: row.programCode, courseStatus: row.courseStatus }, lead, facts)
+      ? offeringActionsFor(
+          status,
+          { programCode: row.programCode, courseStatus: row.courseStatus },
+          lead,
+          facts,
+        )
       : null,
   };
 }
@@ -300,6 +305,14 @@ export function visibleOfferingStates(
  * three terms in the same order as `applyTransition`, computed one step earlier
  * so a row can say what it offers before anybody clicks (issues/28, issues/37).
  *
+ * **Exported, because a class now has two screens** (issues/84). The Lineup row
+ * renders this set as `⋯ n` and the Offering page's rail renders it as buttons
+ * with the refusals stated beneath — two treatments of one set, never two sets.
+ * A second intersection here would be the drift issues/14 exists to prevent, one
+ * screen offering a move the other refuses, neither of them the writer's answer;
+ * it is the same reason `courseActionsFor` is shared by the Catalog and the
+ * Course page.
+ *
  * Every move the machine offers from this state and the action layer exposes is
  * listed, the permitted ones clickable and the refused ones carrying their reason.
  * A move the machine does not offer at all is **absent** rather than greyed — the
@@ -313,7 +326,7 @@ export function visibleOfferingStates(
  * a revivable section of a retired course is told the course is retired, which is
  * the thing they can act on, rather than being told the move is theirs.
  */
-function actionsFor(
+export function offeringActionsFor(
   status: OfferingState,
   record: { programCode: string; courseStatus: string | null },
   lead: Netid | null,
@@ -393,8 +406,12 @@ export type MeetingJson = readonly {
  * `time` and `date` arrive as strings, and the seconds on a `time` are trimmed here
  * rather than in the renderer: *18:30* and *18:30:00* are the same fact, and a
  * renderer that trims is a renderer that has to know the column type.
+ *
+ * **Exported for the Offering page** (issues/84), which composes its own record
+ * rather than a `LineupRow` and would otherwise be a second reading of a declared
+ * column — the exact thing issues/10 declared the column to stop.
  */
-function asMeeting(row: MeetingJson[number]): Meeting {
+export function asMeeting(row: MeetingJson[number]): Meeting {
   switch (row.kind) {
     case "weekly": {
       if (row.dayOfWeek === null || row.startTime === null || row.endTime === null) {

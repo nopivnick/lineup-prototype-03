@@ -2,8 +2,8 @@ import { Box, Group, Stack, Text } from "@mantine/core";
 
 import type { History, HistoryLine } from "@/db/read/shape";
 
-import { Named } from "./named";
-import { stamp } from "./stamp";
+import { Named } from "../../named";
+import { stamp } from "../../stamp";
 
 /**
  * **History is a sentence per row, full width, at the foot of the main column**

@@ -17,7 +17,10 @@ import type { StitchedName, StitchedPerson } from "@/db/read/stitch";
  *
  * One component for all three, because the page states the fact three times and
  * a reader who learns the treatment on a history line should recognise it in the
- * rail.
+ * rail. It moved up beside `stamp.ts` when the Offering page became the second
+ * record page (issues/84), for the reason `fireCourseEvent` moved up when the
+ * Course machine gained a second screen: two copies of a rendering the map spends
+ * a paragraph on is how one of them quietly becomes an error state.
  *
  * **Pronouns are a prop and default to off.** issues/40 drew the line at *is
  * this person the record, or a fact about it*: the area head is presented as a

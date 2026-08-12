@@ -17,7 +17,7 @@ import { getCoursePage, type CoursePage } from "@/db/read/course";
 import { getActor } from "@/lib/auth/actor";
 
 import { CourseHistory } from "./course-history";
-import { NamedLine } from "./named";
+import { NamedLine } from "../../named";
 import { CourseRail } from "./course-rail";
 import { CourseSections } from "./course-sections";
 
@@ -183,7 +183,7 @@ export default async function CourseDetailPage({
                   : `${page.sections.reduce((total, group) => total + group.offerings.length, 0)} across ${page.sections.length} ${page.sections.length === 1 ? "term" : "terms"}`
               }
             >
-              <CourseSections groups={page.sections} />
+              <CourseSections groups={page.sections} courseNumber={page.courseNumber} />
             </Section>
 
             {/*

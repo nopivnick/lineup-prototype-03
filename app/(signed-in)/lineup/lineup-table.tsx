@@ -21,8 +21,10 @@ import type { LineupGroup, LineupRow, OfferingEventName } from "@/db/read/lineup
 import type { ForeignTag, Meeting, Refusal } from "@/db/read/shape";
 import { rosterShape } from "@/lib/roster";
 
+import { EXPLAINED } from "../explained-moves";
+import { fireOfferingEvent } from "../offering-actions";
+import { OpenClass } from "../open-class";
 import { OpenCourse } from "../open-course";
-import { fireOfferingEvent } from "./actions";
 
 /**
  * **The Lineup's table** (issues/37, issues/82).
@@ -72,7 +74,9 @@ export function LineupTable({
   // A refusal that arrives *after* the click: the world moved between the render and
   // the button. The menu's own refusals are stated in the menu.
   const [refused, setRefused] = useState<readonly Refusal[] | null>(null);
-  // The one move that asks a question before it fires. See `EXPLAINED` below.
+  // The moves that ask a question before they fire — `EXPLAINED` in
+  // `../explained-moves`, shared with the class page's rail so the two screens
+  // cannot disagree about which ones do (issues/84).
   const [asking, setAsking] = useState<Asking | null>(null);
 
   // The server decided this per row, and it is the same answer for every row on the
@@ -232,6 +236,25 @@ export function LineupTable({
                         },
                       ]
                     : []),
+                  {
+                    /**
+                     * **The section row's own `↗`** (issues/41, issues/84). The
+                     * group header's opens the course; this one opens the class,
+                     * and it is the **one control every reader gets** — the rows
+                     * here are already narrowed to this reader's tier, so none of
+                     * them leads to a page that refuses.
+                     */
+                    accessor: "offeringId",
+                    title: "",
+                    textAlign: "right" as const,
+                    noWrap: true,
+                    render: (row: LineupRow) => (
+                      <OpenClass
+                        offeringId={row.offeringId}
+                        where={`${record.courseNumber} §${row.sectionNumber}`}
+                      />
+                    ),
+                  },
                 ]}
               />
             </Box>
@@ -656,21 +679,6 @@ function ActionMenu({
     </Menu>
   );
 }
-
-/**
- * **The two moves that ask why** (issues/10, issues/37).
- *
- * `reason` is free text and optional **on every event** — the schema says so and the
- * writer takes it from all of them — so which controls offer a box is a question about
- * the screen and not about the rules. These two are the acts that end something the
- * department had committed to running, and they are the two where the state pair in
- * the log cannot reconstruct *why*: `Accepted → Canceled` says a class was pulled and
- * nothing about whether enrolment collapsed or a room did.
- *
- * The box is optional, and skipping it writes `null` rather than an empty string: a
- * blank reason and no reason are different facts, and the log has room for both.
- */
-const EXPLAINED: ReadonlySet<string> = new Set(["cancel", "kill"]);
 
 function ReasonBox({
   asking,
