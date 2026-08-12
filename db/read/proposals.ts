@@ -2,9 +2,15 @@ import "server-only";
 
 import { asc, desc, eq } from "drizzle-orm";
 
-import { course, courseProposal, courseProposalReview } from "@/db/classes/schema";
+import { course, courseProposal, courseProposalReview, program } from "@/db/classes/schema";
 import { classesDb } from "@/db/handles";
-import { permitted, routesFor, type ActorFacts } from "@/db/write/rules";
+import {
+  noProgramsRequested,
+  notYours,
+  permitted,
+  routesFor,
+  type ActorFacts,
+} from "@/db/write/rules";
 import type { Netid } from "@/db/write/transaction";
 import type { Actor } from "@/lib/auth/actor";
 import {
@@ -22,7 +28,7 @@ import {
   type ProposalReviewRow,
   type ReviewRowSource,
 } from "./review-rows";
-import { mayOpenProposals, type Visible } from "./shape";
+import { mayOpenProposals, type Refusal, type Visible } from "./shape";
 import { stitchNames, type Directory } from "./stitch";
 
 /**
@@ -175,8 +181,90 @@ export async function getProposalsPage(
  * already paid for it.
  */
 export async function mayProposeACourse(actor: Actor): Promise<boolean> {
+  return (await proposeRefusal(actor)) === null;
+}
+
+/**
+ * The propose form, or the refusal instead of one — **one value either way**
+ * (issues/14): where there is no form, the reason travels with the absence.
+ *
+ * `emptySet` is the other refusal the form renders, and it is shipped rather than
+ * worded on the page for the same reason: it is `createProposal`'s own sentence,
+ * so the reason stated under a disabled submit and the one thrown at whoever
+ * posts an empty set anyway cannot drift. It is not conditional on anything the
+ * reader has done — the form states it while nothing is checked and the writer
+ * throws it if nothing is sent.
+ */
+export type ProposeForm =
+  | { mayPropose: true; programs: readonly ProgramChoice[]; emptySet: Refusal }
+  | { mayPropose: false; refusal: Refusal };
+
+/**
+ * One program, as an option on the form — and **the option is the row it mints**
+ * (issues/10, issues/43). There is no requested-programs table, so checking this
+ * box is not recording a preference: it is a `course_proposal_review` the submit
+ * will write.
+ *
+ * `degreeLevel` rides along because it is the one fact that distinguishes the
+ * three programs on a form that is otherwise three codes, and a proposer picking
+ * where a course is read should be able to tell the graduate programs from the
+ * undergraduate one without leaving the page.
+ */
+export type ProgramChoice = { code: string; name: string; degreeLevel: string };
+
+/**
+ * **What the propose form needs, and the refusal where there is no form**
+ * (issues/43, issues/88).
+ *
+ * **The create route adds no read module of its own**, which is issues/62's
+ * arrangement for the three edit routes arriving at the one create route the
+ * skeleton builds. It lives here because the affordance already does: the control
+ * beside this list's heading is `mayProposeACourse`, and the page behind that
+ * control asking a *different* function whether the reader may use it is how a
+ * control and its destination come to disagree. Both are the same term, in two
+ * shapes — a boolean where a control is being drawn, a refusal where a page has
+ * to say why there is nothing on it. Recorded in `docs/data-access/README.md`.
+ *
+ * **The refusal is the writer's own** (issues/14), so what the page states one
+ * step early and what `createProposal` throws at whoever posts the form anyway
+ * are one sentence.
+ *
+ * **One statement, and only for a reader who may propose.** A refused reader
+ * costs nothing beyond the facts that refused them — there is no form for the
+ * programs to be checkboxes on. `db/read/proposals.test.ts` counts both.
+ */
+export async function getProposeForm(actor: Actor): Promise<ProposeForm> {
+  const refusal = await proposeRefusal(actor);
+  if (refusal) return { mayPropose: false, refusal };
+
+  const programs = await classesDb()
+    .select({ code: program.code, name: program.name, degreeLevel: program.degreeLevel })
+    .from(program)
+    // **Program code order, which is the order the verdict chips read in** on the
+    // list the submit lands on and the order the reviews sit in within their
+    // group. The boxes and the rows they mint therefore read the same way round,
+    // whatever order they were checked in.
+    .orderBy(asc(program.code));
+
+  return { mayPropose: true, programs, emptySet: noProgramsRequested() };
+}
+
+/**
+ * **The create act's permission term, asked one step earlier** — the same move
+ * the `⋯ n` menu makes for a transition, and asked through the same functions, so
+ * the control, the page and `createProposal`'s own check cannot disagree.
+ *
+ * The subject is empty because the act is flat by construction: at create time
+ * there is no proposal, no review and no course, so there is nothing for a
+ * relationship to scope to. `null` is *permitted*; a `Refusal` is the sentence.
+ *
+ * It costs no round trip — `getActorFacts` is `cache()`d and both callers'
+ * pages have already paid for it.
+ */
+async function proposeRefusal(actor: Actor): Promise<Refusal | null> {
   const facts = await getActorFacts(actor.netid);
-  return permitted(routesFor("course_proposal_review", "create"), facts, {});
+  const routes = routesFor("course_proposal_review", "create");
+  return permitted(routes, facts, {}) ? null : notYours("propose", "a course", routes, {});
 }
 
 // ---------------------------------------------------------------------------

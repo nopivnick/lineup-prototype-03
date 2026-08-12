@@ -421,6 +421,52 @@ copy quietly stops obeying the paragraph:
 The rail's `Edit` control points nowhere here too, which #86 sanctioned in as many words, and
 `/reviews/:id/edit` is #62's.
 
+**The eighth screen is the propose form**, built by
+[#88](https://github.com/nopivnick/lineup-prototype-03/issues/88): `app/(signed-in)/propose/` is
+variant A whole — one full page asking title, description, credits and the program set at once —
+and it is **the first screen that creates a record rather than moving one**. Five things about it
+are structural rather than conventional:
+
+- **It adds no read module**, which is #62's arrangement for the three edit routes arriving at the
+  one create route the skeleton has. `getProposeForm` is in `db/read/proposals.ts` beside
+  `mayProposeACourse`, and both call one private term, so the control beside the list's heading and
+  the page behind it cannot answer differently — a live button over a refused destination is exactly
+  what a second function would buy. `READ_MODULES` still names seven.
+- **The program section is the ticket**, and it says *the boxes are the rows* in the three places
+  variant A says it: the section header, each option, and a live count reading *submitting writes 2
+  reviews*. There is no requested-programs table, so *which programs* is not a field beside the form
+  — a `course_proposal_review` **is** the request. **The empty set is refused by `createProposal`
+  and not by the form**, and `noProgramsRequested` in `db/write/rules.ts` is that sentence, joining
+  `stillTeaching`, `courseRetired`, the four revocation refusals and the two field refusals on the
+  terms they all moved: two callers. The read module ships it as `ProposeForm.emptySet`, the form
+  states it under a disabled submit, the writer throws it at whoever posts an empty set anyway, and
+  `db/read/proposals.test.ts` compares the two.
+- **The refused reader gets the writer's own sentence**, not a page's. `/propose` is refused rather
+  than emptied for anyone holding no create arm — the list's control is already absent for them, and
+  a link nobody rendered is not a check — and what it states is `notYours("propose", "a course", …)`.
+  That is where #14's one-object rule reaches a whole page for the first time: the two record pages
+  that refuse (#84, #86) word their own refusals, because those refusals are read predicates with no
+  writer behind them.
+- **Submitting lands on `/proposals?new=<id>`**, which is #43's one amendment to variant A. The
+  banner's facts are read off the group the list had **already rendered** rather than off the query
+  parameter, so an id naming a proposal the reader cannot reach highlights nothing and says nothing.
+  The group is marked and never re-sorted: the list is newest-first, and pinning would make *what
+  came in most recently* untrue for one render.
+- **The action is `propose/actions.ts` and holds no rules.** It resolves the actor, parses the post
+  and relays the refusal. What it rejects — a blank title, a credit value that is not a positive
+  integer — is **malformed rather than refused**, the same class of check as `EXPOSED` in
+  `review-actions.ts`, and unreachable through the form because the form disables its submit on the
+  very same function: `bodyOf` and `bodyProblem` are `propose/proposed.ts`, a plain module both
+  sides import. It is plain and not `"use client"` for `review-where.ts`'s reason. The program codes
+  are the foreign key's to check, because the boxes come from the same table.
+
+Two smaller things came with it. `describe` now says ***an* instructor** — three of the seven roles
+begin with a vowel and the flat arm's article was fixed at *a*, which went unseen because a flat
+route had never been stated on a screen before; it is the third time a page found the writer's
+wording saying slightly less than the rule, after #84 and #86. And **the home page gains no link**:
+proposing starts on the proposals list and nowhere else (#42 rejected the Catalog as a second door),
+so `/propose` is reached from the control beside that list's heading and from its empty state.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

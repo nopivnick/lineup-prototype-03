@@ -55,7 +55,21 @@ import { Refused } from "../refused";
  * It computes **no rule**. Every refusal it renders is a sentence the writer
  * wrote.
  */
-export function ProposalsList({ groups }: { groups: readonly ProposalGroup[] }) {
+export function ProposalsList({
+  groups,
+  /**
+   * **The group a submit just wrote, marked** (issues/43, issues/88): the list is
+   * where proposing lands, and *at the new group* has to be visible on the group
+   * and not only in the banner above the table. It is a mark and not a re-sort —
+   * the order is newest-first already, and a group pinned out of that order would
+   * make the one thing this list is read for, *what came in most recently*, stop
+   * being true for one render.
+   */
+  newProposalId,
+}: {
+  groups: readonly ProposalGroup[];
+  newProposalId: string | null;
+}) {
   // A refusal that arrives *after* the click: the world moved between the render
   // and the button. The menu's own refusals are stated in the menu.
   const [refused, setRefused] = useState<readonly Refusal[] | null>(null);
@@ -89,6 +103,11 @@ export function ProposalsList({ groups }: { groups: readonly ProposalGroup[] }) 
             render: (group) => (
               <Group gap="sm" wrap="wrap">
                 <Text fw={600}>{group.title}</Text>
+                {group.proposalId === newProposalId ? (
+                  <Badge color="green" variant="filled" size="sm">
+                    New
+                  </Badge>
+                ) : null}
                 {/*
                   **The shared body, stated once**: title, credits, who proposed
                   it and when. A review row beneath carries only what differs

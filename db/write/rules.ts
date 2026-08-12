@@ -221,6 +221,24 @@ export function courseRetired(): Refusal {
   return refusal("This class cannot be revived, because its course has been retired.");
 }
 
+/**
+ * **A proposal asking nobody** — the one rule the propose form's program section
+ * is about (issues/43, issues/88).
+ *
+ * Here for the reason `stillTeaching` and `courseRetired` are here: **two
+ * callers**. `createProposal` throws it at whoever posts an empty set anyway, and
+ * the form states it under a disabled submit one step earlier — where it is not
+ * a validation message but the reason the section exists, since there is no
+ * requested-programs table and a proposal with no reviews is a record nothing in
+ * the skeleton can reach again.
+ *
+ * It names **no actor**, being an invariant rather than a permission: the chair
+ * is refused it too, which `db/write/create-paths.test.ts` asserts.
+ */
+export function noProgramsRequested(): Refusal {
+  return refusal("A proposal has to ask at least one program to review it.");
+}
+
 // ---------------------------------------------------------------------------
 // The four revocation refusals — one sentence each, shared by both sides
 // ---------------------------------------------------------------------------
@@ -489,7 +507,7 @@ function describe(route: Route, subject: Subject): string {
 
   switch (route.via) {
     case "flat":
-      return route.role === "chair" ? "the department chair" : `a ${route.role.replace("_", " ")}`;
+      return route.role === "chair" ? "the department chair" : named(route.role.replace("_", " "));
     case "offering_instructor position 0 of this offering":
       return "the lead instructor";
     case "program_director(offering.program_code)":
@@ -514,6 +532,21 @@ function describe(route: Route, subject: Subject): string {
 
 function director(programCode: string | undefined): string {
   return programCode ? `${programCode}'s program director` : "the program's director";
+}
+
+/**
+ * ***An* instructor**, not *a instructor* (issues/88).
+ *
+ * Three of the seven roles begin with a vowel — `instructor`, `area_head` and
+ * `advisor` — and the flat arm's article was fixed at *a*. It went unseen for as
+ * long as it did because a flat route only ever reached a reader through a
+ * refusal nobody had a screen for: the `create` row's three arms are the widest
+ * flat set in the map, and until the propose form there was no page to state them
+ * on. The article is chosen off the word rather than off a list of roles, so a
+ * role added to `ROLES` reads correctly without anybody remembering this.
+ */
+function named(role: string): string {
+  return `${/^[aeiou]/i.test(role) ? "an" : "a"} ${role}`;
 }
 
 /**
