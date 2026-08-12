@@ -299,6 +299,62 @@ section `↗` deferred by #83 lands with this page — on the Course page's sect
 Lineup's rows, since both lists are places a class is reached from. No row in either leads to a page
 its reader is refused: both narrow on the predicate this page refuses with.
 
+**The sixth screen is the proposals list**, built by
+[#85](https://github.com/nopivnick/lineup-prototype-03/issues/85): `db/read/proposals.ts` is the
+seventh view-shaped read module and `app/(signed-in)/proposals/` is the screen — the proposal is the
+group, its per-program reviews are the rows, and the verdict chips on the group header are the
+load-bearing part. They *dissolve* the problem that a proposal has no state of its own: a derived
+one would be viewer-dependent, and per-program chips derive nothing, so the question stops existing.
+Five things about it are structural rather than conventional:
+
+- **A verdict chip is a control, not a label**, so each one carries its review's id — one field more
+  than #42's `ProposalGroup` types. The chips are never narrowed by the filter, so under the default
+  view an `Approved` sibling has a chip and no row, and an unclickable chip would announce a verdict
+  with no way to read it. `getReviewPage`'s own reasoning is written on this premise: *refusing the
+  page when they click it would be incoherent*.
+- **Tier 3 narrows in the module rather than in the query**, which every list before it does the
+  other way. The predicate is *do you hold a may-act arm on **any** review of this proposal*, over
+  three arms of three different shapes plus the chair's clause, and as SQL that is a second copy of
+  the tier phrased as a filter. In the module it is one call to the writer's own `satisfies`. The
+  price — the statement reads every proposal — and the recovery at pager scale are recorded in
+  `docs/data-access/README.md`.
+- **`actions: null` means read-only here, and *can never act* everywhere else.** #42 widened
+  may-read past the arms deliberately, so a proposal reached by one arm opens **every** sibling
+  review; what the arms then decide is the row's fidelity, and #38's rule is that read-only means
+  controls **and** refusals absent, not greyed. The **author's arm is a may-act arm**, which is
+  where the tier's arms and the matrix's routes come apart: the proposer gets every move listed with
+  its refusal, because read-only would hide who *can* move it.
+- **The screen's own predicate is the complement of `HOLD_NOTHING_IN_THE_MATRIX`**, not the three
+  roles Tier 3's arms name. `mayOpenProposals` in `db/read/shape.ts` refuses `student` and `advisor`
+  the page and gives a `coordinator` the page, empty — *a screen you could in principle fill* is a
+  different fact from *a screen that is not for you*, and only the second is a refusal.
+- **The four filters are read off the machine where they can be.** *In play* is
+  `type !== "final"` rather than *`Proposed` or `Developing`*, with an import-time alarm for a
+  lifecycle in which that stops being a filter at all; *Needs me* is the `⋯ n` count asked as a
+  question, so it cannot be a state filter; and *Rejected* is its own filter rather than a corner of
+  the catch-all, because unlike a retired course a rejected review leads nowhere at all.
+- **A `"use client"` module's exports are client *references* on the server**, which is why the four
+  views live in `app/(signed-in)/proposals/views.ts` and not beside the bar that renders them. The
+  first version declared the default view in the bar; the page imported it, compared a query
+  parameter against an opaque function, and rendered an empty list under a correct-looking control.
+  It typechecks and it builds — only running it shows it, which is the same class of trap as #75's
+  `<Anchor component={Link}>` in a Server Component.
+
+**`app/(signed-in)/program-hue.ts` is the third thing to move up beside `named.tsx` and `stamp.ts`**,
+for the reason those moved: a program chip now renders on three screens — the Lineup's seat-sharing
+tags, the class page's, and this list's verdicts — and a hue that meant one thing on one screen and
+another on the next would break the only work a colour does here, which is being recognised. Colour
+is never the only signal on either chip.
+
+`approve` is the one move the skeleton offers whose payload is not optional: it mints a course in
+the same transaction and each approving program numbers its own, so the menu asks for a number and
+`fireReviewEvent` treats an `approve` without one as a **malformed event rather than a refused
+one** — the same class of check as the exposed-event guard beside it. The action revalidates
+`/catalog` as well as the list and `/reviews/:id`, being the only move in the system that creates a
+record on another screen. Two controls point at routes that do not exist yet, both by this ticket's
+own words: `Propose a course` at `/propose`, which #88 builds, and every row's `↗` at
+`/reviews/:id`, which #86 builds.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

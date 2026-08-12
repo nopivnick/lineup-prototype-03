@@ -535,6 +535,57 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   Distinct descriptions are untouched and the first occurrence keeps its place, so no refusal that
   named two different things changes a word.
 
+- **Tier 3 narrows in the read module, not in the query** — by
+  [#85](https://github.com/nopivnick/lineup-prototype-03/issues/85), which built the proposals
+  list. Every list before it narrows in the `WHERE` clause, and #9's *invisible rows are absent,
+  never flagged* is easiest to honour there; this one does not, and the reason is the shape of the
+  predicate rather than a preference. Tier 3's may-read is *do you hold a may-act arm on **any**
+  review of this proposal*, over arms of three different shapes — a directorship over the review's
+  program, a comparison against the parent's `created_by`, an area-head assignment on the review —
+  plus the chair's flat clause. Written as SQL that is a **second copy of the tier phrased as a
+  filter**, which is the drift #14 exists to prevent; written in the module it is one call to the
+  writer's own `satisfies`, so the read side and the write side cannot disagree about who an arm
+  reaches.
+
+  What it costs is that the `classes` statement reads every proposal rather than the reader's, and
+  it stops being the right shape at the scale a pager becomes necessary — the same threshold as the
+  Lineup's in-memory search, in the low thousands of rows. The recovery is the same shape too:
+  narrow in the query by the one arm that *is* expressible, the directorship, and keep the
+  predicate over what comes back.
+
+- **`ProposalReviewRow.actions: null` means read-only, not *can never act*** — by #85, and it is the
+  one place the field means something other than what the Catalog and the Lineup mean by it. There,
+  `null` is Tier 2's *you hold no acting role* and the whole column is absent from the table. Here
+  the screen is already refused to those readers, and `null` marks a **sibling review outside your
+  arms** — #42's widening, where a proposal reached by one arm opens every sibling read-only, with
+  controls **and** refusals absent together (#38). The two facts render identically, as `—`, and
+  that is deliberate: *nothing left to do here* and *not yours to do* both leak nothing.
+
+  The **author's arm is a may-act arm**, which is where the tier's arms and the matrix's routes come
+  apart: `course_proposal.created_by` reaches the row, and the matrix hands the proposer no route
+  into `develop`, `approve` or `reject`. So a proposer gets the full fidelity — every move listed
+  with the writer's own refusal beneath it — because read-only would hide the one thing they most
+  need, which is who *can* move it.
+
+- **A verdict chip carries its review's id, because the chip is a control** — by #85, widening
+  #42's `ProposalGroup.verdicts` from `{ programCode, state }` by one field. The artifact types the
+  chips as a label; variant D renders each one as **the button that opens that review**, and
+  `getReviewPage`'s own reasoning is built on that premise — *refusing the page when they click it
+  would be incoherent, because the chip has already leaked the verdict*. The gap it closes is
+  concrete rather than stylistic: the chips are deliberately never narrowed by the filter, so under
+  the default *In play* an `Approved` sibling shows a chip and has no row, and without the id there
+  is no route to it from this screen at all.
+
+- **Two more read predicates live in `db/read/shape.ts`** — by #85, beside `canEverAct` and
+  `mayOpenRolesPage` and derived the same way, off `READ_TIERS` with an import-time alarm for the
+  derivation failing open. `mayActOnReview` is Tier 3's may-act arms evaluated against one review,
+  and it decides a row's **fidelity** rather than its presence. `mayOpenProposals` decides whether
+  the screen exists at all, and it is **the complement of `HOLD_NOTHING_IN_THE_MATRIX`** rather than
+  the roles Tier 3's arms name: a predicate written from those three would refuse a `coordinator`
+  the page, where what a coordinator should get is the page, empty, saying *proposals reach you
+  three ways and none applies*. A screen a role could in principle fill is a different fact from one
+  it can never fill, and only the second is a refusal.
+
 ## Two things this transcription had to derive
 
 Neither is a decision, and both are recorded here so that if either reads as one, it is a

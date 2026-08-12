@@ -21,3 +21,25 @@
  * room for both.
  */
 export const EXPLAINED: ReadonlySet<string> = new Set(["cancel", "kill"]);
+
+/**
+ * **The two review moves that ask why** — the same question asked of a different
+ * machine (issues/10, issues/42, issues/85).
+ *
+ * A separate set rather than three more strings in the one above, because the
+ * two machines share no event names and a set that spanned both would be a
+ * lookup answering for events its screen could never fire. The test is the same
+ * test: is *why* something the state pair in the log could not reconstruct?
+ *
+ *   * `develop` sends the proposal back for work, and the reason **is** the
+ *     request — *"the outcomes overlap Creative Coding almost exactly"* is the
+ *     whole content of the move, and `Proposed → Developing` carries none of it.
+ *   * `reject` is final and leads nowhere at all, which makes it the one verdict
+ *     whose reason is the only thing a proposer gets to read.
+ *
+ * `approve` is deliberately not here, and not because it needs no explanation:
+ * it asks for something else, a **course number**, which is not optional and is
+ * part of what the event is. The screen asks for both in one box; only one of
+ * them is this set's business.
+ */
+export const EXPLAINED_REVIEW: ReadonlySet<string> = new Set(["develop", "reject"]);

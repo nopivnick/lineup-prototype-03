@@ -17,6 +17,7 @@ import { getOfferingPage } from "@/db/read/offering";
 import type { ForeignTag, Meeting } from "@/db/read/shape";
 import { getActor } from "@/lib/auth/actor";
 
+import { hueOf } from "../../program-hue";
 import { OfferingHistory } from "./offering-history";
 import { OfferingRail } from "./offering-rail";
 import { OfferingRoster } from "./offering-roster";
@@ -364,7 +365,7 @@ function ForeignTags({ tags }: { tags: readonly ForeignTag[] }) {
       {tags.map((tag, index) => (
         <Group key={index} gap="sm" align="baseline" wrap="wrap">
           <Badge
-            color={HUE[tag.programCode] ?? "gray"}
+            color={hueOf(tag.programCode)}
             variant="outline"
             size="sm"
             style={{ borderStyle: "dashed" }}
@@ -381,19 +382,6 @@ function ForeignTags({ tags }: { tags: readonly ForeignTag[] }) {
     </Stack>
   );
 }
-
-/**
- * One hue per program. **Not read off the database**, because a program's colour
- * is not a fact the schema holds; and not hashed from the code either, because
- * three named programs whose chips a reader learns are worth more than a rule
- * that survives a fourth. An unknown code falls back to grey, which still carries
- * the other three signals.
- */
-const HUE: Readonly<Record<string, string>> = {
-  ITP: "indigo",
-  IMA: "grape",
-  LOWRES: "teal",
-};
 
 const GRANTED = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",

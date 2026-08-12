@@ -1,12 +1,14 @@
 import "server-only";
 
 import {
+  HOLD_NOTHING_IN_THE_MATRIX,
   READ_TIERS,
   ROLES_PAGE,
   type FieldClassName,
   type MachineName,
   type ReadTier,
   type Role,
+  type Route,
 } from "@/lib/permissions";
 
 import type { Meeting } from "@/db/write/create-offering";
@@ -15,6 +17,7 @@ import {
   fieldClassesOn,
   notNowField,
   notYoursField,
+  satisfies,
   type ActorFacts,
   type GateStates,
   type Subject,
@@ -195,6 +198,91 @@ if (!ROLES_PAGE.mayRead.includes(NOT_A_ROLE_HOLDER)) {
   throw new Error(
     `ROLES_PAGE.mayRead no longer names \`${NOT_A_ROLE_HOLDER}\`, so the roles page's read predicate ` +
       "has moved and `mayOpenRolesPage` is still restating the old one (issues/38).",
+  );
+}
+
+/**
+ * **The fifth read predicate, and the second one governing a page** (issues/28,
+ * issues/42, issues/85): whether the proposals screen exists for this actor at
+ * all.
+ *
+ * Tier 3 has **no arm that reaches a `student` or an `advisor`** — its three
+ * arms are a directorship, authorship and an area-head assignment, and
+ * issues/8's two empty rows hold none of them and can hold none of them, since
+ * the act that makes an author is itself matrix-gated. So they get the whole
+ * screen refused and the nav item **absent rather than disabled**, which is
+ * issues/37's *absent, never empty* scaled from a control to a page for the
+ * second time.
+ *
+ * **It is the complement of `HOLD_NOTHING_IN_THE_MATRIX`, read off that
+ * constant** rather than restated as *`program_director` or `area_head` or
+ * `chair`*. Those three are the roles Tier 3's arms name, and a predicate
+ * written from them would refuse a `coordinator` the page — where what a
+ * coordinator should get is the page, empty, saying *proposals reach you three
+ * ways and none applies*. An empty screen a role could in principle fill is a
+ * different fact from a screen that role can never fill, and only the second is
+ * a refusal.
+ *
+ * **A netid holding no role at all is refused too**, and that is the predicate
+ * agreeing with the tier rather than overreaching: Tier 1 holds that zero roles
+ * is not a second kind of `null`, and this is not a claim that such a person is
+ * nobody — it is that no arm can reach them. A directorship and an area-head
+ * assignment are roles, and an author necessarily held a create arm, which is
+ * matrix-gated. `mayOpenRolesPage` answers the same way for the same reason.
+ *
+ * It takes the roles rather than `ActorFacts` for the reason `mayOpenRolesPage`
+ * does: the nav item's caller holds a role list and the read module holds facts.
+ */
+export function mayOpenProposals(roles: Iterable<Role>): boolean {
+  for (const role of roles) {
+    if (!HOLD_NOTHING_IN_THE_MATRIX.includes(role)) return true;
+  }
+  return false;
+}
+
+/**
+ * **Tier 3's may-act arms, evaluated against one review** (issues/28, issues/32,
+ * issues/42).
+ *
+ * Read off `READ_TIERS` rather than restated, the way `canEverAct` is, and
+ * evaluated through the writer's own `satisfies` so that *which arm reaches
+ * which review* is one function for the read side and the write side. The
+ * routes are genuinely different shapes — a directorship over the review's
+ * program, a comparison against the proposal's `created_by`, an area-head
+ * assignment on the review itself, and the chair's flat clause — so the answer
+ * differs per review rather than merely shrinking.
+ *
+ * **This is the *may-act* half of the tier, and it is not what decides whether a
+ * review is on the page.** issues/42 widened *may-read* past the arms
+ * deliberately: a proposal reachable by any one arm opens every one of its
+ * sibling reviews, because the reviews being independent and able to disagree is
+ * issues/7's whole reason for splitting the machine, and a screen that hides the
+ * disagreement hides the point. What this predicate decides is the **fidelity**
+ * — a review inside your arms carries a permitted-action set, one outside them
+ * is read-only, with controls and refusals absent together.
+ */
+export function mayActOnReview(facts: ActorFacts, subject: Subject): boolean {
+  return TIER_3_ARMS.some((route) => satisfies(route, facts, subject));
+}
+
+const TIER_3_ARMS: readonly Route[] = TIERS.find((tier) => tier.tier === 3)?.mayAct.routes ?? [];
+
+/**
+ * **This derivation fails open in the dangerous direction, so it is checked at
+ * import** — the same alarm `canEverAct` carries, one tier along.
+ *
+ * `ReadPredicate.routes` is optional, and Tier 3's may-act arms are the only
+ * place they are written down. An empty list would make `mayActOnReview` answer
+ * `false` for everybody, and every review on the proposals list would render
+ * read-only: no menu, no refusals, and no way for a reader to tell a screen
+ * that has decided they may do nothing from a screen that has forgotten to ask.
+ */
+if (TIER_3_ARMS.length === 0) {
+  throw new Error(
+    "READ_TIERS tier 3 states no may-act routes, so no actor could act on any review and the " +
+      "proposals list would render every row read-only (issues/42, issues/85). Either the tier " +
+      "moved or its predicate is now prose; whichever it is, `mayActOnReview` has to be told " +
+      "where to read it.",
   );
 }
 
