@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   Alert,
   Badge,
@@ -24,6 +25,7 @@ import type { Refusal } from "@/db/read/shape";
 import { EXPLAINED_REVIEW } from "../explained-moves";
 import { Named, NamedLine } from "../named";
 import { OpenCourse } from "../open-course";
+import { hueOf } from "../program-hue";
 import { OpenReview } from "../open-review";
 import { fireReviewEvent } from "../review-actions";
 
@@ -129,7 +131,7 @@ export function ProposalsList({ groups }: { groups: readonly ProposalGroup[] }) 
                     title: "Program",
                     noWrap: true,
                     render: (row) => (
-                      <Badge color={HUE[row.programCode] ?? "gray"} variant="light">
+                      <Badge color={hueOf(row.programCode)} variant="light">
                         {row.programCode}
                       </Badge>
                     ),
@@ -189,12 +191,7 @@ export function ProposalsList({ groups }: { groups: readonly ProposalGroup[] }) 
                     title: "Actions",
                     textAlign: "right",
                     render: (row) => (
-                      <ActionMenu
-                        row={row}
-                        where={`${record.title} · ${row.programCode}`}
-                        onRefused={setRefused}
-                        onAsk={setAsking}
-                      />
+                      <ActionMenu row={row} where={whichReview(record, row)} onAsk={setAsking} />
                     ),
                   },
                   {
@@ -203,10 +200,7 @@ export function ProposalsList({ groups }: { groups: readonly ProposalGroup[] }) 
                     textAlign: "right",
                     noWrap: true,
                     render: (row) => (
-                      <OpenReview
-                        reviewId={row.reviewId}
-                        where={`${record.title}, ${row.programCode}`}
-                      />
+                      <OpenReview reviewId={row.reviewId} where={whichReview(record, row)} />
                     ),
                   },
                 ]}
@@ -221,6 +215,15 @@ export function ProposalsList({ groups }: { groups: readonly ProposalGroup[] }) 
   );
 }
 
+/**
+ * *Physical Computing II · ITP* — which review a control is about, built once
+ * and read by both controls on the row. Two spellings of one address is how the
+ * menu's heading and the `↗`'s label come to name the same review differently.
+ */
+function whichReview(group: ProposalGroup, review: ProposalReviewRow): string {
+  return `${group.title} · ${review.programCode}`;
+}
+
 // ---------------------------------------------------------------------------
 // The verdict chips
 // ---------------------------------------------------------------------------
@@ -233,17 +236,31 @@ export function ProposalsList({ groups }: { groups: readonly ProposalGroup[] }) 
  * colour; the state is in the tooltip in words, which is the third. They are
  * **not** narrowed by the filter: the chips are what the department has decided,
  * and the filter is a question about today's work.
+ *
+ * **Each chip is a link, and that is the load-bearing half.** A chip whose row
+ * the filter has dropped — an `Approved` sibling under the default *In play* —
+ * would otherwise announce a review and offer no way to reach it. A chip outside
+ * the reader's arms opens the review **read-only**, which `getReviewPage`
+ * settled on this control's account: refusing the page after the chip has
+ * already stated the verdict would be incoherent.
  */
 function Verdicts({ verdicts }: { verdicts: ProposalGroup["verdicts"] }) {
   return (
     <Group gap={4}>
       {verdicts.map((verdict) => (
         <Tooltip
-          key={verdict.programCode}
+          key={verdict.reviewId}
           withArrow
-          label={`${verdict.programCode} — ${verdict.state}`}
+          label={`${verdict.programCode} — ${verdict.state}. Open this review.`}
         >
-          <Badge color={TONE[verdict.state]} variant="light" size="sm">
+          <Badge
+            component={Link}
+            href={`/reviews/${verdict.reviewId}`}
+            color={TONE[verdict.state]}
+            variant="light"
+            size="sm"
+            style={{ cursor: "pointer" }}
+          >
             {verdict.programCode} {GLYPH[verdict.state]}
           </Badge>
         </Tooltip>
@@ -270,17 +287,6 @@ const TONE: Readonly<Record<ProposalReviewRow["state"], string>> = {
   Developing: "yellow",
   Approved: "green",
   Rejected: "orange",
-};
-
-/**
- * One hue per program, the Lineup's table read the same way and for the same
- * reasons: not a column in the schema, not hashed from the code, and grey for an
- * unknown one — which still carries the program's own name.
- */
-const HUE: Readonly<Record<string, string>> = {
-  ITP: "indigo",
-  IMA: "grape",
-  LOWRES: "teal",
 };
 
 const PROPOSED = new Intl.DateTimeFormat("en-GB", {
@@ -353,15 +359,12 @@ type Asking = { reviewId: string; event: ReviewEventName; where: string };
 function ActionMenu({
   row,
   where,
-  onRefused,
   onAsk,
 }: {
   row: ProposalReviewRow;
   where: string;
-  onRefused: (refusals: readonly Refusal[] | null) => void;
   onAsk: (asking: Asking) => void;
 }) {
-  const [firing, startFiring] = useTransition();
   const actions = row.actions ?? [];
 
   if (actions.length === 0) {
@@ -374,25 +377,10 @@ function ActionMenu({
 
   const open = actions.filter((action) => action.permitted).length;
 
-  const choose = (event: ReviewEventName) => {
-    // **Every permitted move on this machine asks something first**: `approve`
-    // asks for the course number it will mint under, and the other two ask why.
-    // The box is the same box; what it holds differs.
-    if (event === "approve" || EXPLAINED_REVIEW.has(event)) {
-      onAsk({ reviewId: row.reviewId, event, where });
-      return;
-    }
-    startFiring(async () => {
-      onRefused(null);
-      const outcome = await fireReviewEvent(row.reviewId, event);
-      onRefused(outcome?.refusals ?? null);
-    });
-  };
-
   return (
     <Menu position="bottom-end" shadow="md" width={380} withinPortal>
       <Menu.Target>
-        <Button variant="subtle" size="compact-sm" loading={firing} aria-label="Moves">
+        <Button variant="subtle" size="compact-sm" aria-label="Moves">
           ⋯ {open}
         </Button>
       </Menu.Target>
@@ -403,7 +391,16 @@ function ActionMenu({
         </Menu.Label>
         {actions.map((action) =>
           action.permitted ? (
-            <Menu.Item key={action.event} onClick={() => choose(action.event)}>
+            // **Every move this machine offers asks something first**, so every
+            // item opens the box and none fires from the menu: `approve` asks for
+            // the course number it will mint under, and the other two are
+            // `EXPLAINED_REVIEW` and ask why. The Lineup's menu has both kinds and
+            // branches; this one would be branching on a condition that is always
+            // true, which reads as a case that can happen and cannot.
+            <Menu.Item
+              key={action.event}
+              onClick={() => onAsk({ reviewId: row.reviewId, event: action.event, where })}
+            >
               <Text size="sm">{action.event}…</Text>
             </Menu.Item>
           ) : (
@@ -426,9 +423,13 @@ function ActionMenu({
  * `approve` is the seam (issues/7): one transaction moves the review and mints a
  * course in that program's catalog, and each approving program mints its own
  * number, so there is nowhere else for the number to come from — the proposal
- * deliberately has none. The reason beside it is optional on every move, and
- * skipping it writes `null` rather than an empty string, because a blank reason
- * and no reason are different facts.
+ * deliberately has none.
+ *
+ * The **reason** box is the other half, and it renders for `EXPLAINED_REVIEW`'s
+ * two and not for `approve`: `develop` and `reject` are the moves whose *why* is
+ * their whole content, and the seed's own histories put reasons on exactly those
+ * two. Skipping it writes `null` rather than an empty string, because a blank
+ * reason and no reason are different facts.
  */
 function MoveBox({
   asking,
@@ -444,6 +445,12 @@ function MoveBox({
   const [firing, startFiring] = useTransition();
 
   const mints = asking?.event === "approve";
+  // **`EXPLAINED_REVIEW` decides the box, not this component**, and `approve` is
+  // deliberately outside it: it asks for a course number, which is part of what
+  // the event *is*, and the log can reconstruct the *why* of an approval from
+  // the state pair. Offering a reason box on every move would make that set dead
+  // — two screens would then disagree about which moves ask why (issues/84).
+  const explains = asking !== null && EXPLAINED_REVIEW.has(asking.event);
   const forget = () => {
     setReason("");
     setCourseNumber("");
@@ -481,15 +488,17 @@ function MoveBox({
           />
         ) : null}
 
-        <Textarea
-          label="Why"
-          description="Optional, and it goes on the record beside the move."
-          placeholder="The outcomes overlap Creative Coding almost exactly."
-          value={reason}
-          onChange={(event) => setReason(event.currentTarget.value)}
-          autosize
-          minRows={3}
-        />
+        {explains ? (
+          <Textarea
+            label="Why"
+            description="Optional, and it goes on the record beside the move."
+            placeholder="The outcomes overlap Creative Coding almost exactly."
+            value={reason}
+            onChange={(event) => setReason(event.currentTarget.value)}
+            autosize
+            minRows={3}
+          />
+        ) : null}
 
         <Group justify="flex-end">
           <Button variant="default" onClick={forget}>

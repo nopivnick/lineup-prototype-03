@@ -90,8 +90,19 @@ export type ProposalGroup = {
    * Never narrowed by the filter either: the filter says which reviews are worth
    * a row today, and the chips say what the department has decided, which is a
    * fact about the proposal rather than about the reader's current question.
+   *
+   * **`reviewId` rides on each chip, which widens the artifact's
+   * `{ programCode, state }` by one field** (issues/85, amending issues/42's
+   * `ProposalGroup`). The chip is not a label: in variant D it is the **control
+   * that opens that review**, and `getReviewPage`'s own reasoning is written on
+   * that premise — *refusing the page when they click it would be incoherent,
+   * because the chip has already leaked the verdict*. Without the id the chip
+   * cannot be a link, and the filter then hides reviews the chips announce: a
+   * sibling that is `Approved` has no row under the default view, so the only
+   * route to it on this screen would be gone. Recorded in
+   * `docs/data-access/README.md`.
    */
-  verdicts: readonly { programCode: string; state: ReviewState }[];
+  verdicts: readonly { reviewId: string; programCode: string; state: ReviewState }[];
   /** Every review, as rows — narrowed by the filter and by nothing else. */
   reviews: readonly ProposalReviewRow[];
 };
@@ -373,8 +384,11 @@ function shown(
       proposedBy: directory(group.createdBy),
       proposedAt: group.createdAt.toISOString(),
       // Off the **unfiltered** reviews: the chips are what every program has
-      // decided, and a filter is a question about today's work.
+      // decided, and a filter is a question about today's work. That is also why
+      // each one carries its review's id — a chip whose row the filter has
+      // dropped is the only route left to that review.
       verdicts: reviews.map((review) => ({
+        reviewId: review.reviewId,
         programCode: review.programCode,
         state: review.state,
       })),

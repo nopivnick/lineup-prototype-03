@@ -223,17 +223,22 @@ if (!ROLES_PAGE.mayRead.includes(NOT_A_ROLE_HOLDER)) {
  * different fact from a screen that role can never fill, and only the second is
  * a refusal.
  *
+ * **A netid holding no role at all is refused too**, and that is the predicate
+ * agreeing with the tier rather than overreaching: Tier 1 holds that zero roles
+ * is not a second kind of `null`, and this is not a claim that such a person is
+ * nobody — it is that no arm can reach them. A directorship and an area-head
+ * assignment are roles, and an author necessarily held a create arm, which is
+ * matrix-gated. `mayOpenRolesPage` answers the same way for the same reason.
+ *
  * It takes the roles rather than `ActorFacts` for the reason `mayOpenRolesPage`
  * does: the nav item's caller holds a role list and the read module holds facts.
  */
 export function mayOpenProposals(roles: Iterable<Role>): boolean {
   for (const role of roles) {
-    if (!EMPTY_ROWS.includes(role)) return true;
+    if (!HOLD_NOTHING_IN_THE_MATRIX.includes(role)) return true;
   }
   return false;
 }
-
-const EMPTY_ROWS: readonly Role[] = HOLD_NOTHING_IN_THE_MATRIX;
 
 /**
  * **Tier 3's may-act arms, evaluated against one review** (issues/28, issues/32,

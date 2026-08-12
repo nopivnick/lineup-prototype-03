@@ -200,8 +200,25 @@ describe.skipIf(!DATABASES_CONFIGURED)("getProposalsPage", () => {
     );
 
     expect(physical.verdicts).toEqual([
-      { programCode: "IMA", state: "Developing" },
-      { programCode: "ITP", state: "Approved" },
+      { reviewId: String(proposals.physicalComputing.reviews.IMA), programCode: "IMA", state: "Developing" },
+      { reviewId: String(proposals.physicalComputing.reviews.ITP), programCode: "ITP", state: "Approved" },
+    ]);
+  });
+
+  test("a chip carries its review's id, because the chip is the route to it", async () => {
+    // The chip is a control rather than a label, and it is the **only** route to a
+    // review the filter has dropped: ITP's is `Approved` and absent from the rows
+    // under the default view, so a chip that could not be clicked would announce a
+    // verdict and offer no way to read it.
+    const physical = groupFor(
+      await pageFor(WHO.itpDirector, "in-play"),
+      proposals.physicalComputing.proposalId,
+    );
+
+    expect(physical.reviews.map((review) => review.programCode)).toEqual(["IMA"]);
+    expect(physical.verdicts.map((verdict) => verdict.reviewId)).toEqual([
+      String(proposals.physicalComputing.reviews.IMA),
+      String(proposals.physicalComputing.reviews.ITP),
     ]);
   });
 
@@ -242,7 +259,9 @@ describe.skipIf(!DATABASES_CONFIGURED)("getProposalsPage", () => {
     // A finished review carries an empty set rather than a null one: the machine
     // offers nothing, which is not the same fact as *this row is not yours*.
     const sound = groupFor(await pageFor(WHO.instructor, "any"), proposals.sound.proposalId);
-    expect(sound.verdicts).toEqual([{ programCode: "IMA", state: "Rejected" }]);
+    expect(sound.verdicts).toEqual([
+      { reviewId: String(proposals.sound.reviews.IMA), programCode: "IMA", state: "Rejected" },
+    ]);
     expect(rowFor(sound, "IMA").actions).toEqual([]);
   });
 

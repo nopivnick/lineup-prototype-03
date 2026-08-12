@@ -45,7 +45,7 @@ export const DEFAULT_VIEW: ProposalsView = "in-play";
  * survive into what the bar renders as its current value: a control that
  * disagrees with the rows beneath it is worse than a control that has been reset.
  */
-export function asked(value: string | undefined): ProposalsView {
+export function viewFor(value: string | undefined): ProposalsView {
   return VIEWS.find((view) => view.value === value)?.value ?? DEFAULT_VIEW;
 }
 

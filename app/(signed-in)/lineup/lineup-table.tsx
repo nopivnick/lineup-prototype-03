@@ -23,6 +23,7 @@ import { rosterShape } from "@/lib/roster";
 
 import { EXPLAINED } from "../explained-moves";
 import { fireOfferingEvent } from "../offering-actions";
+import { hueOf } from "../program-hue";
 import { OpenClass } from "../open-class";
 import { OpenCourse } from "../open-course";
 
@@ -528,7 +529,7 @@ function ForeignTags({ tags }: { tags: readonly ForeignTag[] }) {
           } on ${granted(tag.grantedAt)}.`}
         >
           <Badge
-            color={HUE[tag.programCode] ?? "gray"}
+            color={hueOf(tag.programCode)}
             variant="outline"
             size="sm"
             style={{ borderStyle: "dashed" }}
@@ -541,20 +542,6 @@ function ForeignTags({ tags }: { tags: readonly ForeignTag[] }) {
     </Group>
   );
 }
-
-/**
- * One hue per program. **Not read off the database**, because a program's colour is
- * not a fact the schema holds and inventing a column for it is a migration in
- * exchange for nothing; and not hashed from the code either, because three named
- * programs whose chips a reader learns are worth more than a rule that survives a
- * fourth. An unknown code falls back to grey, which still carries the other three
- * signals.
- */
-const HUE: Readonly<Record<string, string>> = {
-  ITP: "indigo",
-  IMA: "grape",
-  LOWRES: "teal",
-};
 
 const GRANTED = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",

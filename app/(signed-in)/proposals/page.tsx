@@ -6,7 +6,7 @@ import { getActor, type Actor } from "@/lib/auth/actor";
 
 import { ProposalsFilterBar } from "./proposals-filters";
 import { ProposalsList } from "./proposals-list";
-import { asked } from "./views";
+import { viewFor } from "./views";
 
 /**
  * **The proposals list** — one group per proposal, one row per review, and every
@@ -39,11 +39,11 @@ export default async function ProposalsPage({
   const actor = await getActor();
   if (!actor) redirect("/be-somebody");
 
-  // A query parameter is a public input, and `asked` narrows it to one of the
+  // A query parameter is a public input, and `viewFor` narrows it to one of the
   // four the bar offers — see `./views` for why the four are declared neither
   // here nor beside the bar.
   const params = await searchParams;
-  const view = asked(one(params.view));
+  const view = viewFor(one(params.view));
 
   const answer = await getProposalsPage(actor, { view });
   if (!answer.visible) return <NoScreen />;
@@ -58,8 +58,15 @@ export default async function ProposalsPage({
    * The default view hides finished reviews, so *no groups* on it is ambiguous in
    * a way *no groups* on the Lineup never was: an instructor who has never
    * proposed anything and a director whose every review is approved both land on
-   * an empty screen, and they need opposite sentences. One more read answers it,
-   * on a path where the first read found nothing to render anyway.
+   * an empty screen, and they need opposite sentences.
+   *
+   * **It costs a second pass — two more round trips, and the module's *two round
+   * trips* is per call rather than per render.** It is bought only where the
+   * first read found nothing to render, so no populated screen pays it, and what
+   * it buys is the one empty state this ticket names: *an explanation and a
+   * button*. Carrying the reachable count on the read's own result would be
+   * cheaper and would make every reader pay for a count only an empty screen
+   * reads.
    */
   const reachable = groups.length > 0 || (view !== "any" && (await anythingReachable(actor)));
 

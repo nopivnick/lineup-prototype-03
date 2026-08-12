@@ -307,6 +307,11 @@ load-bearing part. They *dissolve* the problem that a proposal has no state of i
 one would be viewer-dependent, and per-program chips derive nothing, so the question stops existing.
 Five things about it are structural rather than conventional:
 
+- **A verdict chip is a control, not a label**, so each one carries its review's id — one field more
+  than #42's `ProposalGroup` types. The chips are never narrowed by the filter, so under the default
+  view an `Approved` sibling has a chip and no row, and an unclickable chip would announce a verdict
+  with no way to read it. `getReviewPage`'s own reasoning is written on this premise: *refusing the
+  page when they click it would be incoherent*.
 - **Tier 3 narrows in the module rather than in the query**, which every list before it does the
   other way. The predicate is *do you hold a may-act arm on **any** review of this proposal*, over
   three arms of three different shapes plus the chair's clause, and as SQL that is a second copy of
@@ -334,6 +339,12 @@ Five things about it are structural rather than conventional:
   parameter against an opaque function, and rendered an empty list under a correct-looking control.
   It typechecks and it builds — only running it shows it, which is the same class of trap as #75's
   `<Anchor component={Link}>` in a Server Component.
+
+**`app/(signed-in)/program-hue.ts` is the third thing to move up beside `named.tsx` and `stamp.ts`**,
+for the reason those moved: a program chip now renders on three screens — the Lineup's seat-sharing
+tags, the class page's, and this list's verdicts — and a hue that meant one thing on one screen and
+another on the next would break the only work a colour does here, which is being recognised. Colour
+is never the only signal on either chip.
 
 `approve` is the one move the skeleton offers whose payload is not optional: it mints a course in
 the same transaction and each approving program numbers its own, so the menu asks for a number and

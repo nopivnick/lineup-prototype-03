@@ -567,6 +567,15 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   with the writer's own refusal beneath it — because read-only would hide the one thing they most
   need, which is who *can* move it.
 
+- **A verdict chip carries its review's id, because the chip is a control** — by #85, widening
+  #42's `ProposalGroup.verdicts` from `{ programCode, state }` by one field. The artifact types the
+  chips as a label; variant D renders each one as **the button that opens that review**, and
+  `getReviewPage`'s own reasoning is built on that premise — *refusing the page when they click it
+  would be incoherent, because the chip has already leaked the verdict*. The gap it closes is
+  concrete rather than stylistic: the chips are deliberately never narrowed by the filter, so under
+  the default *In play* an `Approved` sibling shows a chip and has no row, and without the id there
+  is no route to it from this screen at all.
+
 - **Two more read predicates live in `db/read/shape.ts`** — by #85, beside `canEverAct` and
   `mayOpenRolesPage` and derived the same way, off `READ_TIERS` with an import-time alarm for the
   derivation failing open. `mayActOnReview` is Tier 3's may-act arms evaluated against one review,
