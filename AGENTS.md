@@ -246,11 +246,12 @@ structural rather than conventional:
   For a reader with a history section it is *never changed since it was created*, stated in words;
   for a Tier 2 reader the box is not rendered at all and nothing about `updated_by` reaches them.
 
-Two things the ticket asked for that the skeleton cannot yet resolve, both deliberate: the rail's
-`Edit` control **points nowhere**, which #83 sanctioned in as many words, and the minted-review link
-points at `/reviews/:id`, which #86 builds. The section rows carry **no `↗`** for the same reason
-inverted — #83 did not ask for one, and a link to a route that does not exist is a 404 rather than a
-control that is honest about being early.
+Two controls point at routes that do not exist yet and one the prototype draws is absent, and the
+line between them is **what #83's acceptance criteria asked for** rather than whether the
+destination is built: the rail's `Edit` control points nowhere, which #83 sanctioned in as many
+words; the minted-review link points at `/reviews/:id`, which #83 asked for outright and #86 builds;
+and the section rows carry **no `↗`**, which no criterion mentions. It returns with the Offering page
+and needs no change of shape.
 
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose

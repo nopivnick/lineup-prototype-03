@@ -8,9 +8,10 @@ import {
   courseProposalReview,
   courseTransition,
   offering,
+  term,
 } from "@/db/classes/schema";
 import { classesDb } from "@/db/handles";
-import type { ActorFacts } from "@/db/write/rules";
+import { termLabel, type ActorFacts } from "@/db/write/rules";
 import type { Netid } from "@/db/write/transaction";
 import type { Actor } from "@/lib/auth/actor";
 import type { CourseState } from "@/lib/machines/course.machine";
@@ -95,10 +96,14 @@ export async function getCoursePage(
   courseId: string,
   actor: Actor,
 ): Promise<Visible<CoursePage>> {
+  // A URL is a public input, so what counts as a course id is stated rather than
+  // left to `Number`, which reads `" 12 "`, `"1e3"` and `"0x0c"` as courses and
+  // would resolve three more addresses to a record that has exactly one. A URL
+  // that is not a course id is not a course that is hidden — it is a course that
+  // does not exist, which is the same answer in the same words, reached without
+  // a query.
+  if (!/^[0-9]+$/.test(courseId)) return { visible: false };
   const id = Number(courseId);
-  // A URL is a public input. A course id that is not a number is not a course
-  // that is hidden — it is a course that does not exist, which is the same
-  // answer, in the same words, and it is reached without a query.
   if (!Number.isSafeInteger(id)) return { visible: false };
 
   const facts = await getActorFacts(actor.netid);
@@ -173,9 +178,18 @@ export async function getCoursePage(
       enrollmentLimit: offering.enrollmentLimit,
       programCode: offering.programCode,
       termCode: offering.termCode,
+      // *Fall 2025* out of the two columns that make it, through the label
+      // builder both sides of a refusal already read (issues/38). `term_code` is
+      // a join key and *20253* is not a thing to put in front of a reader, and a
+      // page that formatted it itself would be a second copy of the format — and
+      // a fourth round trip, since the pair lives in a table this statement is
+      // already one join from.
+      termYear: term.year,
+      termSemester: term.semester,
       ...OFFERING_CHILDREN,
     })
     .from(offering)
+    .innerJoin(term, eq(term.code, offering.termCode))
     .where(
       and(
         eq(offering.courseId, id),
@@ -188,13 +202,17 @@ export async function getCoursePage(
     // within a term stay in section-number order, as they are everywhere else.
     .orderBy(desc(offering.termCode), asc(offering.sectionNumber));
 
-  const speaks = canEverAct(facts);
+  // **Tier 2's boundary, asked once.** It gates the actions, the edit
+  // affordance, the *last changed* stamp and the history together — and the log
+  // query with them — because they are one class of fact: *if you can do
+  // nothing, you may not see the record of who did* (issues/28, issues/41).
+  const mayAct = canEverAct(facts);
 
   // **The log is read only for a reader who has a history section** (issues/28's
   // Tier 2, issues/38's conditional dependency reads). A `student` and an
   // `advisor` get no history at all — absent, not empty — so a query issued for
   // them would buy a round trip to build something nobody may read.
-  const moves = speaks
+  const moves = mayAct
     ? await classesDb()
         .select({
           event: courseTransition.event,
@@ -220,7 +238,7 @@ export async function getCoursePage(
   const directory = await stitchPeople([
     ...(record.areaHead ? [record.areaHead] : []),
     ...netidsOn(sectionRows),
-    ...(speaks
+    ...(mayAct
       ? [
           record.createdBy,
           ...(record.updatedBy ? [record.updatedBy] : []),
@@ -263,7 +281,7 @@ export async function getCoursePage(
           record.proposalDescription !== record.description ||
           record.proposalCredits !== record.credits,
       },
-      actions: speaks
+      actions: mayAct
         ? courseActionsFor(
             status,
             { programCode: record.programCode, areaHead: record.areaHead },
@@ -271,7 +289,7 @@ export async function getCoursePage(
             facts,
           )
         : null,
-      edit: speaks
+      edit: mayAct
         ? editAffordanceFor(
             "course",
             facts,
@@ -280,10 +298,10 @@ export async function getCoursePage(
           )
         : null,
       lastChanged:
-        speaks && record.updatedBy && record.updatedAt
+        mayAct && record.updatedBy && record.updatedAt
           ? { by: named(record.updatedBy), at: record.updatedAt.toISOString() }
           : null,
-      history: speaks
+      history: mayAct
         ? {
             creation: { by: named(record.createdBy), at: record.createdAt.toISOString() },
             moves: moves.map(
@@ -341,8 +359,15 @@ export type CoursePage = {
   status: CourseState;
   /**
    * Grouped by term, newest first, reusing the Lineup's grouping device so the
-   * two views rhyme. Each row carries the same `↗`, so the Course page is the
-   * second place a class page is reached from.
+   * two views rhyme — and the rows **are** the Lineup's rows, assembled by
+   * `db/read/offering-rows.ts`.
+   *
+   * issues/41 gives each of them the same `↗` the Catalog row carries, making
+   * the Course page the second place a class page is reached from. **That
+   * control is not built here**: `/classes/:id` is issues/84's, and the row
+   * already carries everything it needs, so what lands with the Offering page is
+   * a control rather than a change of shape. Recorded in
+   * `docs/prototypes/README.md`.
    */
   sections: readonly CourseSectionGroup[];
   /**
@@ -379,13 +404,27 @@ export type CoursePage = {
  * mentions, which is the Lineup's *no empty groups* rule arriving by the same
  * construction rather than by a second check.
  */
-export type CourseSectionGroup = { termCode: string; offerings: readonly LineupRow[] };
+export type CourseSectionGroup = {
+  termCode: string;
+  /**
+   * *Fall 2025*, built by `termLabel` in `db/write/rules.ts` — the one place the
+   * pair of columns becomes a sentence, so a refusal listing a term and a group
+   * header naming one read the same. It rides on the group rather than being
+   * looked up by the page, which is what keeps this read at three statements.
+   */
+  termLabel: string;
+  offerings: readonly LineupRow[];
+};
 
 // ---------------------------------------------------------------------------
 // The pieces
 // ---------------------------------------------------------------------------
 
-type SectionRow = Omit<OfferingRowSource, "courseStatus"> & { termCode: string };
+type SectionRow = Omit<OfferingRowSource, "courseStatus"> & {
+  termCode: string;
+  termYear: number;
+  termSemester: string;
+};
 
 function byTerm(
   rows: readonly SectionRow[],
@@ -393,18 +432,25 @@ function byTerm(
   directory: Directory,
   facts: ActorFacts,
 ): readonly CourseSectionGroup[] {
-  const groups = new Map<string, LineupRow[]>();
+  const groups = new Map<string, { label: string; offerings: LineupRow[] }>();
 
   for (const row of rows) {
     // The course's own state, which the `retry` invariant is a predicate over
     // (issues/14). It is the same value for every section here, so it is carried
     // in rather than joined per row.
-    const offerings = groups.get(row.termCode) ?? [];
-    groups.set(row.termCode, offerings);
-    offerings.push(asLineupRow({ ...row, courseStatus }, directory, facts));
+    const group = groups.get(row.termCode) ?? {
+      label: termLabel({ year: row.termYear, semester: row.termSemester }),
+      offerings: [],
+    };
+    groups.set(row.termCode, group);
+    group.offerings.push(asLineupRow({ ...row, courseStatus }, directory, facts));
   }
 
-  return [...groups].map(([termCode, offerings]) => ({ termCode, offerings }));
+  return [...groups].map(([termCode, group]) => ({
+    termCode,
+    termLabel: group.label,
+    offerings: group.offerings,
+  }));
 }
 
 /**

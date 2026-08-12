@@ -12,9 +12,11 @@ import {
 } from "@mantine/core";
 
 import type { CourseSectionGroup } from "@/db/read/course";
-import type { LineupRow } from "@/db/read/lineup";
+import type { LineupRow } from "@/db/read/offering-rows";
 import type { Meeting } from "@/db/read/shape";
 import { rosterShape } from "@/lib/roster";
+
+import { NamedLine } from "./named";
 
 /**
  * **The course's sections, grouped by term, newest first** (issues/41).
@@ -35,13 +37,7 @@ import { rosterShape } from "@/lib/roster";
  * and killed* to stay indistinguishable to a reader who may not see the
  * difference.
  */
-export function CourseSections({
-  groups,
-  labelFor,
-}: {
-  groups: readonly CourseSectionGroup[];
-  labelFor: (termCode: string) => string;
-}) {
+export function CourseSections({ groups }: { groups: readonly CourseSectionGroup[] }) {
   if (groups.length === 0) {
     return (
       <Paper withBorder p="md" radius="md">
@@ -58,7 +54,7 @@ export function CourseSections({
       {groups.map((group) => (
         <Paper key={group.termCode} withBorder radius="md">
           <Group justify="space-between" px="md" py="xs">
-            <Text fw={600}>{labelFor(group.termCode)}</Text>
+            <Text fw={600}>{group.termLabel}</Text>
             <Text size="sm" c="dimmed">
               {group.offerings.length}{" "}
               {group.offerings.length === 1 ? "section" : "sections"}
@@ -117,7 +113,7 @@ function Lead({ row }: { row: LineupRow }) {
         </Text>
       );
     case "led":
-      return <Person entry={shape.lead} />;
+      return <NamedLine who={shape.lead} />;
     case "leaderless":
       return (
         <Text size="sm" c="orange.8" fw={600}>
@@ -125,28 +121,6 @@ function Lead({ row }: { row: LineupRow }) {
         </Text>
       );
   }
-}
-
-/**
- * **A roster entry is never dropped for want of a name** (issues/9), and the
- * netid is a real identifier at NYU rather than a placeholder — so the fallback
- * is the netid in monospace plus a quiet *no name on file*, deliberately not
- * styled as an error.
- */
-function Person({ entry }: { entry: { netid: string; displayName: string | null } }) {
-  if (entry.displayName) {
-    return <Text size="sm">{entry.displayName}</Text>;
-  }
-  return (
-    <Group gap={6} wrap="nowrap">
-      <Text size="sm" ff="monospace">
-        {entry.netid}
-      </Text>
-      <Text size="xs" c="dimmed" fs="italic">
-        no name on file
-      </Text>
-    </Group>
-  );
 }
 
 /**

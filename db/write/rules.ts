@@ -10,6 +10,7 @@ import {
   FIELD_CLASSES,
   MATRICES,
   NOBODY,
+  type ClassifiedField,
   type FieldClass,
   type MachineName,
   type Role,
@@ -571,8 +572,8 @@ export function recordNoun(machine: MachineName): string {
  * issues/106's arrival is what makes deriving worth the paragraph: it took the
  * course page from two sections to three without anybody editing a screen.
  */
-export function fieldClassesOn(machine: MachineName): readonly FieldClass[] {
-  return (FIELD_CLASSES as readonly FieldClass[]).filter(
+export function fieldClassesOn(machine: MachineName): readonly ClassifiedField[] {
+  return FIELD_CLASSES.filter(
     (fieldClass) =>
       fieldClass.stateGate.gate !== "no-field-write" &&
       fieldClass.writers.length > 0 &&

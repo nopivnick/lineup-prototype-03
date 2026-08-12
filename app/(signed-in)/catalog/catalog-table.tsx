@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import {
   Alert,
-  Anchor,
   Badge,
   Box,
   Button,
@@ -21,6 +19,7 @@ import type { CatalogGroup, CatalogRow } from "@/db/read/catalog";
 import type { Refusal } from "@/db/read/shape";
 
 import { fireCourseEvent } from "../course-actions";
+import { OpenCourse } from "../open-course";
 
 /**
  * **The Catalog's table** (issues/37, issues/81).
@@ -153,7 +152,9 @@ export function CatalogTable({ groups }: { groups: readonly CatalogGroup[] }) {
                     sortable: false,
                     textAlign: "right",
                     width: 44,
-                    render: (row) => <OpenCourse row={row} />,
+                    render: (row) => (
+                      <OpenCourse courseId={row.courseId} courseNumber={row.courseNumber} />
+                    ),
                   },
                 ]}
               />
@@ -162,35 +163,6 @@ export function CatalogTable({ groups }: { groups: readonly CatalogGroup[] }) {
         }}
       />
     </Stack>
-  );
-}
-
-/**
- * **A dedicated `↗` at the row's right edge, outside the expand target**
- * (issues/41).
- *
- * The linked identifier was free and lost on the mis-click: it puts a small
- * target inside a big one whose click already means *expand*, and the row click
- * belongs to issues/37's grouping. An item in the `⋯ n` menu lost too — the
- * menu's count is *moves you can make*, and opening a page is not a move, so
- * *Open course page* sitting above the transitions would make `⋯ 0` a lie about
- * a row you can still do something with.
- *
- * It is the **one control on the row that every reader gets**, Actions column or
- * not: `course` is Tier 1, so there is no course in this table whose page is
- * refused to whoever is looking at the row.
- */
-function OpenCourse({ row }: { row: CatalogRow }) {
-  return (
-    <Anchor
-      component={Link}
-      href={`/courses/${row.courseId}`}
-      aria-label={`Open ${row.courseNumber}`}
-      title={`Open ${row.courseNumber}`}
-      fw={600}
-    >
-      ↗
-    </Anchor>
   );
 }
 

@@ -14,10 +14,10 @@ import {
 } from "@mantine/core";
 
 import { getCoursePage, type CoursePage } from "@/db/read/course";
-import { listLineupTerms } from "@/db/read/lineup";
 import { getActor } from "@/lib/auth/actor";
 
 import { CourseHistory } from "./course-history";
+import { NamedLine } from "./named";
 import { CourseRail } from "./course-rail";
 import { CourseSections } from "./course-sections";
 
@@ -69,13 +69,6 @@ export default async function CourseDetailPage({
   if (!read.visible) return <NoCourseHere />;
 
   const page = read.page;
-
-  // The term labels the section groups are stated in. *20253* is a join key and
-  // not a thing to put in front of a reader; the picker's own list is where the
-  // pair lives, and asking for it here keeps the read module's groups keyed by
-  // the offerings' own key, which is what makes the page term-less.
-  const terms = await listLineupTerms();
-  const labels = new Map(terms.map((term) => [term.code, `${term.semester} ${term.year}`]));
 
   return (
     <Container size="xl" py="xl">
@@ -132,21 +125,7 @@ export default async function CourseDetailPage({
                     Offering page; a history line is not one.
                   */}
                   {page.areaHead ? (
-                    <Group gap={6}>
-                      <Text size="sm">
-                        {page.areaHead.displayName ?? page.areaHead.netid}
-                      </Text>
-                      {page.areaHead.pronouns ? (
-                        <Text size="xs" c="dimmed">
-                          ({page.areaHead.pronouns})
-                        </Text>
-                      ) : null}
-                      {page.areaHead.displayName ? null : (
-                        <Text size="xs" c="dimmed" fs="italic">
-                          no name on file
-                        </Text>
-                      )}
-                    </Group>
+                    <NamedLine who={page.areaHead} pronouns />
                   ) : (
                     <Text size="sm" c="dimmed" fs="italic">
                       Not yet assigned
@@ -204,10 +183,7 @@ export default async function CourseDetailPage({
                   : `${page.sections.reduce((total, group) => total + group.offerings.length, 0)} across ${page.sections.length} ${page.sections.length === 1 ? "term" : "terms"}`
               }
             >
-              <CourseSections
-                groups={page.sections}
-                labelFor={(termCode) => labels.get(termCode) ?? termCode}
-              />
+              <CourseSections groups={page.sections} />
             </Section>
 
             {/*

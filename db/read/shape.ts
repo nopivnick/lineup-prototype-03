@@ -352,14 +352,13 @@ export function editAffordanceFor(
   }[] = [];
 
   for (const fieldClass of fieldClassesOn(machine)) {
-    const name = fieldClass.name as FieldClassName;
     const notNow = notNowField(fieldClass, states);
     const notYours = notYoursField(fieldClass, facts, subject);
 
     if (notNow === null && notYours === null) {
-      open.push(name);
+      open.push(fieldClass.name);
     } else {
-      refused.push({ fieldClass: name, notYours, notNow });
+      refused.push({ fieldClass: fieldClass.name, notYours, notNow });
     }
   }
 

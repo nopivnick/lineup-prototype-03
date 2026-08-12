@@ -688,7 +688,7 @@ function tableNamed(table: string): PgTable {
  * noun.
  */
 function kindOf(record: FieldWriteRecord): string {
-  return "authorization" in record ? "the roles page" : `a ${recordNoun(record.machine)}`;
+  return ownerNoun("authorization" in record ? "authorization" : record.machine);
 }
 
 function ownerNoun(owner: FieldWriteOwner): string {

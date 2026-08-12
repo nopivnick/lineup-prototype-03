@@ -225,22 +225,7 @@ function Changes({ edit }: { edit: EditAffordance }) {
       </Text>
 
       {edit.open.length === 0 ? (
-        <>
-          <Text size="sm">Nothing on this page is yours to change.</Text>
-          <Stack gap="sm">
-            {edit.refused.map((refused) => (
-              <Box key={refused.fieldClass}>
-                <Text size="sm" fw={600}>
-                  {refused.fieldClass}
-                </Text>
-                {refused.notYours ? (
-                  <Labelled label="Not yours" refusal={refused.notYours} />
-                ) : null}
-                {refused.notNow ? <Labelled label="Not now" refusal={refused.notNow} /> : null}
-              </Box>
-            ))}
-          </Stack>
-        </>
+        <Text size="sm">Nothing on this page is yours to change.</Text>
       ) : (
         <>
           {/*
@@ -248,12 +233,10 @@ function Changes({ edit }: { edit: EditAffordance }) {
             (issues/62's `/courses/:id/edit`, a later ticket). It is rendered
             rather than hidden because what it says is already true — the count
             beneath it is this actor's answer — and greying it would read as
-            *not yours*, which is the one thing it must not say to somebody
-            three sections are open to.
+            *not yours*, which is the one thing it must not say to somebody two
+            sections are open to.
           */}
-          <Button variant="light">
-            Edit this course
-          </Button>
+          <Button variant="light">Edit this course</Button>
           <Text size="xs" c="dimmed">
             {edit.open.length} of {total} {total === 1 ? "section is" : "sections are"} yours
           </Text>
@@ -261,25 +244,30 @@ function Changes({ edit }: { edit: EditAffordance }) {
             The course edit page is not built yet.
           </Text>
           {edit.refused.length > 0 ? (
-            <Stack gap={2} mt={4}>
-              <Text size="xs" c="dimmed">
-                The rest, and why:
-              </Text>
-              {edit.refused.map((refused) => (
-                <Box key={refused.fieldClass}>
-                  <Text size="xs" fw={600}>
-                    {refused.fieldClass}
-                  </Text>
-                  {refused.notYours ? (
-                    <Labelled label="Not yours" refusal={refused.notYours} />
-                  ) : null}
-                  {refused.notNow ? <Labelled label="Not now" refusal={refused.notNow} /> : null}
-                </Box>
-              ))}
-            </Stack>
+            <Text size="xs" c="dimmed" mt={4}>
+              The rest, and why:
+            </Text>
           ) : null}
         </>
       )}
+
+      {/*
+        **Every refused class, whichever branch is above.** The list is the same
+        list: where nothing is open it *replaces* the control, and where
+        something is it sits under the count. Rendering it twice would be two
+        copies of the one place a field class's two refusals are stated.
+      */}
+      <Stack gap="sm">
+        {edit.refused.map((refused) => (
+          <Box key={refused.fieldClass}>
+            <Text size="sm" fw={600}>
+              {refused.fieldClass}
+            </Text>
+            {refused.notYours ? <Labelled label="Not yours" refusal={refused.notYours} /> : null}
+            {refused.notNow ? <Labelled label="Not now" refusal={refused.notNow} /> : null}
+          </Box>
+        ))}
+      </Stack>
     </Stack>
   );
 }

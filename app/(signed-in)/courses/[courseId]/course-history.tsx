@@ -1,8 +1,8 @@
 import { Box, Group, Stack, Text } from "@mantine/core";
 
 import type { History, HistoryLine } from "@/db/read/shape";
-import type { StitchedName } from "@/db/read/stitch";
 
+import { Named } from "./named";
 import { stamp } from "./stamp";
 
 /**
@@ -51,7 +51,7 @@ export function CourseHistory({ history }: { history: History }) {
           dot={<Dot derived />}
           said={
             <Text size="sm">
-              <Person who={history.creation.by} /> created it
+              <Named who={history.creation.by} /> created it
             </Text>
           }
           at={history.creation.at}
@@ -63,7 +63,7 @@ export function CourseHistory({ history }: { history: History }) {
             dot={<Dot />}
             said={
               <Text size="sm">
-                <Person who={move.actor} bold /> {said(move)}
+                <Named who={move.actor} bold /> {said(move)}
                 {move.reason ? (
                   <Text span c="dimmed" fs="italic">
                     {" "}
@@ -76,13 +76,6 @@ export function CourseHistory({ history }: { history: History }) {
           />
         ))}
       </Stack>
-
-      {history.moves.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          Nothing has happened to this course since it was minted. Creating is not a transition, so
-          the log has no row for it — the line above is read off the record itself.
-        </Text>
-      ) : null}
     </Stack>
   );
 }
@@ -121,38 +114,6 @@ function Dot({ derived = false }: { derived?: boolean }) {
         background: derived ? "transparent" : "var(--mantine-color-dimmed)",
       }}
     />
-  );
-}
-
-/**
- * **A netid with no directory row lands here**, and it is one of issues/41's
- * seven states: the netid in monospace plus a quiet *no name on file*,
- * deliberately not styled as an error (issues/9, issues/37). A history line is
- * where it is most likely to be seen, because the log keeps a netid forever and
- * the NYU feed can stop knowing the person.
- *
- * **No pronouns.** A history line presents a person as the subject of a
- * timestamp rather than as a person (issues/40); the area head above is where
- * `StitchedPerson` belongs.
- */
-function Person({ who, bold = false }: { who: StitchedName; bold?: boolean }) {
-  if (who.displayName) {
-    return (
-      <Text span fw={bold ? 600 : undefined}>
-        {who.displayName}
-      </Text>
-    );
-  }
-  return (
-    <>
-      <Text span ff="monospace" fw={bold ? 600 : undefined}>
-        {who.netid}
-      </Text>
-      <Text span size="xs" c="dimmed" fs="italic">
-        {" "}
-        no name on file
-      </Text>
-    </>
   );
 }
 
