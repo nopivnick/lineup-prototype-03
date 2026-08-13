@@ -2,9 +2,12 @@ import { redirect } from "next/navigation";
 
 import { getActorRoles } from "@/db/read/actor-roles";
 import { listDirectory } from "@/db/read/directory";
+import { mayOpenProposals, mayOpenRolesPage } from "@/db/read/shape";
 import { getActor } from "@/lib/auth/actor";
+import type { Role } from "@/lib/permissions";
 
 import { DevBar } from "./dev-bar";
+import { SiteNav, type NavItem } from "./site-nav";
 
 /**
  * **Everything behind an actor** (issues/11, issues/79).
@@ -37,7 +40,43 @@ export default async function SignedInLayout({ children }: { children: React.Rea
   return (
     <>
       <DevBar actor={actor} roles={roles} people={people} />
+      <SiteNav items={navItemsFor(roles)} />
       {children}
     </>
   );
+}
+
+/**
+ * **The nav's items, gated by the predicates the routes themselves refuse
+ * with** (issues/37, issues/38, issues/42).
+ *
+ * They are computed here rather than in `SiteNav` because this is where the
+ * roles already are — the layout has read them for the dev bar — so the nav
+ * costs no query of its own, and because a component that decided its own
+ * membership would be a second statement of who may see what. `mayOpenRolesPage`
+ * and `mayOpenProposals` are the same functions `/roles` and `/proposals` refuse
+ * with, so the item and the route cannot disagree. Each route still refuses on
+ * its own: **a link nobody rendered is not a check.**
+ *
+ * **Absent, never disabled.** A greyed item announces that there is a screen
+ * here you are not allowed into, which is the thing issues/37 refuses to do to a
+ * reader.
+ *
+ * **The two create routes are deliberately not here.** `/propose` opens from the
+ * proposals heading and `/slate` from the Course page's rail, and issues/42
+ * settled that proposing has exactly one door — a nav item would be the second
+ * one. `/slate` has a second reason: there is no cheap *may this actor slate
+ * anything at all* predicate to gate it with, `maySlateFrom` being asked per
+ * program, so an item for it would either lie to most readers or buy a new
+ * department-wide query on every page in the app.
+ */
+function navItemsFor(roles: readonly Role[]): readonly NavItem[] {
+  return [
+    { href: "/catalog", label: "Catalog", owns: ["/courses"] },
+    { href: "/lineup", label: "Lineup", owns: ["/classes"] },
+    ...(mayOpenProposals(roles)
+      ? [{ href: "/proposals", label: "Proposals", owns: ["/reviews"] } as const]
+      : []),
+    ...(mayOpenRolesPage(roles) ? [{ href: "/roles", label: "Roles" } as const] : []),
+  ];
 }
