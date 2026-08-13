@@ -32,10 +32,18 @@ export function DevBar({
   actor,
   roles,
   people,
+  nav,
 }: {
   actor: Actor;
   roles: readonly Role[];
   people: readonly DirectoryPerson[];
+  /**
+   * **PROTOTYPE seam — remove with `nav-prototype.tsx`.** Variant A of the nav
+   * prototype puts its tabs in this row rather than in a deck of their own, and
+   * this is the one slot that lets it do so without a second header. Nothing
+   * else passes it, and absent it this component renders exactly as before.
+   */
+  nav?: React.ReactNode;
 }) {
   const [switching, startSwitching] = useTransition();
   const you = people.find((person) => person.netid === actor.netid);
@@ -49,6 +57,7 @@ export function DevBar({
     <Box component="header" px="md" py="xs" bd="0 0 1px 0 solid var(--mantine-color-default-border)">
       <Group>
         <Text fw={700}>Lineup.</Text>
+        {nav}
 
         <Group gap="xs" ml="auto">
           <Text size="sm" c="dimmed">
