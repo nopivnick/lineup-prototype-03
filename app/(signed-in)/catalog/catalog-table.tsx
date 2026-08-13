@@ -17,6 +17,7 @@ import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import type { CatalogGroup, CatalogRow } from "@/db/read/catalog";
 import type { Refusal } from "@/db/read/shape";
 
+import { alignedTable, sized } from "../aligned-columns";
 import { fireCourseEvent } from "../course-actions";
 import { OpenCourse } from "../open-course";
 import { Refused } from "../refused";
@@ -37,6 +38,11 @@ import { Refused } from "../refused";
  *   * **The Actions column is absent, not empty**, for an actor who can never
  *     act. The server decided that by giving the row a `null` action set; this
  *     component reads the absence and drops the column.
+ *   * **One column grid for the whole page**, not one per program. Each program's
+ *     courses are their own `<table>`, so the widths are declared once in
+ *     `WIDTHS` below and made binding by `alignedTable` — see
+ *     `../aligned-columns` for why a separate table per group otherwise aligns
+ *     its cells to its own header row and to nothing else.
  *
  * It computes **no rule**. `⋯ n`'s count is how many entries of a set the server
  * already intersected say `permitted`, and every refusal it renders is a
@@ -104,26 +110,42 @@ export function CatalogTable({ groups }: { groups: readonly CatalogGroup[] }) {
                 records={sorted(record.courses, sortStatus)}
                 sortStatus={sortStatus}
                 onSortStatusChange={setSortStatus}
-                columns={[
-                  { accessor: "courseNumber", title: "Number", sortable: true, noWrap: true },
-                  { accessor: "title", title: "Title", sortable: true },
-                  { accessor: "credits", title: "Cr", sortable: true, textAlign: "right" },
+                styles={alignedTable(900)}
+                columns={sized<CatalogRow>([
+                  {
+                    accessor: "courseNumber",
+                    title: "Number",
+                    sortable: true,
+                    noWrap: true,
+                    width: WIDTHS.courseNumber,
+                  },
+                  { accessor: "title", title: "Title", sortable: true, width: WIDTHS.title },
+                  {
+                    accessor: "credits",
+                    title: "Cr",
+                    sortable: true,
+                    textAlign: "right",
+                    width: WIDTHS.credits,
+                  },
                   {
                     accessor: "areas",
                     title: "Areas",
                     sortable: false,
+                    width: WIDTHS.areas,
                     render: (row) => <Tags tags={row.areas} />,
                   },
                   {
                     accessor: "requirementCategories",
                     title: "Requirements",
                     sortable: false,
+                    width: WIDTHS.requirementCategories,
                     render: (row) => <Tags tags={row.requirementCategories} />,
                   },
                   {
                     accessor: "status",
                     title: "Status",
                     sortable: true,
+                    width: WIDTHS.status,
                     render: (row) => (
                       <Group gap={6}>
                         <Badge color={TONE[row.status]} variant="light">
@@ -140,6 +162,7 @@ export function CatalogTable({ groups }: { groups: readonly CatalogGroup[] }) {
                           title: "Actions",
                           sortable: false,
                           textAlign: "right" as const,
+                          width: WIDTHS.actions,
                           render: (row: CatalogRow) => (
                             <ActionMenu row={row} onRefused={setRefused} />
                           ),
@@ -151,12 +174,12 @@ export function CatalogTable({ groups }: { groups: readonly CatalogGroup[] }) {
                     title: "",
                     sortable: false,
                     textAlign: "right",
-                    width: 44,
+                    width: WIDTHS.open,
                     render: (row) => (
                       <OpenCourse courseId={row.courseId} courseNumber={row.courseNumber} />
                     ),
                   },
-                ]}
+                ])}
               />
             </Box>
           ),
@@ -307,6 +330,34 @@ function sorted(
     return String(a).localeCompare(String(b), undefined, { numeric: true }) * direction;
   });
 }
+
+/**
+ * **The column grid, stated once for every program on the page**
+ * (`../aligned-columns`). Percentages rather than pixels, because the grid has to
+ * stay one grid at any width.
+ *
+ * **Nothing here is conditional, deliberately.** The shares add to 100 with the
+ * Actions column present and to 90 without it, and the browser scales the
+ * remainder up in proportion — so the two shapes of this page keep the same
+ * relative grid and neither leaves a ragged tail. A width computed from
+ * `actionsExist` would be the fourth thing that has to agree about whether the
+ * column is there, and the one that fails silently: a stale share renders a
+ * table that is aligned to nothing, which is precisely what these widths exist
+ * to prevent.
+ */
+const WIDTHS = {
+  courseNumber: "11%",
+  title: "21%",
+  credits: "5%",
+  areas: "16%",
+  requirementCategories: "16%",
+  // Wide enough for `not offerable yet` beneath the status chip, which is the
+  // longest thing this column ever holds and the one that must not be clipped:
+  // it is the marker that says a course cannot be offered and why.
+  status: "16%",
+  actions: "10%",
+  open: "5%",
+} as const;
 
 /** The three Course states, read as tone rather than as colour with a meaning. */
 const TONE: Record<CatalogRow["status"], string> = {

@@ -21,6 +21,7 @@ import type { LineupGroup, LineupRow, OfferingEventName } from "@/db/read/lineup
 import type { ForeignTag, Meeting, Refusal } from "@/db/read/shape";
 import { rosterShape } from "@/lib/roster";
 
+import { alignedTable, sized } from "../aligned-columns";
 import { EXPLAINED } from "../explained-moves";
 import { fireOfferingEvent } from "../offering-actions";
 import { hueOf } from "../program-hue";
@@ -39,6 +40,11 @@ import { OpenCourse } from "../open-course";
  * actually make; and the **Actions column being absent rather than empty** for an
  * actor who can never act, which the server decided by giving the row a `null`
  * action set.
+ *
+ * Inherited too, and structural rather than cosmetic: **one column grid for the
+ * whole page**. Every course's sections are their own `<table>`, so the widths
+ * are declared once in `WIDTHS` below and made binding by `alignedTable` — see
+ * `../aligned-columns`.
  *
  * This view's own:
  *
@@ -164,12 +170,14 @@ export function LineupTable({
                 highlightOnHover
                 idAccessor="offeringId"
                 records={[...record.sections]}
-                columns={[
+                styles={alignedTable(1000)}
+                columns={sized<LineupRow>([
                   {
                     accessor: "sectionNumber",
                     title: "Sec",
                     textAlign: "right",
                     noWrap: true,
+                    width: WIDTHS.sectionNumber,
                     render: (row) => (
                       <Text ff="monospace" size="sm">
                         {row.sectionNumber}
@@ -179,6 +187,7 @@ export function LineupTable({
                   {
                     accessor: "status",
                     title: "State",
+                    width: WIDTHS.status,
                     render: (row) => (
                       <Badge color={TONE[row.status]} variant="light">
                         {row.status}
@@ -188,17 +197,20 @@ export function LineupTable({
                   {
                     accessor: "roster",
                     title: "Instructors",
+                    width: WIDTHS.roster,
                     render: (row) => <Roster row={row} />,
                   },
                   {
                     accessor: "meetings",
                     title: "Meets",
+                    width: WIDTHS.meetings,
                     render: (row) => <Meets meetings={row.meetings} mode={row.mode} />,
                   },
                   {
                     accessor: "enrollmentLimit",
                     title: "Cap",
                     textAlign: "right",
+                    width: WIDTHS.enrollmentLimit,
                     render: (row) =>
                       row.enrollmentLimit === null ? (
                         <Text size="sm" c="dimmed">
@@ -218,6 +230,7 @@ export function LineupTable({
                      */
                     accessor: "foreignTags",
                     title: "Also counts toward",
+                    width: WIDTHS.foreignTags,
                     render: (row) => <ForeignTags tags={row.foreignTags} />,
                   },
                   ...(actionsExist
@@ -226,6 +239,7 @@ export function LineupTable({
                           accessor: "actions",
                           title: "Actions",
                           textAlign: "right" as const,
+                          width: WIDTHS.actions,
                           render: (row: LineupRow) => (
                             <ActionMenu
                               row={row}
@@ -249,6 +263,7 @@ export function LineupTable({
                     title: "",
                     textAlign: "right" as const,
                     noWrap: true,
+                    width: WIDTHS.open,
                     render: (row: LineupRow) => (
                       <OpenClass
                         offeringId={row.offeringId}
@@ -256,7 +271,7 @@ export function LineupTable({
                       />
                     ),
                   },
-                ]}
+                ])}
               />
             </Box>
           ),
@@ -267,6 +282,31 @@ export function LineupTable({
     </Stack>
   );
 }
+
+/**
+ * **The column grid, stated once for every course on the page**
+ * (`../aligned-columns`). Percentages rather than pixels, because the grid has to
+ * stay one grid at any width.
+ *
+ * **Nothing here is conditional, deliberately.** The shares add to 100 with the
+ * Actions column present and to 91 without it, and the browser scales the
+ * remainder up in proportion — so the two shapes of this page keep the same
+ * relative grid and neither leaves a ragged tail. A width computed from
+ * `actionsExist` would be the fourth thing that has to agree about whether the
+ * column is there, and the one that fails silently: a stale share renders a
+ * table that is aligned to nothing, which is precisely what these widths exist
+ * to prevent.
+ */
+const WIDTHS = {
+  sectionNumber: "5%",
+  status: "11%",
+  roster: "21%",
+  meetings: "21%",
+  enrollmentLimit: "5%",
+  foreignTags: "23%",
+  actions: "9%",
+  open: "5%",
+} as const;
 
 // ---------------------------------------------------------------------------
 // The roster
