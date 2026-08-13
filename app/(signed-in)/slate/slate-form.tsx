@@ -14,12 +14,12 @@ import {
   Stack,
   Text,
   TextInput,
-  Title,
 } from "@mantine/core";
 
 import type { SlateCourseChoice, TakenSection, TermChoice } from "@/db/read/offering";
 import type { Refusal } from "@/db/read/shape";
 
+import { FormSection } from "../form-section";
 import { hueOf } from "../program-hue";
 import { Refused } from "../refused";
 import { slateClass } from "./actions";
@@ -173,7 +173,7 @@ export function SlateForm({
         </Alert>
       ) : null}
 
-      <Section title="Which class" sub="A course, a term, and the number that tells sibling sections apart.">
+      <FormSection title="Which class" sub="A course, a term, and the number that tells sibling sections apart.">
         <CoursePicker
           courses={courses}
           value={courseId}
@@ -230,16 +230,16 @@ export function SlateForm({
             setSectionNumber(event.currentTarget.value);
           })}
         />
-      </Section>
+      </FormSection>
 
-      <Section
+      <FormSection
         title="Meetings"
         sub="One row per slot, three kinds. Add none if it is not scheduled yet — an unscheduled class is a real thing, and a different one from an asynchronous class."
       >
         <Meetings meetings={meetings} onChange={change(setMeetings)} />
-      </Section>
+      </FormSection>
 
-      <Section
+      <FormSection
         title="Details"
         sub="All of these are optional here and editable later, in any state, by a coordinator or the program's director."
       >
@@ -282,13 +282,26 @@ export function SlateForm({
           value={url}
           onChange={change((event: React.ChangeEvent<HTMLInputElement>) => setUrl(event.currentTarget.value))}
         />
-      </Section>
+      </FormSection>
 
       <Group gap="md" align="center">
         <Button onClick={submit} disabled={problem !== null} loading={submitting}>
           Slate the class
         </Button>
-        <Button component="a" href="/lineup" variant="default">
+        {/*
+          **Cancel goes back to where the reader came from**, which is a course's
+          page — the form's only door. It follows the course *currently* picked
+          rather than the one they arrived with, because changing the picker is a
+          reader changing their mind about which course they are looking at, and
+          landing them back on the first one would be the form remembering
+          something they revised. With nothing picked there is no course to go
+          back to and the Catalog is the honest answer.
+        */}
+        <Button
+          component="a"
+          href={chosen ? `/courses/${chosen.courseId}` : "/catalog"}
+          variant="default"
+        >
           Cancel
         </Button>
         {/*
@@ -574,31 +587,6 @@ function Absences() {
   );
 }
 
-function Section({
-  title,
-  sub,
-  children,
-}: {
-  title: string;
-  sub: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card withBorder padding="lg">
-      <Stack gap="md">
-        <Stack gap={2}>
-          <Title order={2} size="h4">
-            {title}
-          </Title>
-          <Text size="sm" c="dimmed">
-            {sub}
-          </Text>
-        </Stack>
-        {children}
-      </Stack>
-    </Card>
-  );
-}
 
 /**
  * Days in full, because a picker is not a list. The three screens that *render* a

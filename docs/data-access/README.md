@@ -676,6 +676,15 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   the facts that refused them* as this act can get — the act is scoped per program rather than flat,
   so the facts that refuse them **are** the course list.
 
+  **The course statement reads every course rather than this director's, and the permission narrows
+  in the module** — the same shape #85's Tier 3 takes, and priced the same way. The create act is a
+  `program_director(offering.program_code)` conjunction, so as SQL it is a second copy of the
+  permission term phrased as a `WHERE program_code IN (…)`, drifting from `permitted()` the first
+  time the matrix gains an arm; in the module it is one call per course to the writer's own function,
+  and the same call produces the refusal the picker states. It stops being the right shape at the
+  scale a pager becomes necessary, which for a department catalog is further off than the proposals
+  list's — a course outlives every one of its classes and there are fewer of them.
+
   **The taken section numbers are read for every course on the picker, not for the chosen one.** The
   alternative is a round trip per change of course or term, on a form whose other fields would be
   remounted by the navigation that carried it. The threshold at which that stops being right is the

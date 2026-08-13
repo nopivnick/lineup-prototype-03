@@ -503,6 +503,13 @@ one. Five things about it are structural rather than conventional:
   slate anything at all* — a question no route in the matrix asks. `?course=` is a **prefill and
   never a permission**: a course the reader may not slate is simply not on the picker and selects
   nothing, which is #88's reading of `?new=` one screen along.
+- **Two more things moved up beside `named.tsx`, `stamp.ts`, `program-hue.ts`, `verdicts.tsx`,
+  `refused.tsx` and `history-row.tsx`**, both at the count that made `refused.tsx` worth moving.
+  `app/(signed-in)/form-section.tsx` is the titled card the two create forms are built from — they
+  are one shape asked twice, and each carries its hardest argument in the sub-heading, which is why
+  that prop is required rather than optional. `app/(signed-in)/query-params.ts` is `one()`, *a
+  repeated query parameter is a caller's mistake, not a second filter*: the Lineup and the proposals
+  list each held an identical private copy and this screen was about to be the third.
 - **A draft meeting carries every field and the written row carries only its kind's.** The reader who
   fills in a weekly slot, realises it is an intensive and switches keeps the times they typed;
   `meetingsOf` reads the **declared** kind and takes only what that kind holds, so nothing typed under

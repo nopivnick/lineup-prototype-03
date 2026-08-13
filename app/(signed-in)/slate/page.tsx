@@ -4,6 +4,7 @@ import { Alert, Anchor, Container, Group, Stack, Text, Title } from "@mantine/co
 import { getSlateForm } from "@/db/read/offering";
 import { getActor } from "@/lib/auth/actor";
 
+import { one } from "../query-params";
 import { Refused } from "../refused";
 import { SlateForm } from "./slate-form";
 
@@ -90,14 +91,4 @@ export default async function SlatePage({
       </Stack>
     </Container>
   );
-}
-
-/**
- * A query parameter is a public input and Next hands a repeated one back as an
- * array. The Lineup says the same thing in the same shape: the first value is the
- * one honoured, and honouring it is all this does — whether it names a course the
- * reader may slate is `getSlateForm`'s answer and not this page's.
- */
-function one(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
 }

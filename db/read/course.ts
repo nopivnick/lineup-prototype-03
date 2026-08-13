@@ -323,7 +323,10 @@ export async function getCoursePage(
         ? slateAffordanceFor(
             {
               programCode: record.programCode,
-              status: record.status,
+              // The narrowed state, as every other consumer on this page takes
+              // it: `status` is a generated column and nullable in the schema,
+              // and `status` above is where that narrowing is done once.
+              status,
               areaCount: areas.length,
               areaHead: record.areaHead,
             },

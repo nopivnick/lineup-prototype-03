@@ -7,11 +7,17 @@ import { classesDb } from "@/db/handles";
 import { termLabel, type ActorFacts } from "@/db/write/rules";
 import type { Netid } from "@/db/write/transaction";
 import type { Actor } from "@/lib/auth/actor";
+import type { CourseState } from "@/lib/machines/course.machine";
 import type { OfferingState } from "@/lib/machines/offering.machine";
 import { leadOf } from "@/lib/roster";
 
 import { getActorFacts } from "./actor-facts";
-import { maySlateFrom, notYoursToSlate, slateAffordanceFor } from "./course-rows";
+import {
+  maySlateFrom,
+  notYoursToSlate,
+  slateAffordanceFor,
+  type SlateAffordance,
+} from "./course-rows";
 import { qualified } from "./qualified";
 import {
   asMeeting,
@@ -545,29 +551,40 @@ export async function getSlateForm(actor: Actor, chosenCourseId?: string): Promi
     // the one screen a reader arrives at holding a course number in their head.
     .orderBy(asc(course.courseNumber));
 
-  // **The permission term filters the list and the invariants do not**, which is
-  // the picker's whole shape: what is left is every course this actor may
-  // schedule a class from, refused ones included.
-  const mine = courseRows.filter((row) => maySlateFrom(facts, row.programCode));
-  if (mine.length === 0) {
-    return { maySlate: false, refusal: notYoursToSlate() };
-  }
+  // **The permission decides membership and the invariants decide the line**,
+  // which is the picker's whole shape: a course refused by an invariant belongs
+  // here with its reason, and one refused by the permission is not this
+  // director's catalog at all.
+  //
+  // The two are asked **separately, and the permission first**, which is not the
+  // order `slateAffordanceFor` answers in. That function answers in
+  // `createOffering`'s order — retired, then the assignments, then the
+  // permission — because a director looking at a retired course with no area
+  // head should be told the course is retired. As a *membership* test that order
+  // is wrong and quietly so: a retired course of a program this reader does not
+  // direct answers `retired` and would land on their picker, which is how a
+  // `student` came to be offered a form.
+  const courses: SlateCourseChoice[] = [];
+  const mine: number[] = [];
 
-  const courses = mine.map((row): SlateCourseChoice => {
-    const affordance = slateAffordanceFor(row, facts);
-    return {
+  for (const row of courseRows) {
+    if (!maySlateFrom(facts, row.programCode)) continue;
+
+    const affordance = slateAffordanceFor({ ...row, status: row.status as CourseState }, facts);
+    mine.push(row.courseId);
+    courses.push({
       courseId: String(row.courseId),
       courseNumber: row.courseNumber,
       title: row.title,
       programCode: row.programCode,
       refusal: affordance.permitted ? null : affordance.refusal,
-      group: affordance.permitted
-        ? "offerable"
-        : row.status === "Retired"
-          ? "retired"
-          : "assignments-missing",
-    };
-  });
+      group: groupOf(affordance),
+    });
+  }
+
+  if (courses.length === 0) {
+    return { maySlate: false, refusal: notYoursToSlate() };
+  }
 
   const termRows = await classesDb()
     .select({ code: term.code, year: term.year, semester: term.semester })
@@ -584,12 +601,7 @@ export async function getSlateForm(actor: Actor, chosenCourseId?: string): Promi
       sectionNumber: offering.sectionNumber,
     })
     .from(offering)
-    .where(
-      inArray(
-        offering.courseId,
-        mine.map((row) => row.courseId),
-      ),
-    )
+    .where(inArray(offering.courseId, mine))
     .orderBy(asc(offering.courseId), asc(offering.termCode), asc(offering.sectionNumber));
 
   return {
@@ -604,4 +616,29 @@ export async function getSlateForm(actor: Actor, chosenCourseId?: string): Promi
     chosenCourseId:
       courses.find((choice) => choice.courseId === chosenCourseId)?.courseId ?? null,
   };
+}
+
+/**
+ * Which group an option is filed under — **read off the term that refused**
+ * rather than by asking the record a second question, which is what `why` is
+ * for.
+ *
+ * **`not-yours` cannot occur here and the throw says so out loud.** Every course
+ * that reaches this has already passed `maySlateFrom`, so the affordance can
+ * only be refusing on one of the two invariants. It is an alarm rather than a
+ * fallback for the reason `asMeeting`'s fourth kind is: the two orderings above
+ * are easy to collapse into one, and the failure that collapse produces is a
+ * course appearing on the picker of somebody who may not slate it — an
+ * over-grant, which the map calls the quiet kind of mistake.
+ */
+function groupOf(affordance: SlateAffordance): SlateGroup {
+  if (affordance.permitted) return "offerable";
+  if (affordance.why === "not-yours") {
+    throw new Error(
+      "A course the create permission refuses reached the slating picker (issues/89). The " +
+        "membership test and `slateAffordanceFor` have come apart: the affordance answers in " +
+        "`createOffering`'s order, which puts the invariants first and is not a membership test.",
+    );
+  }
+  return affordance.why;
 }

@@ -188,44 +188,58 @@ export function notOfferableYet(areaCount: number, areaHead: string | null): Not
  * being sent to assign a head onto a course nothing can be scheduled from. The
  * first two are **invariants**, so they name no actor and refuse the chair too.
  */
-export type SlateAffordance = { permitted: true } | { permitted: false; refusal: Refusal };
+/**
+ * **`why` is the term that refused, not a second reading of the record.**
+ *
+ * A refused answer carries which of the three terms produced it, because the
+ * slating form's picker has to *file* the course as well as state its reason —
+ * and a caller re-testing `status === "Retired"` afterwards would be a second
+ * copy of the first term, phrased as a rendering decision. The rail needs only
+ * the sentence and ignores it.
+ */
+export type SlateAffordance =
+  | { permitted: true }
+  | { permitted: false; why: SlateRefusedBecause; refusal: Refusal };
+
+/**
+ * The three terms, in `createOffering`'s order. `not-yours` never reaches the
+ * picker — a course refused by the permission is not on it at all — and is the
+ * only one of the three the rail can state and the form cannot.
+ */
+export type SlateRefusedBecause = "retired" | "assignments-missing" | "not-yours";
 
 export function slateAffordanceFor(
   record: {
     programCode: string;
-    status: string | null;
+    status: CourseState;
     areaCount: number;
     areaHead: string | null;
   },
   facts: ActorFacts,
 ): SlateAffordance {
   if (record.status === "Retired") {
-    return { permitted: false, refusal: retiredCourseCannotBeOffered() };
+    return { permitted: false, why: "retired", refusal: retiredCourseCannotBeOffered() };
   }
 
-  const missingArea = record.areaCount === 0;
-  const missingAreaHead = record.areaHead === null;
-  if (missingArea || missingAreaHead) {
-    return { permitted: false, refusal: missingAssignments(missingArea, missingAreaHead) };
+  // The gate's two halves, read through the marker the Catalog and the Course
+  // page already render — one derivation of *which half is missing*, not two.
+  const gate = notOfferableYet(record.areaCount, record.areaHead);
+  if (gate) {
+    return {
+      permitted: false,
+      why: "assignments-missing",
+      refusal: missingAssignments(gate.missingArea, gate.missingAreaHead),
+    };
   }
 
   return maySlateFrom(facts, record.programCode)
     ? { permitted: true }
-    : { permitted: false, refusal: notYoursToSlate(record.programCode) };
+    : { permitted: false, why: "not-yours", refusal: notYoursToSlate(record.programCode) };
 }
 
 /**
- * **The create act's permission term alone**, without the two invariants ahead of
- * it — which is the question the slating form's course picker asks, and the only
- * caller that needs the halves apart.
- *
- * A course refused by an **invariant** belongs on the picker, unselectable and
- * carrying its reason, because a course reached from its own page has no list to
- * be omitted from and the refusal has to exist on the page regardless
- * (issues/43). A course refused by the **permission** is a different fact: it is
- * not this director's course at all, and listing every other program's catalog
- * under a refusal naming somebody else would bury the two lines that are about
- * this reader.
+ * **The create act's permission term**, which is the third of the affordance's
+ * three and the only one that is a permission rather than an invariant.
  *
  * **The subject is the offering's and not the course's**, because that is the
  * subject the writer checks against: issues/30 proved *director of the offering's
@@ -233,6 +247,16 @@ export function slateAffordanceFor(
  * the offering's program from the course, and `createOffering` builds exactly
  * this subject out of the course row it locked. There is no lead, there being no
  * class.
+ *
+ * **Exported because the slating form's picker needs this term on its own**, and
+ * needs it *before* the other two rather than after. A course refused by an
+ * **invariant** belongs on the picker with its reason, since a course reached
+ * from its own page has no list to be omitted from (issues/43); a course refused
+ * by the **permission** is not this director's catalog at all, and listing every
+ * other program's under a refusal naming somebody else would bury the lines that
+ * are about this reader. `slateAffordanceFor` cannot answer that question,
+ * because it answers in the **writer's** order and reaches an invariant's
+ * refusal first — which is right on a rail and wrong as a membership test.
  */
 export function maySlateFrom(facts: ActorFacts, programCode: string): boolean {
   return permitted(routesFor("offering", "create"), facts, slateSubject(programCode));

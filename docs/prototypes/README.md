@@ -244,11 +244,20 @@ past it. **Meetings are part of slating**, because a form that defers them makes
 intensive and the asynchronous course indistinguishable from the unscheduled one at the moment
 of creation.
 
-**The gate both pre-empts and states.** The course picker sorts into *Can be offered* and *Not
-yet — assignments missing*, the refused ones unselectable and carrying their reason on the line.
-Hiding them was rejected structurally rather than by preference: **a course reached from its own
-page has no list to be omitted from**, so the refusal must exist on the page regardless. Half-
-missing is a real state with its own sentence, because area and head are separate assignments.
+**The gate both pre-empts and states.** The course picker sorts into *Can be offered*, *Not yet —
+assignments missing* and *Retired — no more classes*, the refused ones unselectable and carrying
+their reason on the line. Hiding them was rejected structurally rather than by preference: **a
+course reached from its own page has no list to be omitted from**, so the refusal must exist on the
+page regardless. Half-missing is a real state with its own sentence, because area and head are
+separate assignments — and retirement is a third state rather than a corner of the second, because
+*not yet* is a promise and retirement is the department deciding there will be no more classes
+(amended by [#89](https://github.com/nopivnick/lineup-prototype-03/issues/89); see *Amendments*).
+
+**The form is reached from a course's page and from nowhere else**
+([#89](https://github.com/nopivnick/lineup-prototype-03/issues/89); see *Amendments*). The act is
+scoped to a **course's** program, so a control on a term-scoped list would have to answer *may you
+slate anything at all* — a question no route in the matrix asks. The term is therefore asked and
+never prefilled.
 
 **After submit:** slating lands on the new class page, complete. **Proposing lands on the
 proposals list, on the new group** — the one place A was amended, because a proposal has no page
@@ -639,9 +648,11 @@ what it overturns; it never stands beside it.
   second group *Not yet — assignments missing*, and a retired course does not belong under it: *not
   yet* is a promise, and retirement is the department deciding there will be no more classes.
   Dropping it from the picker was rejected on #43's own structural argument — a course reached from
-  its own page has no list to be omitted from — so it gets a group and a sentence of its own. The
-  artifact is not redrawn: `refusalFor` is still the right answer at the prototype's resolution,
-  which had one label to spend.
+  its own page has no list to be omitted from — so it gets a group and a sentence of its own.
+  **`coursePicker` is redrawn** and the file carries an `AMENDED by #89` block: unlike #65's, this
+  is the artifact's own layout rather than its hand-written cast, and layout is the thing this file
+  is authoritative for. `refusalFor` is untouched and still answers for both rules; what changed is
+  that the picker files them apart.
 
   **The gate's two sentences are the writer's**, which the prototype could not have shown: `gate`
   and `retiredRefusal` invent wording beside rules that in the built system are `createOffering`'s.
@@ -657,8 +668,14 @@ what it overturns; it never stands beside it.
   `create` is scoped to a **course's** program, so a control beside the Lineup's heading would have
   to answer *may you slate anything at all* — a question no route in the matrix asks, and one whose
   honest answer is the picker itself. So `?course=` is the only parameter the page reads, and the
-  term is asked rather than prefilled: the prototype's `slate-lineup` scenario prefilled it because
-  the form was launched *from* a term, and nothing launches it from one here.
+  term is asked rather than prefilled.
+
+  **The `slate-lineup` and `slate-lowres` scenarios keep their prefilled term** and the `AMENDED by
+  #89` block says why they are not a second door: a scenario is this file's device for putting the
+  reader mid-form, and *the term is already answered* is a state the built form reaches by being
+  filled in. What would have been stale is the claim that a **list** launches the form, and that is
+  what the block removes. `slate-lowres` is also the only place `offering_meeting.kind`'s three
+  shapes are exercised together, which is a demonstration this ticket has no reason to delete.
 
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three
