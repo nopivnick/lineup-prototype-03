@@ -68,16 +68,34 @@ export function CourseSections({
               {group.offerings.length === 1 ? "section" : "sections"}
             </Text>
           </Group>
-          <Table withColumnBorders>
+          <Table withColumnBorders layout="fixed">
+            {/*
+              **One column grid for the page, not one per term.** Each term is
+              its own `<Paper>` and its own `<table>`, so under the default
+              `table-layout: auto` every term sizes its columns to its own
+              sections and the two flexible columns land in a different place in
+              every block. `layout="fixed"` plus this `colgroup` states the grid
+              once and makes it binding — the same rule the grouped lists follow
+              through `app/(signed-in)/aligned-columns.ts`. The two columns left
+              without a width share what is left equally, which is a fact of the
+              fixed layout and so is the same in every term.
+            */}
+            <colgroup>
+              <col style={{ width: 64 }} />
+              <col style={{ width: 120 }} />
+              <col />
+              <col />
+              <col style={{ width: 40 }} />
+            </colgroup>
             <TableTbody>
               {group.offerings.map((row) => (
                 <TableTr key={row.offeringId}>
-                  <TableTd w={64} align="right">
+                  <TableTd align="right">
                     <Text ff="monospace" size="sm">
                       §{row.sectionNumber}
                     </Text>
                   </TableTd>
-                  <TableTd w={120}>
+                  <TableTd>
                     <Badge color={TONE[row.status]} variant="light">
                       {row.status}
                     </Badge>
@@ -97,7 +115,7 @@ export function CourseSections({
                     the reader's tier, so none of them leads to a page that
                     refuses.
                   */}
-                  <TableTd w={40} align="right">
+                  <TableTd align="right">
                     <OpenClass
                       offeringId={row.offeringId}
                       where={`${courseNumber} §${row.sectionNumber}`}

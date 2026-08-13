@@ -19,6 +19,7 @@ import { DataTable } from "mantine-datatable";
 import type { ProposalGroup, ProposalReviewRow, ReviewEventName } from "@/db/read/review-rows";
 import type { Refusal } from "@/db/read/shape";
 
+import { alignedTable, sized } from "../aligned-columns";
 import { EXPLAINED_REVIEW } from "../explained-moves";
 import { Named, NamedLine } from "../named";
 import { OpenCourse } from "../open-course";
@@ -35,8 +36,10 @@ import { Refused } from "../refused";
  * It inherits the grouping device and the `⋯ n` menu from the two lists before
  * it — records are proposals, `rowExpansion` with `trigger: 'always'` stands in
  * for the row grouping mantine-datatable does not have, and `n` is how many
- * moves this actor can actually make — and adds two things that are this view's
- * own.
+ * moves this actor can actually make, and **one column grid for the whole page**,
+ * declared in `WIDTHS` below and made binding by `alignedTable` because each
+ * proposal's reviews are their own `<table>` (`../aligned-columns`) — and adds
+ * two things that are this view's own.
  *
  * **The verdict chips on the group header, which are the load-bearing part.**
  * Every program's verdict, whether or not the read rule reaches the reader,
@@ -144,11 +147,13 @@ export function ProposalsList({
                 highlightOnHover
                 idAccessor="reviewId"
                 records={[...record.reviews]}
-                columns={[
+                styles={alignedTable(820)}
+                columns={sized<ProposalReviewRow>([
                   {
                     accessor: "programCode",
                     title: "Program",
                     noWrap: true,
+                    width: WIDTHS.programCode,
                     render: (row) => (
                       <Badge color={hueOf(row.programCode)} variant="light">
                         {row.programCode}
@@ -158,6 +163,7 @@ export function ProposalsList({
                   {
                     accessor: "state",
                     title: "State",
+                    width: WIDTHS.state,
                     render: (row) => (
                       <Badge color={REVIEW_TONE[row.state]} variant="light">
                         {row.state}
@@ -176,6 +182,7 @@ export function ProposalsList({
                      */
                     accessor: "areas",
                     title: "Area and head",
+                    width: WIDTHS.areas,
                     render: (row) => <Assignment row={row} />,
                   },
                   {
@@ -188,6 +195,7 @@ export function ProposalsList({
                     accessor: "mintedCourse",
                     title: "Minted",
                     noWrap: true,
+                    width: WIDTHS.mintedCourse,
                     render: (row) =>
                       row.mintedCourse ? (
                         <Group gap={6} wrap="nowrap">
@@ -209,6 +217,7 @@ export function ProposalsList({
                     accessor: "actions",
                     title: "Actions",
                     textAlign: "right",
+                    width: WIDTHS.actions,
                     render: (row) => (
                       <ActionMenu row={row} where={whichReview(record, row)} onAsk={setAsking} />
                     ),
@@ -218,11 +227,12 @@ export function ProposalsList({
                     title: "",
                     textAlign: "right",
                     noWrap: true,
+                    width: WIDTHS.open,
                     render: (row) => (
                       <OpenReview reviewId={row.reviewId} where={whichReview(record, row)} />
                     ),
                   },
-                ]}
+                ])}
               />
             </Box>
           ),
@@ -233,6 +243,22 @@ export function ProposalsList({
     </Stack>
   );
 }
+
+/**
+ * **The column grid, stated once for every proposal on the page**
+ * (`../aligned-columns`). Percentages rather than pixels, because the grid has to
+ * stay one grid at any width. Nothing here is conditional: the Actions column is
+ * always rendered on this screen — a read-only row states `—` inside it rather
+ * than dropping it — so there is one shape and one set of widths.
+ */
+const WIDTHS = {
+  programCode: "12%",
+  state: "14%",
+  areas: "28%",
+  mintedCourse: "30%",
+  actions: "12%",
+  open: "4%",
+} as const;
 
 /**
  * *Physical Computing II · ITP* — which review a control is about, built once and
