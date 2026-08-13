@@ -97,6 +97,26 @@
     `docs/fixtures/fixtures.ts`, where every director teaches (#58, #69). Not
     redrawn here, per #65 and the ledger in README.md — read the layout from
     this file and the cast from the fixtures package.
+
+  AMENDED by #89, "Slate a class", which built the slating half, on two points:
+
+    **The picker has three groups, not two.** `coursePicker` is redrawn below:
+    *Can be offered*, *Not yet — assignments missing*, *Retired — no more
+    classes*. The single `Cannot be offered` label folded together two different
+    rules — #32's create-time gate and the retirement invariant this file's own
+    ⚑ finding raised — and *not yet* is a promise where retirement is not.
+    `refusalFor` is unchanged and still answers for both; what changed is that
+    the picker files them apart.
+
+    **There is one door, and the term is asked rather than prefilled.** The built
+    form is reached from a course's page alone: `create` is scoped to a
+    **course's** program, so a control on a term-scoped list would have to answer
+    *may you slate anything at all*, a question no route in the matrix asks. The
+    `slate-lineup` and `slate-lowres` scenarios below keep their prefilled term
+    and are **not** a second door — they are this file's device for exercising
+    the form with the term already answered, which is what a reader who has
+    picked one sees. Nothing on the built page reads a term from the query
+    string; `?course=` is the only parameter it takes.
 -->
 
 <style>
@@ -748,25 +768,40 @@ function textarea(key, label, { help="", req=false } = {}) {
 }
 
 /* The course picker is where #32's gate is either pre-empted or not — which is
-   one of the three things the variants actually disagree about. */
+   one of the three things the variants actually disagree about.
+
+   **Three groups, amended by #89.** The refused courses used to sit under one
+   `Cannot be offered` label fed by `refusalFor`, which answers for two different
+   rules: #32's create-time gate, and the retirement invariant #43 found
+   unguarded. *Not yet* is a promise and retirement is the department deciding
+   there will be no more classes, so a retired course files under neither of the
+   other two. Dropping it from the picker instead was rejected on #43's own
+   structural ground — a course reached from its own page has no list to be
+   omitted from. */
 function coursePicker({ showRefused, label = "Course" }) {
   const e = F.touched || F.submitted ? errorsNow().course : null;
   const list = COURSES.filter(c => maySlate(actor(), c));
-  const ok = list.filter(offerable), no = list.filter(c => !offerable(c));
+  const ok = list.filter(offerable);
+  const gated = list.filter(c => !offerable(c) && c.state !== "Retired");
+  const retired = list.filter(c => c.state === "Retired");
+  const no = gated.length + retired.length;
   const opt = c => {
     const r = refusalFor(c);
     const dis = showRefused && r ? " disabled" : "";
-    const tail = showRefused && r ? ` — cannot be offered: ${r.short}` : "";
+    const tail = showRefused && r ? ` — ${r.short}` : "";
     return `<option value="${c.id}"${F.course == c.id ? " selected" : ""}${dis}>${esc(c.number)} ${esc(c.title)}${tail}</option>`;
   };
+  const group = (label, members) =>
+    members.length ? `<optgroup label="${esc(label)}">${members.map(opt).join("")}</optgroup>` : "";
   const body = showRefused
     ? `<option value="">Choose a course…</option>
-       <optgroup label="Can be offered">${ok.map(opt).join("")}</optgroup>
-       ${no.length ? `<optgroup label="Cannot be offered">${no.map(opt).join("")}</optgroup>` : ""}`
+       ${group("Can be offered", ok)}
+       ${group("Not yet — assignments missing", gated)}
+       ${group("Retired — no more classes", retired)}`
     : `<option value="">Choose a course…</option>${ok.map(opt).join("")}`;
   const help = showRefused
     ? `Every course you may slate, with the ones that cannot be offered kept visible and refused.`
-    : `Only courses that can be offered. ${no.length} more ${no.length === 1 ? "is" : "are"} hidden.`;
+    : `Only courses that can be offered. ${no} more ${no === 1 ? "is" : "are"} hidden.`;
   return `
     <div class="fld ${e ? "bad" : ""}">
       <label for="f-course">${esc(label)}<span class="req">*</span></label>

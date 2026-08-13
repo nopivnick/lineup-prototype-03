@@ -244,11 +244,20 @@ past it. **Meetings are part of slating**, because a form that defers them makes
 intensive and the asynchronous course indistinguishable from the unscheduled one at the moment
 of creation.
 
-**The gate both pre-empts and states.** The course picker sorts into *Can be offered* and *Not
-yet — assignments missing*, the refused ones unselectable and carrying their reason on the line.
-Hiding them was rejected structurally rather than by preference: **a course reached from its own
-page has no list to be omitted from**, so the refusal must exist on the page regardless. Half-
-missing is a real state with its own sentence, because area and head are separate assignments.
+**The gate both pre-empts and states.** The course picker sorts into *Can be offered*, *Not yet —
+assignments missing* and *Retired — no more classes*, the refused ones unselectable and carrying
+their reason on the line. Hiding them was rejected structurally rather than by preference: **a
+course reached from its own page has no list to be omitted from**, so the refusal must exist on the
+page regardless. Half-missing is a real state with its own sentence, because area and head are
+separate assignments — and retirement is a third state rather than a corner of the second, because
+*not yet* is a promise and retirement is the department deciding there will be no more classes
+(amended by [#89](https://github.com/nopivnick/lineup-prototype-03/issues/89); see *Amendments*).
+
+**The form is reached from a course's page and from nowhere else**
+([#89](https://github.com/nopivnick/lineup-prototype-03/issues/89); see *Amendments*). The act is
+scoped to a **course's** program, so a control on a term-scoped list would have to answer *may you
+slate anything at all* — a question no route in the matrix asks. The term is therefore asked and
+never prefilled.
 
 **After submit:** slating lands on the new class page, complete. **Proposing lands on the
 proposals list, on the new group** — the one place A was amended, because a proposal has no page
@@ -624,6 +633,49 @@ what it overturns; it never stands beside it.
   states the fan-out in the terms the reader is choosing in, and a panel naming `course_proposal`
   and `course_proposal_review` states it in the terms the schema is written in, which is the one
   audience the running application does not have.
+
+- **The picker has three groups where variant A drew two, and the form has one door rather than
+  two** — by [#89](https://github.com/nopivnick/lineup-prototype-03/issues/89), which built
+  `create-forms.html`'s slating half. Everything variant A settled ships unchanged: one full page
+  asking course, term, section, meeting rows and the operational fields; `program_code` stated as
+  derived and never asked; the section number pre-filled with the next free one and still editable;
+  the gate pre-empted in the picker with the refused courses kept visible; and submitting landing on
+  the new class page, complete.
+
+  **The third group is `Retired`.** The prototype's `coursePicker` files everything `refusalFor`
+  refuses under one *Cannot be offered* label, and `refusalFor` answers for two different rules —
+  #32's create-time gate and the retirement invariant #43 found unguarded. #89's own words name the
+  second group *Not yet — assignments missing*, and a retired course does not belong under it: *not
+  yet* is a promise, and retirement is the department deciding there will be no more classes.
+  Dropping it from the picker was rejected on #43's own structural argument — a course reached from
+  its own page has no list to be omitted from — so it gets a group and a sentence of its own.
+  **`coursePicker` is redrawn** and the file carries an `AMENDED by #89` block: unlike #65's, this
+  is the artifact's own layout rather than its hand-written cast, and layout is the thing this file
+  is authoritative for. `refusalFor` is untouched and still answers for both rules; what changed is
+  that the picker files them apart.
+
+  **The gate's two sentences are the writer's**, which the prototype could not have shown: `gate`
+  and `retiredRefusal` invent wording beside rules that in the built system are `createOffering`'s.
+  `missingAssignments` and `retiredCourseCannotBeOffered` moved into `db/write/rules.ts` on the terms
+  `stillTeaching`, `courseRetired` and `noProgramsRequested` moved — two callers — so the line under
+  a refused option, the sentence under the greyed control on the course's own page, and what the
+  writer throws at a hand-written post are one object. The prototype's `fix` clause is **not**
+  carried: *Nora assigns it on the course* is a fact about a screen this skeleton does not have, and
+  a refusal naming a control that does not exist is worse than one that names none.
+
+  **The form is reached from a course's page and from nowhere else**, where the prototype's
+  scenarios reach it from the Lineup as well. That is the act's shape rather than a preference:
+  `create` is scoped to a **course's** program, so a control beside the Lineup's heading would have
+  to answer *may you slate anything at all* — a question no route in the matrix asks, and one whose
+  honest answer is the picker itself. So `?course=` is the only parameter the page reads, and the
+  term is asked rather than prefilled.
+
+  **The `slate-lineup` and `slate-lowres` scenarios keep their prefilled term** and the `AMENDED by
+  #89` block says why they are not a second door: a scenario is this file's device for putting the
+  reader mid-form, and *the term is already answered* is a state the built form reaches by being
+  filled in. What would have been stale is the claim that a **list** launches the form, and that is
+  what the block removes. `slate-lowres` is also the only place `offering_meeting.kind`'s three
+  shapes are exercised together, which is a demonstration this ticket has no reason to delete.
 
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three

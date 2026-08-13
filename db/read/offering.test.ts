@@ -48,6 +48,7 @@ import {
   driveOffering,
   freshWorld,
   mintCourse,
+  refusalFrom,
   seatCoInstructor,
   shareSeats,
   slateOffering,
@@ -59,7 +60,7 @@ import { writeFields } from "@/db/write/write-fields";
 
 import { getActorFacts } from "./actor-facts";
 import { getCoursePage } from "./course";
-import { getOfferingPage, type OfferingPage } from "./offering";
+import { getOfferingPage, getSlateForm, type OfferingPage, type SlateForm } from "./offering";
 import type { OfferingEventName } from "./offering-rows";
 
 /**
@@ -587,9 +588,270 @@ describe.skipIf(!DATABASES_CONFIGURED)("getOfferingPage", () => {
   );
 });
 
+/**
+ * **Seam 2 — `getSlateForm`** (issues/43, issues/89).
+ *
+ * The create route adds no read module, so its tests live beside the record it
+ * creates. Four properties are the ticket's, and none is provable by reading the
+ * module:
+ *
+ *   * **the picker refuses rather than hides.** Every course this actor may slate
+ *     is on it, the ungated ones selectable and the rest carrying their reason —
+ *     and the reason is compared against the sentence `createOffering` throws,
+ *     not against a copy written to make the test pass.
+ *   * **half missing is a real state with its own sentence**, because area and
+ *     head are separate assignments (issues/32).
+ *   * **the control and its destination are one answer.** What the Course page's
+ *     rail says about slating this course, and what the form's picker says about
+ *     the same course, are asserted equal for every actor and every course.
+ *   * **the form loads what is taken.** The section numbers a course already has
+ *     in a term come back whole, so the form can default past them without the
+ *     module deciding anything.
+ */
+describe.skipIf(!DATABASES_CONFIGURED)("getSlateForm", () => {
+  let world: World;
+  let catalog: Catalog;
+
+  beforeEach(async () => {
+    world = await freshWorld();
+    catalog = await aCatalogWithGaps(world);
+  });
+
+  test("keeps every course the actor may slate, refused ones included, sorted into groups", async () => {
+    const form = await slateForm(AS.netid);
+
+    expect(
+      form.courses.map((choice) => [choice.courseNumber, choice.group, choice.refusal === null]),
+    ).toEqual([
+      ["ITPG-GT 1010", "assignments-missing", false],
+      ["ITPG-GT 2050", "retired", false],
+      ["ITPG-GT 2233", "offerable", true],
+      ["ITPG-GT 2999", "assignments-missing", false],
+      ["ITPG-GT 3011", "assignments-missing", false],
+    ]);
+  });
+
+  test("a course missing only its area, or only its head, says which", async () => {
+    const form = await slateForm(AS.netid);
+
+    expect(sentenceFor(form, "ITPG-GT 3011")).toBe(
+      "This course cannot be scheduled yet: it has no area.",
+    );
+    expect(sentenceFor(form, "ITPG-GT 1010")).toBe(
+      "This course cannot be scheduled yet: it has no area head.",
+    );
+    expect(sentenceFor(form, "ITPG-GT 2999")).toBe(
+      "This course cannot be scheduled yet: it has no area and no area head.",
+    );
+  });
+
+  test("the refused line carries the writer's own sentence, not a second copy of it", async () => {
+    const form = await slateForm(AS.netid);
+
+    for (const [courseNumber, courseId] of [
+      ["ITPG-GT 3011", catalog.noArea],
+      ["ITPG-GT 1010", catalog.noHead],
+      ["ITPG-GT 2999", catalog.neither],
+      ["ITPG-GT 2050", catalog.retired],
+    ] as const) {
+      const thrown = await refusalFrom(
+        slateOffering(world, courseId, { actor: WHO.itpDirector, sectionNumber: "1" }),
+      );
+      expect(sentenceFor(form, courseNumber)).toBe(thrown.refusals[0]!.sentence);
+    }
+  });
+
+  test("the permission narrows the picker and the invariants do not", async () => {
+    // IMA's director may slate IMA's course and nothing of ITP's — the create
+    // act is scoped to the offering's program, which is always the course's.
+    const ima = await slateForm(WHO.imaDirector);
+    expect(ima.courses.map((choice) => choice.programCode)).toEqual(["IMA"]);
+
+    // The chair is one clause ahead of the permission term and of nothing else,
+    // so every course is on the picker and the two invariants still refuse.
+    const chair = await slateForm(WHO.chair);
+    expect(chair.courses).toHaveLength(6);
+    expect(sentenceFor(chair, "ITPG-GT 2999")).toBe(
+      "This course cannot be scheduled yet: it has no area and no area head.",
+    );
+  });
+
+  test("a reader who may slate no course at all is refused the page in the writer's words", async () => {
+    for (const netid of [WHO.coordinator, WHO.instructor, WHO.areaHead, WHO.student, WHO.advisor]) {
+      const form = await getSlateForm({ netid });
+      expect(form).toEqual({
+        maySlate: false,
+        refusal: {
+          sentence: "Only the program's director can schedule a class.",
+          dependencies: [],
+        },
+      });
+    }
+  });
+
+  test("the rail's control and the picker's line are one answer, for every actor", async () => {
+    // Three courses rather than six: one that can be offered, one the gate
+    // refuses, and one of another program's — which is every arm the affordance
+    // has. The remaining three differ only in *which* half of the gate is
+    // missing, and the sentences are asserted above.
+    const covered = [catalog.offerable, catalog.neither, catalog.imas];
+
+    for (const netid of EVERYBODY) {
+      const form = await getSlateForm({ netid });
+      for (const courseId of covered) {
+        const read = await getCoursePage(String(courseId), { netid });
+        if (!read.visible) throw new Error(`Course ${courseId} was refused to ${netid}.`);
+        const rail = read.page.slate;
+
+        // A reader who can never act gets no control at all, and no picker
+        // either — the page is refused to them one step earlier.
+        if (rail === null) {
+          expect(form.maySlate).toBe(false);
+          continue;
+        }
+
+        const line = form.maySlate
+          ? (form.courses.find((choice) => choice.courseId === String(courseId)) ?? null)
+          : null;
+
+        // **Absent from the picker means refused by the permission**, which is
+        // what the rail says under a greyed control.
+        const asked = { courseId, netid };
+        expect({ ...asked, permitted: line !== null && line.refusal === null }).toEqual({
+          ...asked,
+          permitted: rail.permitted,
+        });
+
+        // And where both have a sentence, it is the same object.
+        if (line !== null && !rail.permitted) {
+          expect(line.refusal).toEqual(rail.refusal);
+        }
+      }
+    }
+  },
+  // Eight actors against three courses, each opening a whole Course page against
+  // a real pooler.
+  120_000);
+
+  test("loads what is taken, so the form can default past it without deciding", async () => {
+    await slateOffering(world, catalog.offerable, { sectionNumber: "1" });
+    await slateOffering(world, catalog.offerable, { sectionNumber: "3" });
+    await slateOffering(world, catalog.offerable, {
+      sectionNumber: "1",
+      termCode: world.laterTermCode,
+    });
+
+    const form = await slateForm(AS.netid);
+
+    expect(form.taken).toEqual([
+      { courseId: String(catalog.offerable), termCode: world.termCode, sectionNumber: "1" },
+      { courseId: String(catalog.offerable), termCode: world.termCode, sectionNumber: "3" },
+      { courseId: String(catalog.offerable), termCode: world.laterTermCode, sectionNumber: "1" },
+    ]);
+  });
+
+  test("offers every term the department has, newest first", async () => {
+    const form = await slateForm(AS.netid);
+
+    expect(form.terms).toEqual([
+      { code: "20262", label: "Summer 2026" },
+      { code: "20261", label: "Spring 2026" },
+      { code: "20253", label: "Fall 2025" },
+    ]);
+  });
+
+  test("a prefill naming a course the picker does not hold selects nothing and says nothing", async () => {
+    // IMA's course, asked for by ITP's director: it is not on their picker, and
+    // the door they would have arrived by is greyed on that course's own page.
+    const stranger = await getSlateForm(AS, String(catalog.imas));
+    expect(stranger.maySlate && stranger.chosenCourseId).toBe(null);
+
+    for (const nonsense of ["", "0x0c", "999999", " 1 "]) {
+      const form = await getSlateForm(AS, nonsense);
+      expect(form.maySlate && form.chosenCourseId).toBe(null);
+    }
+
+    // A course on the picker prefills, **including a refused one**: the reader
+    // arrived from its own page, which has no list to omit it from.
+    const refusedButPrefilled = await getSlateForm(AS, String(catalog.retired));
+    expect(refusedButPrefilled.maySlate && refusedButPrefilled.chosenCourseId).toBe(
+      String(catalog.retired),
+    );
+  });
+
+  test("three classes statements and none at all against people, and a refused reader pays for one", async () => {
+    const facts = await cost(() => getActorFacts(AS.netid));
+    const coordinatorFacts = await cost(() => getActorFacts(WHO.coordinator));
+
+    const asDirector = await cost(() => getSlateForm(AS));
+    expect(subtract(asDirector, facts)).toEqual({ classes: 3, people: 0 });
+
+    // The facts that refuse them **are** the course list, the act being scoped
+    // per program rather than flat, so the refusal costs exactly that statement.
+    const asCoordinator = await cost(() => getSlateForm({ netid: WHO.coordinator }));
+    expect(subtract(asCoordinator, coordinatorFacts)).toEqual({ classes: 1, people: 0 });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The world this reads
 // ---------------------------------------------------------------------------
+
+/**
+ * Six courses, one per shape the picker has to sort: the two halves of issues/32's
+ * gate missing separately and together, a retired one, an offerable one, and
+ * IMA's, which is on nobody's picker but IMA's director's and the chair's.
+ */
+type Catalog = {
+  offerable: Id;
+  noArea: Id;
+  noHead: Id;
+  neither: Id;
+  retired: Id;
+  imas: Id;
+};
+
+async function aCatalogWithGaps(world: World): Promise<Catalog> {
+  const offerable = await mintCourse(world, { courseNumber: "ITPG-GT 2233" });
+  const noArea = await mintCourse(world, { courseNumber: "ITPG-GT 3011", withArea: false });
+  const noHead = await mintCourse(world, { courseNumber: "ITPG-GT 1010", withAreaHead: false });
+  const neither = await mintCourse(world, {
+    courseNumber: "ITPG-GT 2999",
+    withArea: false,
+    withAreaHead: false,
+  });
+  const imas = await mintCourse(world, { courseNumber: "IMNY-UT 103", programCode: "IMA" });
+
+  // Retired with nothing live against it, which is the only way a course reaches
+  // that state: `retire` refuses while any class has not finished teaching.
+  const retired = await mintCourse(world, { courseNumber: "ITPG-GT 2050" });
+  await writeToClasses((open) =>
+    applyTransition(open, { machine: "course", id: retired.courseId }, { type: "retire" }, WHO.itpDirector),
+  );
+
+  return {
+    offerable: offerable.courseId,
+    noArea: noArea.courseId,
+    noHead: noHead.courseId,
+    neither: neither.courseId,
+    retired: retired.courseId,
+    imas: imas.courseId,
+  };
+}
+
+/** The form for a reader who has one, so a test can read it without narrowing at every line. */
+async function slateForm(netid: string): Promise<Extract<SlateForm, { maySlate: true }>> {
+  const form = await getSlateForm({ netid });
+  if (!form.maySlate) throw new Error(`${netid} was refused the slating form.`);
+  return form;
+}
+
+function sentenceFor(
+  form: Extract<SlateForm, { maySlate: true }>,
+  courseNumber: string,
+): string | undefined {
+  return form.courses.find((choice) => choice.courseNumber === courseNumber)?.refusal?.sentence;
+}
 
 type Classes = {
   physicalComputing: Id;

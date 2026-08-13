@@ -5,7 +5,6 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
   Checkbox,
   Group,
   NumberInput,
@@ -13,12 +12,12 @@ import {
   Text,
   Textarea,
   TextInput,
-  Title,
 } from "@mantine/core";
 
 import type { ProgramChoice } from "@/db/read/proposals";
 import type { Refusal } from "@/db/read/shape";
 
+import { FormSection } from "../form-section";
 import { hueOf } from "../program-hue";
 import { Refused } from "../refused";
 import { proposeCourse } from "./actions";
@@ -98,7 +97,7 @@ export function ProposeForm({
         </Alert>
       ) : null}
 
-      <Section
+      <FormSection
         title="The course"
         sub="This is the body every program reads. It stays editable while a review is Developing."
       >
@@ -139,14 +138,14 @@ export function ProposeForm({
             setCredits(value);
           }}
         />
-      </Section>
+      </FormSection>
 
       {/*
         **The section header is the first of the three statements.** It says what
         the checkboxes are before the reader meets one: nothing stores a list of
         requested programs, so the boxes are the rows.
       */}
-      <Section
+      <FormSection
         title="Programs"
         sub="Nothing anywhere records which programs were asked — the reviews are the request. Each box you check is one review this form writes."
       >
@@ -203,7 +202,7 @@ export function ProposeForm({
             No programs checked, so submitting would write no reviews. {emptySet.sentence}
           </Text>
         )}
-      </Section>
+      </FormSection>
 
       <Group gap="md" align="center">
         <Button onClick={submit} disabled={problem !== null} loading={submitting}>
@@ -257,31 +256,5 @@ function Absences() {
         reference data, and nothing in this skeleton makes them.
       </Text>
     </Stack>
-  );
-}
-
-function Section({
-  title,
-  sub,
-  children,
-}: {
-  title: string;
-  sub: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card withBorder padding="lg">
-      <Stack gap="md">
-        <Stack gap={2}>
-          <Title order={2} size="h4">
-            {title}
-          </Title>
-          <Text size="sm" c="dimmed">
-            {sub}
-          </Text>
-        </Stack>
-        {children}
-      </Stack>
-    </Card>
   );
 }

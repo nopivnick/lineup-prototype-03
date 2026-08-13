@@ -11,6 +11,7 @@ import {
 import { getActor } from "@/lib/auth/actor";
 import { OFFERING_STATES, type OfferingState } from "@/lib/machines/offering.machine";
 
+import { one } from "../query-params";
 import { LineupFilterBar, type FilterOption } from "./lineup-filters";
 import { LineupTable } from "./lineup-table";
 
@@ -175,9 +176,4 @@ function offered(options: readonly string[], asked: string | undefined): string 
 
 function labelFor(term: LineupTerm): string {
   return `${term.semester} ${term.year}`;
-}
-
-/** A repeated query parameter is a caller's mistake, not a second filter. */
-function one(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
 }

@@ -5,6 +5,7 @@ import { getProposalsPage, mayProposeACourse } from "@/db/read/proposals";
 import type { ProposalGroup } from "@/db/read/review-rows";
 import { getActor, type Actor } from "@/lib/auth/actor";
 
+import { one } from "../query-params";
 import { ProposalsFilterBar } from "./proposals-filters";
 import { ProposalsList } from "./proposals-list";
 import { viewFor } from "./views";
@@ -237,9 +238,4 @@ function NoScreen() {
 async function anythingReachable(actor: Actor): Promise<boolean> {
   const answer = await getProposalsPage(actor, { view: "any" });
   return answer.visible && answer.page.length > 0;
-}
-
-/** A repeated query parameter is a caller's mistake, not a second filter. */
-function one(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
 }
