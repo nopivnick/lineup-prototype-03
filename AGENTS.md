@@ -467,6 +467,50 @@ wording saying slightly less than the rule, after #84 and #86. And **the home pa
 proposing starts on the proposals list and nowhere else (#42 rejected the Catalog as a second door),
 so `/propose` is reached from the control beside that list's heading and from its empty state.
 
+**The ninth screen is the slating form**, built by
+[#89](https://github.com/nopivnick/lineup-prototype-03/issues/89): `app/(signed-in)/slate/` is
+variant A whole — one full page asking course, term, section number, **meeting rows** and the
+operational fields at once — and it is the **second** screen that creates a record rather than moving
+one. Five things about it are structural rather than conventional:
+
+- **It adds no read module**, which is #88's arrangement one route along, and what carries it over is
+  not which file `getSlateForm` sits in. It is that the form and the `Slate a class` control on the
+  Course page's rail both go through **`slateAffordanceFor` in `db/read/course-rows.ts`**, so a live
+  control over a refused destination is not a shape either can produce. It is in `course-rows.ts` and
+  not in `offering-rows.ts` because it is a fact about a **course**: `create` is the one act in the
+  Offering matrix with no event to hang it on, so it cannot be an entry in a permitted-action set,
+  that set being indexed by machine event. `READ_MODULES` still names seven.
+- **The picker refuses rather than hides, and *half missing* is a real state.** Every course this
+  actor may slate is on it, sorted into *Can be offered*, *Not yet — assignments missing* and
+  *Retired*, the refused ones unselectable and carrying the writer's own sentence on the line.
+  `missingAssignments` and `retiredCourseCannotBeOffered` moved into `db/write/rules.ts` on the terms
+  `stillTeaching`, `courseRetired` and `noProgramsRequested` moved: two callers. The **permission**
+  narrows the list and the **invariants** do not — a course refused by the gate belongs on the page,
+  because a course reached from its own page has no list to be omitted from; a course refused by the
+  permission is not this director's catalog at all.
+- **The section number is a default and not a decision.** `getSlateForm` ships what is taken —
+  `(course, term, section)` for every course on the picker, deliberately **not** narrowed by the read
+  tier, because uniqueness does not care who can see a row — and `nextSectionNumber` counts past it,
+  filling gaps rather than adding one to the highest. It stays editable, and a collision is stated by
+  the **form** rather than refused by the writer: `createOffering` states no rule about section
+  numbers, and `UNIQUE (course_id, term_code, section_number)` is what actually refuses one. That is
+  the standing `bodyProblem` already gives `course_proposal`'s `credits > 0` CHECK, which is why
+  `slateProblem` and `sectionCollision` are two functions — the Server Action calls the first and has
+  no world to ask the second with.
+- **The slating form has one door and it is the Course page's rail.** The Lineup gains no control,
+  and that is the act's shape rather than a preference: `create` is scoped to a **course's** program
+  and the Lineup is scoped to a term, so a control beside its heading would have to answer *may you
+  slate anything at all* — a question no route in the matrix asks. `?course=` is a **prefill and
+  never a permission**: a course the reader may not slate is simply not on the picker and selects
+  nothing, which is #88's reading of `?new=` one screen along.
+- **A draft meeting carries every field and the written row carries only its kind's.** The reader who
+  fills in a weekly slot, realises it is an intensive and switches keeps the times they typed;
+  `meetingsOf` reads the **declared** kind and takes only what that kind holds, so nothing typed under
+  an abandoned kind can reach the row — which is #10's column doing its work one step before the
+  shape CHECK re-asserts it. `app/(signed-in)/slate/slated.ts` is the plain module both sides import,
+  for `proposed.ts`'s reason, and `slated.test.ts` runs **without a database**, like the machine-states
+  alarm.
+
 The dev path is `lib/auth/`, `db/read/directory.ts`, `app/be-somebody/`, `app/role-chips.tsx`
 and the dev bar in `app/(signed-in)/`. The SSO swap deletes all of it but the reader, whose
 body it replaces, and `db/read/actor-roles.ts`, which survives — the netid it is keyed by is

@@ -222,6 +222,57 @@ export function courseRetired(): Refusal {
 }
 
 /**
+ * **A class cannot be slated from a retired course** (issues/14, issues/43,
+ * issues/89) — `courseRetired`'s sibling, one act along.
+ *
+ * Here for the reason `stillTeaching` and `courseRetired` are here: **two
+ * callers**. `createOffering` throws it at whoever posts the slating form anyway,
+ * and the form's course picker states it on the line one step earlier, under an
+ * option nobody can choose.
+ *
+ * It is **not** `courseRetired()` reworded. That one refuses a `retry` on an
+ * existing class and says *this class cannot be revived*; this one refuses a
+ * class that does not exist yet. A reader meeting them in the two places they
+ * appear is looking at two different records, so one sentence covering both would
+ * be wrong about whichever it was not written for.
+ *
+ * It names **no actor**, being an invariant: the chair is refused it too, which
+ * `db/write/create-paths.test.ts` asserts of its sibling below.
+ */
+export function retiredCourseCannotBeOffered(): Refusal {
+  return refusal("This course has been retired, so no new class can be scheduled from it.");
+}
+
+/**
+ * **No area and no area head → no offering** (issues/32, issues/43, issues/89).
+ *
+ * issues/32 made the two assignments **separate**, so *half missing* is a real
+ * state with a sentence of its own — which is the whole reason this takes two
+ * booleans rather than one. The Catalog and the Course page already render the
+ * same fact as `notOfferableYet`, a marker rather than a refusal; this is the
+ * sentence, and it is here for `stillTeaching`'s reason: `createOffering` throws
+ * it, and the slating form's course picker carries it on the refused line one step
+ * earlier.
+ *
+ * It names **no actor** and no fix. The assignment is monotone — areas and heads
+ * may be swapped but never emptied — which is what makes a create-time check
+ * sufficient forever, and it is also why the refusal does not read *yet* as a
+ * promise: whether anybody will assign the missing half is not a fact this
+ * sentence has.
+ */
+export function missingAssignments(missingArea: boolean, missingAreaHead: boolean): Refusal {
+  const missing = [missingArea ? "area" : null, missingAreaHead ? "area head" : null].filter(
+    (absent): absent is string => absent !== null,
+  );
+  if (missing.length === 0) {
+    throw new Error(
+      "missingAssignments was asked for the sentence of a course that has both its area and its head (issues/32).",
+    );
+  }
+  return refusal(`This course cannot be scheduled yet: it has no ${missing.join(" and no ")}.`);
+}
+
+/**
  * **A proposal asking nobody** — the one rule the propose form's program section
  * is about (issues/43, issues/88).
  *

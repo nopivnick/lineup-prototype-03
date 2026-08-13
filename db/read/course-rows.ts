@@ -11,8 +11,10 @@ import {
   requirementCategory,
 } from "@/db/classes/schema";
 import {
+  missingAssignments,
   notYours,
   permitted,
+  retiredCourseCannotBeOffered,
   routesFor,
   stillTeaching,
   type ActorFacts,
@@ -21,7 +23,7 @@ import {
 import { machine as courseMachine, type CourseState } from "@/lib/machines/course.machine";
 
 import { qualified } from "./qualified";
-import type { OwnTag, PermittedAction } from "./shape";
+import type { OwnTag, PermittedAction, Refusal } from "./shape";
 
 /**
  * **What the Catalog row and the Course page agree a Course is** (issues/37,
@@ -155,4 +157,99 @@ export function notOfferableYet(areaCount: number, areaHead: string | null): Not
   const missingArea = areaCount === 0;
   const missingAreaHead = areaHead === null;
   return missingArea || missingAreaHead ? { missingArea, missingAreaHead } : null;
+}
+
+// ---------------------------------------------------------------------------
+// Whether a class can be slated from this course — the create act, asked early
+// ---------------------------------------------------------------------------
+
+/**
+ * **Can a class be slated from this course, and if not, why not** (issues/43,
+ * issues/89).
+ *
+ * `create` is the one act in the Offering matrix with no event to hang it on and
+ * no record to be about yet, so it gets no place in `offeringActionsFor` — a
+ * permitted-action set is indexed by machine event, and a class that does not
+ * exist has no state to draw edges out of. It is a fact about the **course**
+ * instead, which is why it lives here beside `notOfferableYet` and
+ * `courseActionsFor` rather than in `offering-rows.ts`.
+ *
+ * **It has two callers and that is the whole reason it is a function** (the rule
+ * `stillTeaching` moved on): the Course page's rail renders it as a `Slate a
+ * class` control, greyed with its reason where it is refused, and the slating
+ * form's course picker renders it as a line nobody can choose, carrying the same
+ * sentence. A second computation would be two answers to *may a class be created
+ * here* on two screens, neither of them the writer's.
+ *
+ * **The three terms are in `createOffering`'s own order** — retired, then the
+ * assignments, then the permission — and that order is a decision rather than an
+ * accident: a director looking at a retired course with no area head is told the
+ * course is retired, which is the thing that decides the other two, rather than
+ * being sent to assign a head onto a course nothing can be scheduled from. The
+ * first two are **invariants**, so they name no actor and refuse the chair too.
+ */
+export type SlateAffordance = { permitted: true } | { permitted: false; refusal: Refusal };
+
+export function slateAffordanceFor(
+  record: {
+    programCode: string;
+    status: string | null;
+    areaCount: number;
+    areaHead: string | null;
+  },
+  facts: ActorFacts,
+): SlateAffordance {
+  if (record.status === "Retired") {
+    return { permitted: false, refusal: retiredCourseCannotBeOffered() };
+  }
+
+  const missingArea = record.areaCount === 0;
+  const missingAreaHead = record.areaHead === null;
+  if (missingArea || missingAreaHead) {
+    return { permitted: false, refusal: missingAssignments(missingArea, missingAreaHead) };
+  }
+
+  return maySlateFrom(facts, record.programCode)
+    ? { permitted: true }
+    : { permitted: false, refusal: notYoursToSlate(record.programCode) };
+}
+
+/**
+ * **The create act's permission term alone**, without the two invariants ahead of
+ * it — which is the question the slating form's course picker asks, and the only
+ * caller that needs the halves apart.
+ *
+ * A course refused by an **invariant** belongs on the picker, unselectable and
+ * carrying its reason, because a course reached from its own page has no list to
+ * be omitted from and the refusal has to exist on the page regardless
+ * (issues/43). A course refused by the **permission** is a different fact: it is
+ * not this director's course at all, and listing every other program's catalog
+ * under a refusal naming somebody else would bury the two lines that are about
+ * this reader.
+ *
+ * **The subject is the offering's and not the course's**, because that is the
+ * subject the writer checks against: issues/30 proved *director of the offering's
+ * program* and *director of the course's program* are the same set by deriving
+ * the offering's program from the course, and `createOffering` builds exactly
+ * this subject out of the course row it locked. There is no lead, there being no
+ * class.
+ */
+export function maySlateFrom(facts: ActorFacts, programCode: string): boolean {
+  return permitted(routesFor("offering", "create"), facts, slateSubject(programCode));
+}
+
+/**
+ * The permission refusal, in the writer's own words — `createOffering` throws
+ * this sentence at whoever posts the form anyway. The program is named where
+ * there is one to name, and the slating form's page-level refusal passes none:
+ * *there is no course you may schedule a class from* is not a fact about any one
+ * program.
+ */
+export function notYoursToSlate(programCode?: string): Refusal {
+  const subject = programCode === undefined ? {} : slateSubject(programCode);
+  return notYours("schedule", "a class", routesFor("offering", "create"), subject);
+}
+
+function slateSubject(programCode: string): Subject {
+  return { offering: { programCode, lead: null } };
 }

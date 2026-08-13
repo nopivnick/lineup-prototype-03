@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Alert, Badge, Box, Button, Divider, Group, List, Paper, Stack, Text } from "@mantine/core";
 
-import type { CourseEventName } from "@/db/read/course-rows";
+import type { CourseEventName, SlateAffordance } from "@/db/read/course-rows";
 import type { EditAffordance, LastChanged, PermittedAction, Refusal } from "@/db/read/shape";
 import type { CourseState } from "@/lib/machines/course.machine";
 
@@ -21,10 +21,15 @@ import { Refused, LabelledRefusal } from "../../refused";
  * table** — a premise a one-record page does not have, exactly as issues/38 found
  * for the roles page.
  *
- * Three boxes, in this order and no other: **status and the moves**, **changes**,
- * and **last changed**. The record page's rail carries the `Edit` control with a
- * count beneath it; the edit page's rail is the one that carries *Not yours to
- * change here* (issues/62).
+ * Four boxes, in this order and no other: **status and the moves**, **a new
+ * class**, **changes**, and **last changed**. The record page's rail carries the
+ * `Edit` control with a count beneath it; the edit page's rail is the one that
+ * carries *Not yours to change here* (issues/62).
+ *
+ * **`Slate a class` is a box of its own and not a fifth move** (issues/89). Every
+ * control in *Status* fires an event on this record; this one creates a different
+ * record, on a different machine, and putting it among them would make the one
+ * act that leaves the page look like the four that do not.
  *
  * It computes **no rule**. Every sentence here is the writer's, shipped as data
  * by `getCoursePage`, and the count on the `Edit` control is a rendering of
@@ -34,6 +39,7 @@ export function CourseRail({
   courseId,
   status,
   actions,
+  slate,
   edit,
   lastChanged,
   showLastChanged,
@@ -41,6 +47,8 @@ export function CourseRail({
   courseId: string;
   status: CourseState;
   actions: readonly PermittedAction<CourseEventName>[] | null;
+  /** **Absent with `actions`**, on the same Tier 2 boundary (issues/89). */
+  slate: SlateAffordance | null;
   edit: EditAffordance | null;
   lastChanged: LastChanged;
   /**
@@ -93,6 +101,12 @@ export function CourseRail({
           {actions === null ? null : <Moves courseId={courseId} actions={actions} onRefused={setRefused} />}
         </Stack>
       </Paper>
+
+      {slate === null ? null : (
+        <Paper withBorder p="md" radius="md">
+          <Slate courseId={courseId} slate={slate} />
+        </Paper>
+      )}
 
       {edit === null ? null : (
         <Paper withBorder p="md" radius="md">
@@ -197,6 +211,55 @@ function Moves({
         )}
       </Stack>
     </>
+  );
+}
+
+/**
+ * **`Slate a class` — the only door onto the slating form** (issues/43,
+ * issues/89).
+ *
+ * A link and not a button: it opens a page rather than firing an act, which is
+ * the difference between this and every control above it. The course rides in the
+ * query string, so the form arrives with its picker already answered — and the
+ * picker is still there, because a reader who came here to schedule *this* course
+ * and changed their mind about which one should not have to go back to a
+ * different page to say so.
+ *
+ * **Refused, it is greyed with the writer's own sentence beneath it** — the
+ * treatment issues/40 bought a page for, and the reason the gate is worth
+ * pre-empting twice: the reader learns a class cannot be scheduled from this
+ * course *and* what is missing, without leaving the page that would let them fix
+ * it. The form states the same sentence again, from the same function, for
+ * whoever arrives at it another way.
+ */
+function Slate({ courseId, slate }: { courseId: string; slate: SlateAffordance }) {
+  return (
+    <Stack gap="xs">
+      <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+        A new class
+      </Text>
+
+      {slate.permitted ? (
+        <>
+          <Button component="a" href={`/slate?course=${courseId}`} variant="light">
+            Slate a class
+          </Button>
+          <Text size="xs" c="dimmed">
+            A section of this course in a term. It starts <b>Slated</b> — decided to run, nobody
+            picked to ask yet.
+          </Text>
+        </>
+      ) : (
+        <Box>
+          <Button variant="default" disabled fullWidth>
+            Slate a class
+          </Button>
+          <Box mt={4}>
+            <Refused refusal={slate.refusal} />
+          </Box>
+        </Box>
+      )}
+    </Stack>
   );
 }
 

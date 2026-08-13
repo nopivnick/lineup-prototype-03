@@ -22,8 +22,10 @@ import {
   COURSE_TAGS,
   courseActionsFor,
   notOfferableYet,
+  slateAffordanceFor,
   type CourseEventName,
   type NotOfferableYet,
+  type SlateAffordance,
 } from "./course-rows";
 import { bodyHasDrifted } from "./review-rows";
 import {
@@ -312,6 +314,22 @@ export async function getCoursePage(
             { course: record.status },
           )
         : null,
+      // **The one act on this page that is not a move on this record** — it
+      // creates another one (issues/43, issues/89). It is gated with `actions`
+      // and `edit` rather than beside them, being the same class of fact: a
+      // control a reader can never use, with its reason under it, is dead text
+      // (issues/37, issues/38).
+      slate: mayAct
+        ? slateAffordanceFor(
+            {
+              programCode: record.programCode,
+              status: record.status,
+              areaCount: areas.length,
+              areaHead: record.areaHead,
+            },
+            facts,
+          )
+        : null,
       lastChanged:
         mayAct && record.updatedBy && record.updatedAt
           ? { by: named(record.updatedBy), at: record.updatedAt.toISOString() }
@@ -400,6 +418,26 @@ export type CoursePage = {
   actions: readonly PermittedAction<CourseEventName>[] | null;
   /** Absent with `actions`, and for the same reason: a refusal with no control is dead text. */
   edit: EditAffordance | null;
+  /**
+   * **`Slate a class`, and this is the only door onto the slating form**
+   * (issues/43, issues/89).
+   *
+   * `create` is the one act in the Offering matrix with no event to hang it on,
+   * so it cannot be an entry in `actions` — a permitted-action set is indexed by
+   * machine event, and the class it would create has no state yet. It is
+   * computed by `slateAffordanceFor` in `db/read/course-rows.ts`, which is the
+   * same function the form itself is built from, so this control and the page it
+   * opens cannot disagree about whether the reader may use it.
+   *
+   * The Lineup gains **no** such control, and that is the act's shape rather than
+   * a preference: `create` is scoped to a **course's** program, and the Lineup is
+   * scoped to a term, so a control beside its heading would have to answer *may
+   * you slate anything at all* — a question no route in the matrix asks. Slating
+   * starts on a course's page, as proposing starts on the proposals list.
+   *
+   * **Absent with `actions`**, on the same Tier 2 boundary.
+   */
+  slate: SlateAffordance | null;
   /**
    * *Last changed*, and **`null` carries two facts the page tells apart by
    * looking at `history`**: for a reader with a history section it means *never

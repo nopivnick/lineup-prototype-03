@@ -4,11 +4,18 @@ import { eq } from "drizzle-orm";
 
 import { course, courseArea, offering, offeringMeeting } from "@/db/classes/schema";
 import { machine as offeringMachine } from "@/lib/machines/offering.machine";
-import { MATRICES, NOBODY } from "@/lib/permissions";
 
 import { initialSnapshot } from "./apply-transition";
-import { refuse, WriteRefused } from "./refusal";
-import { notYours, permitted, readActorFacts, type Subject } from "./rules";
+import { refuseAll, WriteRefused } from "./refusal";
+import {
+  missingAssignments,
+  notYours,
+  permitted,
+  readActorFacts,
+  retiredCourseCannotBeOffered,
+  routesFor,
+  type Subject,
+} from "./rules";
 import { moment, type Id, type Netid, type OpenTransaction } from "./transaction";
 
 /**
@@ -93,8 +100,12 @@ export async function createOffering(
   // completing issues/14 from the other end). `retire` requires no live
   // offerings; without this, a director could slate a fresh section straight back
   // into the state that guard exists to forbid.
+  //
+  // The sentence is `db/write/rules.ts`'s since issues/89, on the terms
+  // `stillTeaching` and `courseRetired` moved there: the slating form's course
+  // picker states it on a line nobody can choose, one step before this throws it.
   if (parent.status === "Retired") {
-    refuse("This course has been retired, so no new class can be scheduled from it.");
+    refuseAll([retiredCourseCannotBeOffered()]);
   }
 
   // **No area and no area head → no offering** (issues/32). The assignment is
@@ -105,20 +116,28 @@ export async function createOffering(
     .from(courseArea)
     .where(eq(courseArea.courseId, input.courseId));
 
-  const missing = [
-    areas.length === 0 ? "area" : null,
-    parent.areaHead === null ? "area head" : null,
-  ].filter((absent): absent is string => absent !== null);
+  // The sentence is `db/write/rules.ts`'s since issues/89, and *half missing* is
+  // why it takes two booleans rather than one: area and head are separate
+  // assignments, so the form's refused line and this refusal both have to be able
+  // to say which.
+  const missingArea = areas.length === 0;
+  const missingAreaHead = parent.areaHead === null;
 
-  if (missing.length > 0) {
-    refuse(`This course cannot be scheduled yet: it has no ${missing.join(" and no ")}.`);
+  if (missingArea || missingAreaHead) {
+    refuseAll([missingAssignments(missingArea, missingAreaHead)]);
   }
 
   // The program is checked against the value being written, which issues/30 made
   // unforgeable by deriving it here rather than accepting it.
+  //
+  // The routes come through `routesFor` since issues/89, where they used to be an
+  // inline `MATRICES.offering.find`: `db/read/course-rows.ts` asks the same
+  // question one step earlier, to grey the `Slate a class` control and to refuse
+  // an option on the form's picker, and *which routes reach this act* being one
+  // function is what `stillTeaching` and `routesFor` itself moved for.
   const facts = await readActorFacts(tx, actor);
   const subject: Subject = { offering: { programCode: parent.programCode, lead: null } };
-  const routes = MATRICES.offering.find((row) => (row.acts as readonly string[]).includes("create"))?.routes ?? NOBODY;
+  const routes = routesFor("offering", "create");
   if (!permitted(routes, facts, subject)) {
     throw new WriteRefused([notYours("schedule", "a class", routes, subject)]);
   }

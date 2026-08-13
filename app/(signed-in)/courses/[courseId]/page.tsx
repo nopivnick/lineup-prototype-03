@@ -203,6 +203,7 @@ export default async function CourseDetailPage({
               courseId={page.courseId}
               status={page.status}
               actions={page.actions}
+              slate={page.slate}
               edit={page.edit}
               lastChanged={page.lastChanged}
               showLastChanged={page.history !== null}

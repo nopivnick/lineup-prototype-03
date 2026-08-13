@@ -625,6 +625,41 @@ what it overturns; it never stands beside it.
   and `course_proposal_review` states it in the terms the schema is written in, which is the one
   audience the running application does not have.
 
+- **The picker has three groups where variant A drew two, and the form has one door rather than
+  two** — by [#89](https://github.com/nopivnick/lineup-prototype-03/issues/89), which built
+  `create-forms.html`'s slating half. Everything variant A settled ships unchanged: one full page
+  asking course, term, section, meeting rows and the operational fields; `program_code` stated as
+  derived and never asked; the section number pre-filled with the next free one and still editable;
+  the gate pre-empted in the picker with the refused courses kept visible; and submitting landing on
+  the new class page, complete.
+
+  **The third group is `Retired`.** The prototype's `coursePicker` files everything `refusalFor`
+  refuses under one *Cannot be offered* label, and `refusalFor` answers for two different rules —
+  #32's create-time gate and the retirement invariant #43 found unguarded. #89's own words name the
+  second group *Not yet — assignments missing*, and a retired course does not belong under it: *not
+  yet* is a promise, and retirement is the department deciding there will be no more classes.
+  Dropping it from the picker was rejected on #43's own structural argument — a course reached from
+  its own page has no list to be omitted from — so it gets a group and a sentence of its own. The
+  artifact is not redrawn: `refusalFor` is still the right answer at the prototype's resolution,
+  which had one label to spend.
+
+  **The gate's two sentences are the writer's**, which the prototype could not have shown: `gate`
+  and `retiredRefusal` invent wording beside rules that in the built system are `createOffering`'s.
+  `missingAssignments` and `retiredCourseCannotBeOffered` moved into `db/write/rules.ts` on the terms
+  `stillTeaching`, `courseRetired` and `noProgramsRequested` moved — two callers — so the line under
+  a refused option, the sentence under the greyed control on the course's own page, and what the
+  writer throws at a hand-written post are one object. The prototype's `fix` clause is **not**
+  carried: *Nora assigns it on the course* is a fact about a screen this skeleton does not have, and
+  a refusal naming a control that does not exist is worse than one that names none.
+
+  **The form is reached from a course's page and from nowhere else**, where the prototype's
+  scenarios reach it from the Lineup as well. That is the act's shape rather than a preference:
+  `create` is scoped to a **course's** program, so a control beside the Lineup's heading would have
+  to answer *may you slate anything at all* — a question no route in the matrix asks, and one whose
+  honest answer is the picker itself. So `?course=` is the only parameter the page reads, and the
+  term is asked rather than prefilled: the prototype's `slate-lineup` scenario prefilled it because
+  the form was launched *from* a term, and nothing launches it from one here.
+
 - **Titles and a header comment, fixed by this transcription** —
   [#59](https://github.com/nopivnick/lineup-prototype-03/issues/59). Four `<title>`s read *three
   variants* over files holding four, and no title named the settled variant; every title now

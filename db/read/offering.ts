@@ -1,8 +1,8 @@
 import "server-only";
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { course, offering, offeringTransition, term } from "@/db/classes/schema";
+import { course, courseArea, offering, offeringTransition, term } from "@/db/classes/schema";
 import { classesDb } from "@/db/handles";
 import { termLabel, type ActorFacts } from "@/db/write/rules";
 import type { Netid } from "@/db/write/transaction";
@@ -11,6 +11,8 @@ import type { OfferingState } from "@/lib/machines/offering.machine";
 import { leadOf } from "@/lib/roster";
 
 import { getActorFacts } from "./actor-facts";
+import { maySlateFrom, notYoursToSlate, slateAffordanceFor } from "./course-rows";
+import { qualified } from "./qualified";
 import {
   asMeeting,
   netidsOn,
@@ -29,6 +31,7 @@ import {
   type LastChanged,
   type Meeting,
   type PermittedAction,
+  type Refusal,
   type Visible,
 } from "./shape";
 import { stitchPeople, type StitchedName, type StitchedPerson } from "./stitch";
@@ -409,3 +412,196 @@ export type OfferingPage = {
  * the same row without them, because a list is not one of the two.
  */
 export type OfferingRosterEntry = { position: number } & StitchedPerson;
+
+// ---------------------------------------------------------------------------
+// Slate a class — the create route, which adds no read module of its own
+// ---------------------------------------------------------------------------
+
+/**
+ * **What the slating form asks with, and the refusal where there is no form**
+ * (issues/43, issues/89).
+ *
+ * **The create route adds no read module**, which is issues/88's arrangement one
+ * route along and issues/62's two along. It lives in the module for the record it
+ * creates, and the property that matters is not which file it sits in: it is that
+ * this function and the `Slate a class` control on the Course page's rail both go
+ * through **`slateAffordanceFor` in `db/read/course-rows.ts`**, so a live control
+ * over a refused destination is not a shape either of them can produce.
+ * `READ_MODULES` still names seven.
+ *
+ * **The picker is the ticket.** Every course this actor may slate from is on it,
+ * *including* the ones nothing can be scheduled from yet, unselectable and
+ * carrying the writer's own reason on the line. Hiding them was rejected
+ * structurally rather than by preference: a course reached from its own page has
+ * no list to be omitted from, so the refusal has to exist on the page regardless
+ * — and a form that can state it in one place and not the other has two answers
+ * to one question. Area and head are **separate assignments** (issues/32), so a
+ * course missing only one of them says which, which is what `missingAssignments`
+ * takes two booleans for.
+ *
+ * **`program_code` is not asked for anywhere in what this returns.** It rides on
+ * the chosen course as a fact to be stated, because the writer derives it inside
+ * the transaction and a parameter whose entire domain is one value is a picker
+ * that must track the course (issues/30).
+ *
+ * **Three `classes` statements and none at all against `people`** — a form asks
+ * nobody's name. The courses, the terms, and what section numbers are already
+ * taken. A reader who may slate nothing pays for the first alone, which is as
+ * close to issues/88's *a refused reader costs nothing beyond the facts that
+ * refused them* as this act can get: the facts that refuse them **are** the course
+ * list, the act being scoped per program rather than flat.
+ */
+export type SlateForm =
+  | {
+      maySlate: true;
+      courses: readonly SlateCourseChoice[];
+      terms: readonly TermChoice[];
+      taken: readonly TakenSection[];
+      /**
+       * The `?course=` the reader arrived with, if it names a course on the
+       * picker — and `null` otherwise, silently, which is issues/88's reading of
+       * `?new=`: a query parameter naming something the reader cannot reach
+       * selects nothing and says nothing. A course they may not slate from never
+       * rendered the control they would have arrived by.
+       */
+      chosenCourseId: string | null;
+    }
+  | { maySlate: false; refusal: Refusal };
+
+/**
+ * One course, as an option on the picker.
+ *
+ * `refusal` and `group` are two renderings of one answer and not two answers:
+ * `group` is what the option is filed under and `refusal` is the sentence on the
+ * line, both read off `slateAffordanceFor`.
+ */
+export type SlateCourseChoice = {
+  courseId: string;
+  courseNumber: string;
+  title: string;
+  /** Stated on the form as **derived**, never asked for (issues/30). */
+  programCode: string;
+  /** `null` exactly when a class can be slated from this course now. */
+  refusal: Refusal | null;
+  group: SlateGroup;
+};
+
+/**
+ * **Three groups, where issues/43 named two.** *Can be offered* and *Not yet —
+ * assignments missing* are the two the gate produces, and they are the ones the
+ * ticket is about. A `Retired` course is neither: *not yet* is a promise, and
+ * retirement is the department deciding there will be no more classes. Filing it
+ * under either of the other two would be a sentence the picker cannot support, and
+ * dropping it from the picker would leave the one refusal a reader is most likely
+ * to arrive at from a course's own page with no pre-emption at all.
+ */
+export type SlateGroup = "offerable" | "assignments-missing" | "retired";
+
+/** A term, as an option. *Fall 2025*, built where every other term label is built. */
+export type TermChoice = { code: string; label: string };
+
+/**
+ * One `(course, term, section)` that already exists — **the form loads what is
+ * taken and defaults past it without deciding** (issues/43).
+ *
+ * The rule itself is the database's: `UNIQUE (course_id, term_code,
+ * section_number)`. This is not a second copy of it, it is the evidence, which is
+ * why the field stays editable — two sections of one course in one term are real
+ * and the number is what tells them apart, so a form that refused to let anybody
+ * type would be enforcing a convention the schema does not have.
+ *
+ * **It is not narrowed by the read tier**, and that is deliberate rather than an
+ * oversight: uniqueness does not care who can see a row, so a number defaulted
+ * past only the *visible* sections would collide at the writer. It leaks nothing
+ * — every reader who gets this far holds an acting role, so `visibleOfferingStates`
+ * would hand them every state anyway, and the courses are already narrowed to the
+ * ones this actor directs.
+ */
+export type TakenSection = { courseId: string; termCode: string; sectionNumber: string };
+
+export async function getSlateForm(actor: Actor, chosenCourseId?: string): Promise<SlateForm> {
+  const facts = await getActorFacts(actor.netid);
+
+  const courseRows = await classesDb()
+    .select({
+      courseId: course.courseId,
+      courseNumber: course.courseNumber,
+      title: course.title,
+      programCode: course.programCode,
+      status: course.status,
+      areaHead: course.areaHead,
+      // The gate's first half as a count, correlated against the course this row
+      // is. `qualified` is not decoration: this select names one table, so
+      // Drizzle would otherwise render both sides of the `WHERE` bare and the
+      // subquery would compare a column with itself (issues/83).
+      areaCount: sql<number>`(
+        SELECT count(*)::int FROM ${courseArea}
+        WHERE ${qualified(courseArea.courseId)} = ${qualified(course.courseId)}
+      )`,
+    })
+    .from(course)
+    // Course-number order, which is the order the Catalog reads in — a picker
+    // sorted any other way would be a second answer to *where is this course* on
+    // the one screen a reader arrives at holding a course number in their head.
+    .orderBy(asc(course.courseNumber));
+
+  // **The permission term filters the list and the invariants do not**, which is
+  // the picker's whole shape: what is left is every course this actor may
+  // schedule a class from, refused ones included.
+  const mine = courseRows.filter((row) => maySlateFrom(facts, row.programCode));
+  if (mine.length === 0) {
+    return { maySlate: false, refusal: notYoursToSlate() };
+  }
+
+  const courses = mine.map((row): SlateCourseChoice => {
+    const affordance = slateAffordanceFor(row, facts);
+    return {
+      courseId: String(row.courseId),
+      courseNumber: row.courseNumber,
+      title: row.title,
+      programCode: row.programCode,
+      refusal: affordance.permitted ? null : affordance.refusal,
+      group: affordance.permitted
+        ? "offerable"
+        : row.status === "Retired"
+          ? "retired"
+          : "assignments-missing",
+    };
+  });
+
+  const termRows = await classesDb()
+    .select({ code: term.code, year: term.year, semester: term.semester })
+    .from(term)
+    // **Newest first**, as the Lineup's term picker and the Course page's section
+    // groups are: `term_code` sorts chronologically as text (issues/3), and a
+    // class is slated into a term that has not happened yet.
+    .orderBy(desc(term.code));
+
+  const takenRows = await classesDb()
+    .select({
+      courseId: offering.courseId,
+      termCode: offering.termCode,
+      sectionNumber: offering.sectionNumber,
+    })
+    .from(offering)
+    .where(
+      inArray(
+        offering.courseId,
+        mine.map((row) => row.courseId),
+      ),
+    )
+    .orderBy(asc(offering.courseId), asc(offering.termCode), asc(offering.sectionNumber));
+
+  return {
+    maySlate: true,
+    courses,
+    terms: termRows.map((row) => ({ code: row.code, label: termLabel(row) })),
+    taken: takenRows.map((row) => ({
+      courseId: String(row.courseId),
+      termCode: row.termCode,
+      sectionNumber: row.sectionNumber,
+    })),
+    chosenCourseId:
+      courses.find((choice) => choice.courseId === chosenCourseId)?.courseId ?? null,
+  };
+}

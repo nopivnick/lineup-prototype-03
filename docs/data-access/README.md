@@ -656,6 +656,43 @@ Recorded so the artifact is never the only place a change is visible. An amendme
   paraphrase on the page would be the one place in this screen where a rule and its explanation
   could drift.
 
+- **The second create route adds no read module either, and `getSlateForm` lives beside the record
+  it creates** — by [#89](https://github.com/nopivnick/lineup-prototype-03/issues/89), which built
+  `/slate`. It is #88's entry one route along, and the property that carries it over is not which
+  file the function sits in: it is that `getSlateForm` and the `Slate a class` control on the Course
+  page's rail both go through **`slateAffordanceFor` in `db/read/course-rows.ts`**, so a live control
+  over a refused destination is not a shape either can produce. The two shapes are the same two #88
+  named — a `SlateAffordance` where a control is being drawn, and the picker's per-course refusal
+  where a page has to say why an option cannot be chosen. `READ_MODULES` still names seven.
+
+  The affordance is a fact about a **course** and lives with the other two, which is why it is in
+  `course-rows.ts` rather than in `offering-rows.ts`: `create` is the one act in the Offering matrix
+  with no event to hang it on, so it cannot be an entry in a permitted-action set — that set is
+  indexed by machine event, and the class it would create has no state to draw edges out of.
+
+  It is **three `classes` statements and none at all against `people`**: the courses with the gate's
+  two halves beside them, the terms, and the section numbers already taken. A reader who may slate
+  nothing pays for the **first**, which is as close to #88's *a refused reader costs nothing beyond
+  the facts that refused them* as this act can get — the act is scoped per program rather than flat,
+  so the facts that refuse them **are** the course list.
+
+  **The taken section numbers are read for every course on the picker, not for the chosen one.** The
+  alternative is a round trip per change of course or term, on a form whose other fields would be
+  remounted by the navigation that carried it. The threshold at which that stops being right is the
+  same one the Lineup's post-stitch search box has: it is one statement over the offerings of the
+  courses one director's programs hold, and it stops being cheap when a program's catalog and its
+  history of sections outgrow a page of JSON — at which point the query narrows to the chosen course
+  and the form asks again on each change. Recorded rather than left to be discovered.
+
+  It ships **three** of the writer's sentences. `missingAssignments` and
+  `retiredCourseCannotBeOffered` moved into `db/write/rules.ts` on the terms `stillTeaching`,
+  `courseRetired` and `noProgramsRequested` moved — two callers — and `notYours("schedule", "a
+  class", …)` was already shared. What is **not** a refusal is the section number's uniqueness:
+  `createOffering` states no rule about it, two sections of one course in one term being real (#30),
+  and what refuses a collision is `UNIQUE (course_id, term_code, section_number)`. The form states it
+  one step early from the numbers it loaded, in exactly the standing `bodyProblem` gives
+  `course_proposal`'s `credits > 0` CHECK.
+
 - **`describe` says *an* instructor** — by #88, and it is the third time a rail or a page found the
   writer's wording saying something slightly other than the rule (after #84's `whoMay` and #86's
   `Developing` qualifier). The flat arm's article was fixed at *a*, and three of the seven roles
